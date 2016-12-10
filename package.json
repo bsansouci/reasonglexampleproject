@@ -12,7 +12,8 @@
     "whereisocamlmerlin": "eval $(dependencyEnv) && which ocamlmerlin-reason",
     "mlre": "pbpaste | ./node_modules/reason/refmt_impl.native -parse ml -print re -use-stdin true -is-interface-pp false",
     "reml": "pbpaste | ./node_modules/reason/refmt_impl.native -parse re -print ml -use-stdin true -is-interface-pp false",
-    "bla": "eval $(dependencyEnv) && nopam && ocamlfind ocamlopt -pp refmt -bin-annot -g -w -30 -w -40 -open Native_Tar -I _build/native/src -package tgls.tgl3,tsdl  -I _build/native/reglnative -o _build/native/src/Native_Tar__Native -c -impl src/native.re"
+    "bla": "eval $(dependencyEnv) && nopam && ocamlfind ocamlopt -pp refmt -bin-annot -g -w -30 -w -40 -open Native_Tar -I _build/native/src -package tgls.tgl3,tsdl  -I _build/native/reglinterface -o stuffstuff -c -for-pack Stuffotherstuff -impl src/index.re",
+    "bla2": "eval $(dependencyEnv) && nopam && ocamlopt -pack -o stuffotherstuff.cmx stuffstuff.cmx _build/native/reglinterface/Reglinterface.cmx _build/native/reglinterface/Reglinterface__Gl.cmx"
   },
   "dependencies": {
     "@opam-alpha/merlin": "^ 2.5.0",
@@ -29,13 +30,16 @@
       {
         "target": "web",
         "engine": "bucklescript",
-        "entry": "src/web.re"
+        "entry": "src/web.re",
+        "unstable_flags": {
+          "compile": "-I _build/native/reglinterface"
+        }
       }, {
         "target": "native",
         "engine": "native",
         "entry": "src/native.re",
         "unstable_flags": {
-          "compile": "-package tgls.tgl3,tsdl",
+          "compile": "-package tgls.tgl3,tsdl -I _build/native/reglinterface",
           "link": "-linkpkg -package tgls.tgl3,tsdl"
         }
       }

@@ -3,7 +3,6 @@
  * vim: set ft=reason:
  */
 open Reglinterface;
-
 module Make (Gl: Gl.t) => {
   /* Setting up the Gl utils functions */
   type glCamera = {projectionMatrix: Gl.Mat4.t, modelViewMatrix: Gl.Mat4.t};
