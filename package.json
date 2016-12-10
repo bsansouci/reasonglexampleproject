@@ -4,7 +4,7 @@
   "description": "Simple example project for regl",
   "scripts": {
     "start": "_build/src/app.out",
-    "build": "eval $(dependencyEnv) && nopam && rebel -show-actions-run-verbose -verbose -show-error-dependency-paths -brief-error-summary -show-buildable-discovery",
+    "build": "eval $(dependencyEnv) && nopam && rebel && webpack _build/web/src/web.js _build/web/src/app.js",
     "top": "eval $(dependencyEnv) && rtop",
     "env": "eval $(dependencyEnv) && env",
     "ocamldep": "eval $(dependencyEnv) && ocamldep",
@@ -34,7 +34,8 @@
         "unstable_flags": {
           "compile": "-I _build/native/reglinterface"
         }
-      }, {
+      },
+      {
         "target": "native",
         "engine": "native",
         "entry": "src/native.re",
@@ -49,5 +50,8 @@
     "type": "git",
     "url": "git+https://github.com/bsansouci/ocaml-re.git"
   },
-  "author": "bsansouci & schmavery"
+  "author": "bsansouci & schmavery",
+  "devDependencies": {
+    "webpack": "^1.14.0"
+  }
 }
