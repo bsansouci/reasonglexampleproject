@@ -32,7 +32,7 @@
         "engine": "bucklescript",
         "entry": "src/web.re",
         "unstable_flags": {
-          "compile": "-I _build/native/reglinterface"
+          "compile": "-I _build/web/reglinterface"
         }
       },
       {
