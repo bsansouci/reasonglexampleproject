@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "Simple example project for regl",
   "scripts": {
-    "start": "_build/src/app.out",
+    "start": "_build/native/src/app.out",
     "build": "eval $(dependencyEnv) && nopam && rebel -show-actions-run-verbose -verbose -show-error-dependency-paths -brief-error-summary -show-buildable-discovery && webpack _build/web/src/index.js _build/web/src/app.js",
     "top": "eval $(dependencyEnv) && rtop",
     "env": "eval $(dependencyEnv) && env",
