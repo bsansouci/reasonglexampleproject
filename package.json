@@ -11,10 +11,7 @@
     "editor": "eval $(dependencyEnv) && $EDITOR .",
     "whereisocamlmerlin": "eval $(dependencyEnv) && which ocamlmerlin-reason",
     "mlre": "pbpaste | ./node_modules/reason/refmt_impl.native -parse ml -print re -use-stdin true -is-interface-pp false",
-    "reml": "pbpaste | ./node_modules/reason/refmt_impl.native -parse re -print ml -use-stdin true -is-interface-pp false",
-    "bla": "eval $(dependencyEnv) && nopam && ocamlfind ocamlopt -pp refmt -bin-annot -g -w -30 -w -40 -open Native_Tar -I _build/native/src -package tgls.tgl3,tsdl  -I _build/native/reglinterface -o stuffstuff -c -for-pack Stuffotherstuff -impl src/index.re",
-    "bla2": "eval $(dependencyEnv) && nopam && GL_BACKEND=web ocamlfind ocamldep -pp refmt -ppx ../matchenv/_build/native/src/app.native -ml-synonym .re -mli-synonym .rei -modules -one-line -impl src/gl.re",
-    "bla3": "eval $(dependencyEnv) && nopam && GL_BACKEND=native ocamlfind ocamlopt -pp refmt -bin-annot -g -w -30 -w -40 -open Native_Tar -I _build/native/src -ppx ../matchenv/_build/native/src/app.native -package tgls.tgl3,tsdl -I _build/native/reglinterface -I _build/native/reglnative   -o _build/native/src/Native_Tar__Gl -c -impl src/gl.re"
+    "reml": "pbpaste | ./node_modules/reason/refmt_impl.native -parse re -print ml -use-stdin true -is-interface-pp false"
   },
   "dependencies": {
     "@opam-alpha/merlin": "^ 2.5.0",
