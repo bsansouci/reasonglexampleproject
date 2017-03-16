@@ -2,8 +2,8 @@
  * vim: set ft=rust:
  * vim: set ft=reason:
  */
-module Constants = Reglinterface.Constants;
-
+module Constants = ReasonglInterface.Constants;
+open Glloader;
 
 /**
  * This program is an example of how to draw a square.
@@ -191,7 +191,7 @@ let render time => {
   Gl.bufferData
     ::context
     target::Constants.array_buffer
-    data::(Gl.Float32 square_vertices)
+    data::(Gl.Bigarray.of_array Gl.Bigarray.Float32 square_vertices)
     usage::Constants.static_draw;
   Gl.vertexAttribPointer
     ::context
@@ -212,7 +212,7 @@ let render time => {
   Gl.bufferData
     ::context
     target::Constants.array_buffer
-    data::(Gl.Float32 square_colors)
+    data::(Gl.Bigarray.of_array Gl.Bigarray.Float32 square_colors)
     usage::Constants.static_draw;
   Gl.vertexAttribPointer
     ::context
