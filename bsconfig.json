@@ -1,0 +1,9 @@
+{
+  "name": "ReasonglExampleProject",
+  "sources": "src",
+  "bs-dependencies": ["ReasonglInterface", "ReasonglWeb", "ReasonglNative"],
+  "entries":[{
+    "kind": "js",
+    "main": "Index"
+  }]
+}
