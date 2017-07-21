@@ -1,23 +1,22 @@
 {
-  "name": "reglexampleproject",
+  "name": "ReasonglExampleProject",
   "version": "0.1.0",
   "description": "Simple example project for Reasongl",
   "scripts": {
-    "start": "",
-    "build": "bsb -make-world && webpack -d lib/js/src/index.js lib/js/src/app.js"
+    "start": "./lib/bs/index.byte",
+    "build": "bsb -make-world"
   },
   "dependencies": {
-    "ReasonglInterface": "bsansouci/reasongl-interface#bsb-support",
-    "ReasonglNative": "bsansouci/reasongl-native#bsb-support",
-    "ReasonglWeb": "bsansouci/reasongl-web#bsb-support"
+    "ReasonglInterface": "bsansouci/reasongl-interface#bsb-support-new",
+    "ReasonglNative": "bsansouci/reasongl-native#bsb-support-new",
+    "ReasonglWeb": "bsansouci/reasongl-web#bsb-support-new"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/bsansouci/ocaml-re.git"
+    "url": "git+https://github.com/bsansouci/ReasonglExampleProject.git"
   },
   "author": "bsansouci & schmavery",
   "devDependencies": {
-    "webpack": "^1.14.0",
-    "bs-platform": "bsansouci/bucklescript#simple-native-compilation"
+    "bsb-native": "bsansouci/bsb-native"
   }
 }

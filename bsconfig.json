@@ -3,7 +3,7 @@
   "sources": "src",
   "bs-dependencies": ["ReasonglInterface", "ReasonglWeb", "ReasonglNative"],
   "entries":[{
-    "kind": "js",
+    "kind": "bytecode",
     "main": "Index"
   }]
 }

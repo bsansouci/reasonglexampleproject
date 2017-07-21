@@ -3,7 +3,9 @@
  * vim: set ft=reason:
  */
 module Constants = ReasonglInterface.Constants;
-open Glloader;
+
+module Gl: ReasonglInterface.Gl.t = Reasongl.Gl;
+
 
 /**
  * This program is an example of how to draw a square.
@@ -11,7 +13,11 @@ open Glloader;
  */
 type glCamera = {projectionMatrix: Gl.Mat4.t};
 
-type glEnv = {camera: glCamera, window: Gl.Window.t, context: Gl.contextT};
+type glEnv = {
+  camera: glCamera,
+  window: Gl.Window.t,
+  context: Gl.contextT
+};
 
 
 /**
@@ -27,35 +33,39 @@ let getProgram
   Gl.shaderSource context vertexShader vertexShaderSource;
   Gl.compileShader context vertexShader;
   let compiledCorrectly =
-    Gl.getShaderParameter ::context shader::vertexShader paramName::Gl.Compile_status == 1;
+    Gl.getShaderParameter
+      ::context shader::vertexShader paramName::Gl.Compile_status == 1;
   if compiledCorrectly {
     let fragmentShader = Gl.createShader context Constants.fragment_shader;
     Gl.shaderSource context fragmentShader fragmentShaderSource;
     Gl.compileShader context fragmentShader;
     let compiledCorrectly =
-      Gl.getShaderParameter ::context shader::fragmentShader paramName::Gl.Compile_status == 1;
+      Gl.getShaderParameter
+        ::context shader::fragmentShader paramName::Gl.Compile_status == 1;
     if compiledCorrectly {
       let program = Gl.createProgram context;
       Gl.attachShader ::context ::program shader::vertexShader;
-      Gl.deleteShader ::context shader::vertexShader;
+      Gl.deleteShader ::context vertexShader;
       Gl.attachShader ::context ::program shader::fragmentShader;
-      Gl.deleteShader ::context shader::fragmentShader;
-      Gl.linkProgram context program;
+      Gl.deleteShader ::context fragmentShader;
+      Gl.linkProgram ::context program;
       let linkedCorrectly =
         Gl.getProgramParameter ::context ::program paramName::Gl.Link_status == 1;
       if linkedCorrectly {
         Some program
       } else {
-        print_endline @@ "Linking error: " ^ Gl.getProgramInfoLog ::context ::program;
+        print_endline @@
+        "Linking error: " ^ Gl.getProgramInfoLog ::context program;
         None
       }
     } else {
       print_endline @@
-      "Fragment shader error: " ^ Gl.getShaderInfoLog ::context shader::fragmentShader;
+      "Fragment shader error: " ^ Gl.getShaderInfoLog ::context fragmentShader;
       None
     }
   } else {
-    print_endline @@ "Vertex shader error: " ^ Gl.getShaderInfoLog ::context shader::vertexShader;
+    print_endline @@
+    "Vertex shader error: " ^ Gl.getShaderInfoLog ::context vertexShader;
     None
   }
 };
@@ -103,7 +113,8 @@ let context = Gl.Window.getContext window;
 Gl.viewport ::context x::0 y::0 width::windowSize height::windowSize;
 
 /* Gl.clearColor context 1.0 1.0 1.0 1.0; */
-Gl.clear ::context mask::(Constants.color_buffer_bit lor Constants.depth_buffer_bit);
+Gl.clear
+  ::context mask::(Constants.color_buffer_bit lor Constants.depth_buffer_bit);
 
 
 /** Camera is a simple record containing one matrix used to project a point in 3D onto the screen. **/
@@ -122,9 +133,13 @@ let colorBuffer = Gl.createBuffer context;
 /** Compiles the shaders and gets the program with the shaders loaded into **/
 let program =
   switch (
-    getProgram ::context vertexShader::vertexShaderSource fragmentShader::fragmentShaderSource
+    getProgram
+      ::context
+      vertexShader::vertexShaderSource
+      fragmentShader::fragmentShaderSource
   ) {
-  | None => failwith "Could not create the program and/or the shaders. Aborting."
+  | None =>
+    failwith "Could not create the program and/or the shaders. Aborting."
   | Some program => program
   };
 
@@ -132,17 +147,20 @@ Gl.useProgram context program;
 
 
 /** Get the attribs ahead of time to be used inside the render function **/
-let aVertexPosition = Gl.getAttribLocation ::context ::program name::"aVertexPosition";
+let aVertexPosition =
+  Gl.getAttribLocation ::context ::program name::"aVertexPosition";
 
 Gl.enableVertexAttribArray ::context attribute::aVertexPosition;
 
-let aVertexColor = Gl.getAttribLocation ::context ::program name::"aVertexColor";
+let aVertexColor =
+  Gl.getAttribLocation ::context ::program name::"aVertexColor";
 
 Gl.enableVertexAttribArray ::context attribute::aVertexColor;
 
 let pMatrixUniform = Gl.getUniformLocation context program "uPMatrix";
 
-Gl.uniformMatrix4fv ::context location::pMatrixUniform value::camera.projectionMatrix;
+Gl.uniformMatrix4fv
+  ::context location::pMatrixUniform value::camera.projectionMatrix;
 
 
 /**
@@ -222,7 +240,8 @@ let render time => {
     normalize::false
     stride::0
     offset::0;
-  Gl.uniformMatrix4fv ::context location::pMatrixUniform value::camera.projectionMatrix;
+  Gl.uniformMatrix4fv
+    ::context location::pMatrixUniform value::camera.projectionMatrix;
 
   /** Final call which actually does the "draw" **/
   Gl.drawArrays ::context mode::Constants.triangle_strip first::0 count::4
