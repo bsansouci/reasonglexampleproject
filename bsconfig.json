@@ -8,5 +8,8 @@
   },{
     "kind": "native",
     "main": "Index"
+  },{
+    "kind": "js",
+    "main": "Index"
   }]
 }
