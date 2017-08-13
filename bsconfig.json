@@ -5,5 +5,8 @@
   "entries":[{
     "kind": "bytecode",
     "main": "Index"
+  },{
+    "kind": "native",
+    "main": "Index"
   }]
 }
