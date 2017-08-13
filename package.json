@@ -3,20 +3,14 @@
   "version": "0.1.0",
   "description": "Simple example project for Reasongl",
   "scripts": {
-    "build": "run-s 'build:*'",
-    "build:byte": "./node_modules/.bin/bsb -make-world -backend bytecode",
-    "build:native": "./node_modules/.bin/bsb -make-world -backend native",
-    "build:js": "./node_modules/.bin/bsb -make-world -backend js",
-    "clean": "./node_modules/.bin/bsb -clean-world",
-    "dev": "run-p -r 'dev:*'",
-    "dev:byte": "run-s build:byte start:byte",
-    "dev:native": "run-s build:native start:native",
-    "dev:js": "run-p -r 'build:js -- -w' start:js",
-    "start": "run-p -r 'start:*'",
+    "build:byte": "bsb -make-world -backend bytecode",
+    "build:native": "bsb -make-world -backend native",
+    "build:js": "bsb -make-world -backend js",
+    "clean": "bsb -clean-world",
     "start:byte": "./lib/bs/bytecode/index.byte",
     "start:native": "./lib/bs/native/index.native",
-    "start:js": "webpack-dev-server ./lib/js/src/index.js",
-    "watch": "run-p -r 'build:* -- -w'"
+    "start:js": "open -a safari index.html",
+    "watch:js": "bsb -make-world -backend js -w"
   },
   "dependencies": {
     "ReasonglInterface": "bsansouci/reasongl-interface#bsb-support-new",
@@ -29,9 +23,6 @@
   },
   "author": "bsansouci & schmavery",
   "devDependencies": {
-    "bsb-native": "bsansouci/bsb-native",
-    "npm-run-all": "^4.0.2",
-    "webpack": "^3.5.4",
-    "webpack-dev-server": "^2.7.1"
+    "bsb-native": "bsansouci/bsb-native"
   }
 }
