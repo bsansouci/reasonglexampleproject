@@ -3,8 +3,14 @@
   "version": "0.1.0",
   "description": "Simple example project for Reasongl",
   "scripts": {
-    "start": "./lib/bs/index.byte",
-    "build": "bsb -make-world"
+    "build:byte": "bsb -make-world -backend bytecode",
+    "build:native": "bsb -make-world -backend native",
+    "build:js": "bsb -make-world -backend js",
+    "clean": "bsb -clean-world",
+    "start:byte": "./lib/bs/bytecode/index.byte",
+    "start:native": "./lib/bs/native/index.native",
+    "start:js": "open -a safari index.html",
+    "watch:js": "bsb -make-world -backend js -w"
   },
   "dependencies": {
     "ReasonglInterface": "bsansouci/reasongl-interface#bsb-support-new",
