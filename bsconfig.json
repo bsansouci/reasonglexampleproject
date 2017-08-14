@@ -3,13 +3,13 @@
   "sources": "src",
   "bs-dependencies": ["ReasonglInterface", "ReasonglWeb", "ReasonglNative"],
   "entries":[{
+    "kind": "js",
+    "main": "Index"
+  }, {
     "kind": "bytecode",
     "main": "Index"
   },{
     "kind": "native",
-    "main": "Index"
-  },{
-    "kind": "js",
     "main": "Index"
   }]
 }
