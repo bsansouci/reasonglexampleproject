@@ -177,32 +177,19 @@ Gl.Mat4.ortho
   near::0.
   far::100.;
 
-
-/**
- * Render simply draws a rectangle.
- */
-let render time => {
-  /* 0,0 is the bottom left corner */
-  let x = 150;
-  let y = 150;
-  let width = 300;
-  let height = 300;
-
-  /**
-   * Setup vertices to be sent to the GPU and bind the data on the "register" called `array_buffer`.
-   */
+let drawRect x y width height (r, g, b, a) => {
   let square_vertices = [|
-    float_of_int @@ x + width,
-    float_of_int @@ y + height,
+    x +. width,
+    y +. height,
     0.0,
-    float_of_int x,
-    float_of_int @@ y + height,
+    x,
+    y +. height,
     0.0,
-    float_of_int @@ x + width,
-    float_of_int y,
+    x +. width,
+    y,
     0.0,
-    float_of_int x,
-    float_of_int y,
+    x,
+    y,
     0.0
   |];
   Gl.bindBuffer ::context target::Constants.array_buffer buffer::vertexBuffer;
@@ -221,10 +208,10 @@ let render time => {
     offset::0;
 
   /** Setup colors to be sent to the GPU **/
-  let r = 1.;
-  let g = 0.;
-  let b = 0.;
-  let a = 1.;
+  /*let r = 1.;
+    let g = 0.;
+    let b = 0.;
+    let a = 1.;*/
   let square_colors = [|r, g, b, a, r, g, b, a, r, g, b, a, r, g, b, a|];
   Gl.bindBuffer ::context target::Constants.array_buffer buffer::colorBuffer;
   Gl.bufferData
@@ -245,6 +232,118 @@ let render time => {
 
   /** Final call which actually does the "draw" **/
   Gl.drawArrays ::context mode::Constants.triangle_strip first::0 count::4
+};
+
+module Node = {
+  type context = unit;
+  let nullContext = ();
+};
+
+module Encoding = FloatEncoding;
+
+module Layout = Layout.Create Node Encoding;
+
+module LayoutPrint = LayoutPrint.Create Node Encoding;
+
+module LayoutSupport = Layout.LayoutSupport;
+
+let root_child0_child0_style =
+  LayoutSupport.LayoutTypes.{
+    ...LayoutSupport.defaultStyle,
+    flexGrow: 1.,
+    /*height: 2000,*/
+    top: 0.,
+    left: 0.
+  };
+
+let root_child0_child0 =
+  LayoutSupport.createNode
+    withChildren::[||] andStyle::root_child0_child0_style ();
+
+let root_child0_child1_style =
+  LayoutSupport.LayoutTypes.{
+    ...LayoutSupport.defaultStyle,
+    flexGrow: 2.,
+    /*height: 2000,*/
+    top: 0.,
+    left: 0.
+  };
+
+let root_child0_child1 =
+  LayoutSupport.createNode
+    withChildren::[||] andStyle::root_child0_child1_style ();
+
+let root_style =
+  LayoutSupport.LayoutTypes.{
+    ...LayoutSupport.defaultStyle,
+    flexDirection: Row,
+    width: 200.,
+    height: 100.,
+    top: 100.,
+    left: 100.
+  };
+
+/*let root =
+  ref (LayoutSupport.createNode
+    withChildren::[|root_child0_child0, root_child0_child1|]
+    andStyle::root_style
+    ());*/
+/*LayoutPrint.printCssNode (
+    root,
+    {printLayout: true, printChildren: true, printStyle: true}
+  );*/
+let red = (1., 0., 0., 1.);
+
+let green = (0., 1., 0., 1.);
+
+let blue = (0., 0., 1., 1.);
+
+let randomColor () => (Random.float 1., Random.float 1., Random.float 1., 1.);
+
+let rec traverseAndDraw root left top => {
+  open LayoutSupport.LayoutTypes;
+  drawRect
+    (left +. root.layout.left)
+    (top +. root.layout.top)
+    root.layout.width
+    root.layout.height
+    (randomColor ());
+  Array.iter
+    (fun child => traverseAndDraw child root.layout.left root.layout.top)
+    root.children
+};
+
+let tick = ref 0.;
+
+
+/**
+ * Render simply draws a rectangle.
+ */
+let render time => {
+  Random.init 0;
+  Gl.clear ::context mask::Constants.color_buffer_bit;
+  let root_style =
+    LayoutSupport.LayoutTypes.{
+      ...LayoutSupport.defaultStyle,
+      flexDirection: Row,
+      width: 200.,
+      height: 100.,
+      top: 100.,
+      left: 100. +. !tick
+    };
+  let root =
+    LayoutSupport.createNode
+      withChildren::[|root_child0_child0, root_child0_child1|]
+      andStyle::root_style
+      ();
+  /* 0,0 is the bottom left corner */
+  Layout.layoutNode
+    root
+    Encoding.cssUndefined
+    Encoding.cssUndefined
+    LayoutSupport.LayoutTypes.Ltr;
+  traverseAndDraw root 0. 0.;
+  tick := !tick +. 1.
 };
 
 
