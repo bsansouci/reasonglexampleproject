@@ -100,7 +100,9 @@ let fragmentShaderSource = {|
   uniform sampler2D uSampler;
 
   void main(void) {
-    gl_FragColor = texture2D(uSampler, vTextureCoord) + vColor;
+    vec4 tex = texture2D(uSampler, vTextureCoord);
+    gl_FragColor = tex * vColor;
+    //gl_FragColor = texture2D(uSampler, vTextureCoord) + vColor;
   }
 |};
 
@@ -230,8 +232,8 @@ Gl.Mat4.ortho
   out::camera.projectionMatrix
   left::0.
   right::(float_of_int (Gl.Window.getWidth window))
-  bottom::0.
-  top::(float_of_int (Gl.Window.getHeight window))
+  bottom::(float_of_int (Gl.Window.getHeight window))
+  top::0.
   near::0.
   far::100.;
 
@@ -251,7 +253,7 @@ let loadImage filename :imageT => {
     callback::(
       fun imageData =>
         switch imageData {
-        | None => failwith ("Could not load image '" ^ filename ^ "'.") /* TODO: handle this better? */
+        | None => print_endline ("Could not load image '" ^ filename ^ "'.") /* TODO: handle this better? */
         | Some img =>
           let textureBuffer = Gl.createTexture ::context;
           let height = Gl.getImageHeight img;
@@ -287,8 +289,180 @@ let loadImage filename :imageT => {
   imageRef
 };
 
-let myRealTexture = loadImage "img_test.png";
+let csize = ref 100.0;
 
+let loadFont font => {
+  prerr_endline (Printf.sprintf "Processing %s" font);
+  /*let format = Images.guess_format out;*/
+  prerr_endline "opening font...";
+  let face = (new OFreetype.face) font 0;
+  face#set_char_size !csize !csize 24 24;
+  /*List.iter
+    (
+      fun cmap =>
+        prerr_endline (
+          Printf.sprintf
+            "charmap: { platform_id = %d; encoding_id = %d}"
+            cmap.platform_id
+            cmap.encoding_id
+        )
+    )
+    face#charmaps;*/
+  try (face#set_charmap {platform_id: 3, encoding_id: 1}) {
+  | _ =>
+    try (face#set_charmap {platform_id: 3, encoding_id: 0}) {
+    | _ => face#set_charmap (List.hd face#charmaps)
+    }
+  };
+  face
+};
+
+let fg = ref Images.{color: {r: 255, g: 255, b: 255}, alpha: 255};
+
+let bg = ref Images.{color: {r: 0, g: 0, b: 0}, alpha: 0};
+
+/*let fg = ref Images.{r: 0, g: 0, b: 0};
+
+  let bg = ref Images.{r: 255, g: 255, b: 255};*/
+/*  Oh geez we'll have to explain what's going on here one day. */
+type hackImageT = {
+  width: int,
+  height: int,
+  channels: int,
+  data: array int
+};
+
+/*external dataToHack : string => array int = "%identity";*/
+external hackToImage : hackImageT => Gl.imageT = "%identity";
+
+let fontTexture = ref None;
+
+let drawText s face outfile => {
+  prerr_endline (Printf.sprintf "drawing %s..." s);
+  let plus = 8;
+  let encoded = Fttext.unicode_of_latin s;
+  let (x1, y1, x2, y2) = face#size encoded;
+  let h = truncate (ceil y2) - truncate y1 + 1 + plus;
+  prerr_endline (Printf.sprintf "height = %d" h);
+  let rgba = (new OImages.rgba32_filled) (truncate (x2 -. x1) + plus) h !bg;
+  OFreetype.draw_text
+    face
+    (
+      fun org level => {
+        let level' = 255 - level;
+        Images.{
+          color: {
+            r: (org.color.r * level' + (!fg).color.r * level) / 255,
+            g: (org.color.g * level' + (!fg).color.g * level) / 255,
+            b: (org.color.b * level' + (!fg).color.b * level) / 255
+          },
+          alpha: (org.alpha * level' + (!fg).alpha * level) / 255
+        }
+      }
+    )
+    (rgba :> OImages.map Images.rgba)
+    (plus / 2 - truncate x1)
+    (truncate y2 + plus / 2)
+    encoded;
+  /*let format = Images.guess_format outfile;*/
+  /*print_endline @@ "fomrat " ^ Images.extension format;*/
+  /*rgba#save outfile (Some Png) []*/
+  let data = rgba#dump;
+  let arr = Array.make (String.length data) 1;
+  for i in 0 to (String.length data - 1) {
+    arr.(i) = int_of_char data.[i]
+  };
+  /*let biW = bitmap.Rgba32.width;
+    let biH = bitmap.Rgba32.height;*/
+  /*let data = Rgba32.dump bitmap;*/
+  let img = {width: rgba#width, height: rgba#height, channels: 4, data: arr};
+  let textureBuffer = Gl.createTexture ::context;
+  /*let height = Gl.getImageHeight img;
+    let width = Gl.getImageWidth img;*/
+  fontTexture := Some (img, textureBuffer);
+  /*imageRef := Some {img, textureBuffer, height, width};*/
+  Gl.bindTexture ::context target::Constants.texture_2d texture::textureBuffer;
+  Gl.texImage2DWithImage
+    ::context target::Constants.texture_2d level::0 image::(hackToImage img);
+  Gl.texParameteri
+    ::context
+    target::Constants.texture_2d
+    pname::Constants.texture_mag_filter
+    param::Constants.linear;
+  Gl.texParameteri
+    ::context
+    target::Constants.texture_2d
+    pname::Constants.texture_min_filter
+    param::Constants.linear;
+  Gl.texParameteri
+    ::context
+    target::Constants.texture_2d
+    pname::Constants.texture_wrap_s
+    param::Constants.clamp_to_edge;
+  Gl.texParameteri
+    ::context
+    target::Constants.texture_2d
+    pname::Constants.texture_wrap_t
+    param::Constants.clamp_to_edge
+};
+
+/*
+
+ let save fname _opts img =>
+   switch img {
+   | Images.Rgba32 bitmap =>
+     let biW = bitmap.Rgba32.width;
+     let biH = bitmap.Rgba32.height;
+     let data = Rgba32.dump bitmap;
+     let img = {data: dataToHack data, width: biW, height: biH, channels: 4};
+     let textureBuffer = Gl.createTexture ::context;
+     /*let height = Gl.getImageHeight img;
+       let width = Gl.getImageWidth img;*/
+     fontTexture := Some textureBuffer;
+     /*imageRef := Some {img, textureBuffer, height, width};*/
+     Gl.bindTexture
+       ::context target::Constants.texture_2d texture::textureBuffer;
+     Gl.texImage2DWithImage
+       ::context target::Constants.texture_2d level::0 image::(hackToImage img);
+     Gl.texParameteri
+       ::context
+       target::Constants.texture_2d
+       pname::Constants.texture_mag_filter
+       param::Constants.linear;
+     Gl.texParameteri
+       ::context
+       target::Constants.texture_2d
+       pname::Constants.texture_min_filter
+       param::Constants.linear;
+     Gl.texParameteri
+       ::context
+       target::Constants.texture_2d
+       pname::Constants.texture_wrap_s
+       param::Constants.clamp_to_edge;
+     Gl.texParameteri
+       ::context
+       target::Constants.texture_2d
+       pname::Constants.texture_wrap_t
+       param::Constants.clamp_to_edge
+   | _ => failwith "just support RGBA they said"
+   };
+
+ Images.add_methods
+   Png
+   {
+     check_header: Bmp.check_header,
+     load: None,
+     save: Some save,
+     load_sequence: None,
+     save_sequence: None
+   };*/
+let fnt = loadFont "OpenSans-Regular.ttf";
+
+let outfile = "test.png";
+
+drawText "this is not a word" fnt outfile;
+
+/*let myRealTexture = loadImage outfile;*/
 let drawRect x y width height (r, g, b, a) => {
   /* Texture */
   let square_vertices = [|
@@ -356,9 +530,9 @@ let drawRect x y width height (r, g, b, a) => {
       texture0 represent.  **/
   Gl.uniform1i ::context location::uSampler val::0;
   let texture =
-    switch !myRealTexture {
+    switch !fontTexture {
     | None => nullTex
-    | Some {textureBuffer} => textureBuffer
+    | Some (_, textureBuffer) => textureBuffer
     };
 
   /** We bind `texture` to texture_2d, like we did for the vertex buffers in some ways (I think?) **/
@@ -407,16 +581,16 @@ let root_child0_child1 =
   LayoutSupport.createNode
     withChildren::[||] andStyle::root_child0_child1_style ();
 
-let root_style =
-  LayoutSupport.LayoutTypes.{
-    ...LayoutSupport.defaultStyle,
-    flexDirection: Row,
-    width: 200.,
-    height: 100.,
-    top: 100.,
-    left: 100.
-  };
-
+/*let root_style =
+    LayoutSupport.LayoutTypes.{
+      ...LayoutSupport.defaultStyle,
+      flexDirection: Row,
+      width: 797.,
+      height: 86.,
+      top: 100.,
+      left: 100.
+    };
+  */
 /*let root =
   ref (LayoutSupport.createNode
     withChildren::[|root_child0_child0, root_child0_child1|]
@@ -441,7 +615,8 @@ let rec traverseAndDraw root left top => {
     (top +. root.layout.top)
     root.layout.width
     root.layout.height
-    (randomColor ());
+    /*(0., 0., 0., 0.);*/
+  (randomColor ());
   Array.iter
     (fun child => traverseAndDraw child root.layout.left root.layout.top)
     root.children
@@ -456,28 +631,31 @@ let tick = ref 0.;
 let render time => {
   Random.init 0;
   Gl.clear ::context mask::Constants.color_buffer_bit;
+  let (width, height) =
+    switch !fontTexture {
+    | None => (797., 86.)
+    | Some ({width, height}, _) => (float_of_int width, float_of_int height)
+    };
   let root_style =
     LayoutSupport.LayoutTypes.{
       ...LayoutSupport.defaultStyle,
       flexDirection: Row,
-      width: 200.,
-      height: 100.,
+      width: width,
+      height: height,
       top: 100.,
-      left: 100. +. !tick
+      left: 8. +. !tick
     };
   let root =
     LayoutSupport.createNode
-      withChildren::[|root_child0_child0, root_child0_child1|]
-      andStyle::root_style
-      ();
+      withChildren::[|root_child0_child0|] andStyle::root_style ();
   /* 0,0 is the bottom left corner */
   Layout.layoutNode
     root
     Encoding.cssUndefined
     Encoding.cssUndefined
     LayoutSupport.LayoutTypes.Ltr;
-  traverseAndDraw root 0. 0.;
-  tick := !tick +. 1.
+  traverseAndDraw root 0. 0.
+  /*tick := !tick +. 1.*/
 };
 
 

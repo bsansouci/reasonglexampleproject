@@ -2,14 +2,15 @@
   "name": "ReasonglExampleProject",
   "sources": "src",
   "bs-dependencies": ["ReasonglInterface", "ReasonglWeb", "ReasonglNative"],
-  "ocamlfind-dependencies": ["camlimages"],
-  "entries":[{
-    "kind": "js",
-    "main": "Index"
-  }, {
+  "ocamlfind-dependencies": ["camlimages", "camlimages.freetype"
+  ],
+  "entries":[
+  {
     "kind": "bytecode",
     "main": "Index"
-  },{
+  }, 
+  
+  {
     "kind": "native",
     "main": "Index"
   }]
