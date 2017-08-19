@@ -77,24 +77,30 @@ let getProgram
  * Fragment shader simply applies the color to the pixel.
  */
 let vertexShaderSource = {|
-  attribute vec3 aVertexPosition;
+  attribute vec2 aVertexPosition;
   attribute vec4 aVertexColor;
+  attribute vec2 aTextureCoord;
 
   uniform mat4 uPMatrix;
 
   varying vec4 vColor;
+  varying vec2 vTextureCoord;
 
   void main(void) {
-    gl_Position = uPMatrix * vec4(aVertexPosition, 1.0);
+    gl_Position = uPMatrix * vec4(aVertexPosition, 0.0, 1.0);
     vColor = aVertexColor;
+    vTextureCoord = aTextureCoord;
   }
 |};
 
 let fragmentShaderSource = {|
   varying vec4 vColor;
+  varying vec2 vTextureCoord;
+
+  uniform sampler2D uSampler;
 
   void main(void) {
-    gl_FragColor = vColor;
+    gl_FragColor = texture2D(uSampler, vTextureCoord) + vColor;
   }
 |};
 
@@ -129,6 +135,8 @@ let vertexBuffer = Gl.createBuffer context;
 
 let colorBuffer = Gl.createBuffer context;
 
+let textureBuffer = Gl.createBuffer context;
+
 
 /** Compiles the shaders and gets the program with the shaders loaded into **/
 let program =
@@ -162,6 +170,56 @@ let pMatrixUniform = Gl.getUniformLocation context program "uPMatrix";
 Gl.uniformMatrix4fv
   ::context location::pMatrixUniform value::camera.projectionMatrix;
 
+let aTextureCoord =
+  Gl.getAttribLocation ::context ::program name::"aTextureCoord";
+
+Gl.enableVertexAttribArray ::context attribute::aTextureCoord;
+
+
+/** Generate texture buffer that we'll use to pass image data around. **/
+let nullTex = Gl.createTexture ::context;
+
+
+/** This tells OpenGL that we're going to be using texture0. OpenGL imposes a limit on the number of
+    texture we can manipulate at the same time. That limit depends on the device. We don't care as we'll just
+    always use texture0. **/
+Gl.activeTexture ::context RGLConstants.texture0;
+
+
+/** Bind `texture` to `texture_2d` to modify it's magnification and minification params. **/
+Gl.bindTexture ::context target::RGLConstants.texture_2d texture::nullTex;
+
+let uSampler = Gl.getUniformLocation ::context ::program name::"uSampler";
+
+
+/** Load a dummy texture. This is because we're using the same shader for things with and without a texture */
+Gl.texImage2D_RGBA
+  ::context
+  target::RGLConstants.texture_2d
+  level::0
+  width::1
+  height::1
+  border::0
+  data::(Gl.Bigarray.of_array Gl.Bigarray.Uint8 [|0, 0, 0, 0|]);
+
+Gl.texParameteri
+  ::context
+  target::RGLConstants.texture_2d
+  pname::RGLConstants.texture_mag_filter
+  param::RGLConstants.linear;
+
+Gl.texParameteri
+  ::context
+  target::RGLConstants.texture_2d
+  pname::RGLConstants.texture_min_filter
+  param::RGLConstants.linear_mipmap_nearest;
+
+
+/** Enable blend and tell OpenGL how to blend. */
+Gl.enable ::context RGLConstants.blend;
+
+Gl.blendFunc ::context RGLConstants.src_alpha RGLConstants.one_minus_src_alpha;
+
 
 /**
  * Will mutate the projectionMatrix to be an ortho matrix with the given boundaries.
@@ -177,48 +235,95 @@ Gl.Mat4.ortho
   near::0.
   far::100.;
 
+type _imageT = {
+  textureBuffer: Gl.textureT,
+  img: Gl.imageT,
+  height: int,
+  width: int
+};
+
+type imageT = ref (option _imageT);
+
+let loadImage filename :imageT => {
+  let imageRef = ref None;
+  Gl.loadImage
+    ::filename
+    callback::(
+      fun imageData =>
+        switch imageData {
+        | None => failwith ("Could not load image '" ^ filename ^ "'.") /* TODO: handle this better? */
+        | Some img =>
+          let textureBuffer = Gl.createTexture ::context;
+          let height = Gl.getImageHeight img;
+          let width = Gl.getImageWidth img;
+          imageRef := Some {img, textureBuffer, height, width};
+          Gl.bindTexture
+            ::context target::Constants.texture_2d texture::textureBuffer;
+          Gl.texImage2DWithImage
+            ::context target::Constants.texture_2d level::0 image::img;
+          Gl.texParameteri
+            ::context
+            target::Constants.texture_2d
+            pname::Constants.texture_mag_filter
+            param::Constants.linear;
+          Gl.texParameteri
+            ::context
+            target::Constants.texture_2d
+            pname::Constants.texture_min_filter
+            param::Constants.linear;
+          Gl.texParameteri
+            ::context
+            target::Constants.texture_2d
+            pname::Constants.texture_wrap_s
+            param::Constants.clamp_to_edge;
+          Gl.texParameteri
+            ::context
+            target::Constants.texture_2d
+            pname::Constants.texture_wrap_t
+            param::Constants.clamp_to_edge
+        }
+    )
+    ();
+  imageRef
+};
+
+let myRealTexture = loadImage "img_test.png";
+
 let drawRect x y width height (r, g, b, a) => {
+  /* Texture */
   let square_vertices = [|
     x +. width,
     y +. height,
-    0.0,
     x,
     y +. height,
-    0.0,
     x +. width,
     y,
-    0.0,
     x,
-    y,
-    0.0
+    y
   |];
   Gl.bindBuffer ::context target::Constants.array_buffer buffer::vertexBuffer;
   Gl.bufferData
     ::context
     target::Constants.array_buffer
     data::(Gl.Bigarray.of_array Gl.Bigarray.Float32 square_vertices)
-    usage::Constants.static_draw;
+    usage::Constants.stream_draw;
   Gl.vertexAttribPointer
     ::context
     attribute::aVertexPosition
-    size::3
+    size::2
     type_::Constants.float_
     normalize::false
     stride::0
     offset::0;
 
-  /** Setup colors to be sent to the GPU **/
-  /*let r = 1.;
-    let g = 0.;
-    let b = 0.;
-    let a = 1.;*/
+  /** Color */
   let square_colors = [|r, g, b, a, r, g, b, a, r, g, b, a, r, g, b, a|];
   Gl.bindBuffer ::context target::Constants.array_buffer buffer::colorBuffer;
   Gl.bufferData
     ::context
     target::Constants.array_buffer
     data::(Gl.Bigarray.of_array Gl.Bigarray.Float32 square_colors)
-    usage::Constants.static_draw;
+    usage::Constants.stream_draw;
   Gl.vertexAttribPointer
     ::context
     attribute::aVertexColor
@@ -227,8 +332,37 @@ let drawRect x y width height (r, g, b, a) => {
     normalize::false
     stride::0
     offset::0;
+
+  /** Texture */
+  let uv_map = [|1., 1., 0., 1., 1., 0., 0., 0.|];
+  Gl.bindBuffer ::context target::Constants.array_buffer buffer::textureBuffer;
+  Gl.bufferData
+    ::context
+    target::Constants.array_buffer
+    data::(Gl.Bigarray.of_array Gl.Bigarray.Float32 uv_map)
+    usage::Constants.stream_draw;
+  Gl.vertexAttribPointer
+    ::context
+    attribute::aTextureCoord
+    size::2
+    type_::Constants.float_
+    normalize::false
+    stride::0
+    offset::0;
   Gl.uniformMatrix4fv
     ::context location::pMatrixUniform value::camera.projectionMatrix;
+
+  /** Tell OpenGL about what the uniform called `uSampler` is pointing at, here it's given 0 which is what
+      texture0 represent.  **/
+  Gl.uniform1i ::context location::uSampler val::0;
+  let texture =
+    switch !myRealTexture {
+    | None => nullTex
+    | Some {textureBuffer} => textureBuffer
+    };
+
+  /** We bind `texture` to texture_2d, like we did for the vertex buffers in some ways (I think?) **/
+  Gl.bindTexture ::context target::RGLConstants.texture_2d ::texture;
 
   /** Final call which actually does the "draw" **/
   Gl.drawArrays ::context mode::Constants.triangle_strip first::0 count::4
