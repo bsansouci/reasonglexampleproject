@@ -54,7 +54,7 @@ let render time => {
   let child0 = {
     /* FPS counter :) */
     let {Draw.width: textWidth, height: textHeight, textureBuffer} =
-      Draw.drawText ("fps: " ^ string_of_int (int_of_float (1000. /. time))) font16;
+      Draw.drawText ("fps: " ^ string_of_int (int_of_float ((1000. /. time) +. 0.5))) font16;
     let style = Layout.{...defaultStyle, width: textWidth, height: textHeight};
     Layout.createNode
       withChildren::[||]
