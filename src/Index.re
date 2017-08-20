@@ -3,6 +3,14 @@ module Layout = Draw.Layout;
 
 module Node = Draw.Node;
 
+let font40 = Font.loadFont fontSize::40. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0;
+
+let font36 = Font.loadFont fontSize::36. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0;
+
+let font32 = Font.loadFont fontSize::32. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0;
+
+let font28 = Font.loadFont fontSize::28. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0;
+
 let font24 = Font.loadFont fontSize::24. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0;
 
 let font20 = Font.loadFont fontSize::20. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0;
@@ -32,17 +40,15 @@ let mouseState = {
 
 let defaultColor = (0.3, 0.4, 0.9, 1.);
 
-type appStateT = {mutable num: int};
+type appStateT = {mutable color: (float, float, float, float)};
 
-let appState = {num: 0};
+let appState = {color: defaultColor};
 
-let averageOverTime = ref [];
+Random.init 0;
 
 let render time => {
-  Random.init appState.num;
   /* Remember to clear the clear at each tick */
   Draw.clearScreen ();
-  averageOverTime := [1000. /. time, ...!averageOverTime];
 
   /** */
   let child0 = {
@@ -59,7 +65,7 @@ let render time => {
   /** */
   let child1 = {
     let {Draw.width: textWidth, height: textHeight, textureBuffer} =
-      Draw.drawText "this is not a word" font24;
+      Draw.drawText "this is not a word" font40;
     let style = Layout.{...defaultStyle, width: textWidth, height: textHeight};
     Layout.createNode
       withChildren::[||]
@@ -70,16 +76,18 @@ let render time => {
   /** */
   let child2 = {
     let {Draw.width: textWidth, height: textHeight, textureBuffer} =
-      Draw.drawText "this is not a word" font20;
+      Draw.drawText "this is not a word" font36;
     let style = Layout.{...defaultStyle, width: textWidth, height: textHeight};
     Layout.createNode
       withChildren::[||]
       andStyle::style
       Node.{texture: textureBuffer, backgroundColor: defaultColor}
   };
+
+  /** */
   let child3 = {
     let {Draw.width: textWidth, height: textHeight, textureBuffer} =
-      Draw.drawText "this is not a word" font16;
+      Draw.drawText "this is not a word" font32;
     let style = Layout.{...defaultStyle, width: textWidth, height: textHeight};
     Layout.createNode
       withChildren::[||]
@@ -90,7 +98,7 @@ let render time => {
   /** */
   let child4 = {
     let {Draw.width: textWidth, height: textHeight, textureBuffer} =
-      Draw.drawText "this is not a word" font12;
+      Draw.drawText "this is not a word" font28;
     let style = Layout.{...defaultStyle, width: textWidth, height: textHeight};
     Layout.createNode
       withChildren::[||]
@@ -100,6 +108,48 @@ let render time => {
 
   /** */
   let child5 = {
+    let {Draw.width: textWidth, height: textHeight, textureBuffer} =
+      Draw.drawText "this is not a word" font24;
+    let style = Layout.{...defaultStyle, width: textWidth, height: textHeight};
+    Layout.createNode
+      withChildren::[||]
+      andStyle::style
+      Node.{texture: textureBuffer, backgroundColor: defaultColor}
+  };
+
+  /** */
+  let child6 = {
+    let {Draw.width: textWidth, height: textHeight, textureBuffer} =
+      Draw.drawText "this is not a word" font20;
+    let style = Layout.{...defaultStyle, width: textWidth, height: textHeight};
+    Layout.createNode
+      withChildren::[||]
+      andStyle::style
+      Node.{texture: textureBuffer, backgroundColor: defaultColor}
+  };
+  let child7 = {
+    let {Draw.width: textWidth, height: textHeight, textureBuffer} =
+      Draw.drawText "this is not a word" font16;
+    let style = Layout.{...defaultStyle, width: textWidth, height: textHeight};
+    Layout.createNode
+      withChildren::[||]
+      andStyle::style
+      Node.{texture: textureBuffer, backgroundColor: defaultColor}
+  };
+
+  /** */
+  let child8 = {
+    let {Draw.width: textWidth, height: textHeight, textureBuffer} =
+      Draw.drawText "this is not a word" font12;
+    let style = Layout.{...defaultStyle, width: textWidth, height: textHeight};
+    Layout.createNode
+      withChildren::[||]
+      andStyle::style
+      Node.{texture: textureBuffer, backgroundColor: defaultColor}
+  };
+
+  /** */
+  let child9 = {
     let innerChild = {
       let {Draw.width: width, height, textureBuffer} =
         Draw.drawText "Change colors when a click happens" font16;
@@ -119,7 +169,7 @@ let render time => {
     Layout.createNode
       withChildren::[|innerChild|]
       andStyle::style
-      Node.{...nullContext, backgroundColor: Draw.randomColor ()}
+      Node.{...nullContext, backgroundColor: appState.color}
   };
 
   /** */
@@ -134,7 +184,18 @@ let render time => {
         height: float_of_int Draw.windowSize
       };
     Layout.createNode
-      withChildren::[|child0, child1, child2, child3, child4, child5|]
+      withChildren::[|
+        child0,
+        child1,
+        child2,
+        child3,
+        child4,
+        child5,
+        child6,
+        child7,
+        child8,
+        child9
+      |]
       andStyle::rootStyle
       Node.{...nullContext, backgroundColor: (0.9, 0.9, 0.9, 1.)}
   };
@@ -159,7 +220,7 @@ let render time => {
             child.Layout.context.Node.backgroundColor = (0.9, 0.4, 0.3, 1.)
           };
           if mouseState.leftButton.isClicked {
-            appState.num = appState.num + 1
+            appState.color = Draw.randomColor ()
           }
         }
       }
@@ -197,8 +258,3 @@ let mouseUp ::button ::state ::x ::y =>
 
 /** Start the render loop. **/
 Draw.render ::mouseMove ::mouseDown ::mouseUp render;
-
-let total = List.fold_left (fun acc v => v +. acc) 0. !averageOverTime;
-
-print_endline @@
-"average " ^ string_of_float @@ total /. float_of_int (List.length !averageOverTime);
