@@ -1,0 +1,251 @@
+#*********************************************************************#
+#                                                                     #
+#                          Caml Images                                #
+#                                                                     #
+#            Fran輟is Pessaux, projet Cristal, INRIA Rocquencourt     #
+#            Pierre Weis, projet Cristal, INRIA Rocquencourt          #
+#            Jun Furuse, projet Cristal, INRIA Rocquencourt           #
+#                                                                     #
+#  Copyright 1999-2004,                                               #
+#  Institut National de Recherche en Informatique et en Automatique.  #
+#  Distributed only by permission.                                    #
+#                                                                     #
+#*********************************************************************#
+
+DefineCommandVars()
+
+######################################################################## tools
+
+USE_OCAMLFIND = true
+
+OCAML_WHERE = $(shell ocamlc -where)
+
+##################################################################### configure
+
+open configure/Configure
+
+public.CheckCLib(libs, funs) =
+    # This is broken in omake:
+    LDFLAGS += $(addprefix -l, $(libs))
+
+    program = $"""
+#ifdef __cplusplus
+extern "C"
+#endif
+#pragma warning( disable : 4100 )
+/* Override any gcc2 internal prototype to avoid an error.  */
+$(add-wrapper $(nl)extern char , $'();', $(funs))
+int main(int argc, char **argv) {
+    /* Usage */
+$(add-wrapper $(nl)    , $'();', $(funs))
+    return 0;
+}
+"""
+    #echo "program = $(program)"
+    return $(TryLinkC $(program))
+
+Check_header_library(xlib, xheader, xfunc) =
+  return $(and $(VerboseCheckCHeader $(xheader)), $(VerboseCheckCLib $(xlib), $(xfunc)))
+
+Have_library(libname, lib, header, func) =
+  setvar(this.HAVE_$(libname), $(Check_header_library $(lib), $(header), $(func)))
+  export
+
+Check_ocamlfind_package(package) = 
+  ConfMsgChecking($(package))
+  ConfMsgFound($(shell-success ocamlfind query $(package)))
+
+where1(com) =
+  WHERE = $(where $(prog))
+  if $(WHERE)
+    value $(nth 0, $(WHERE))
+  else
+    value
+
+# export $(WHERE)
+Check_prog_in_path(prog) =
+   ConfMsgChecking(for $(prog))
+   WHERE = $(where1 $(prog))
+   if $(WHERE)
+      ConfMsgResult(found $(WHERE))
+      return $(WHERE)
+   else
+      ConfMsgResult(FAILED - no $(prog) found)
+      return false
+
+# export $(WHERE)
+Check_file_in_path(path, file) =
+  ConfMsgChecking(for $(file))
+  WHERE = $(find-in-path-optional $(path), $(file))
+  export WHERE
+  if $(WHERE)
+    WHERE = $(nth 0, $(WHERE))
+    export WHERE
+    ConfMsgResult(found $(WHERE))
+    return true
+  else
+    WHERE =
+    export WHERE
+    ConfMsgResult(FAILED - no $(file) found)
+    return false
+  export WHERE
+
+# Return the size of word in bytes. Uses omake's arithmetic which depends
+# on OCaml's int
+Word_size() =
+  if $(lt $(add $(int 1073741823) $(int 1)), $(int 0))
+    value 4
+  else
+    value 8
+
+Check_ocamlfind_package_compilation(package, module) =
+    ConfMsgChecking($(package) compilability: open $(module))
+    tmp_ml = $(file $(tmpfile omake, .ml))
+    ConfMsgChecking($(tmp_ml))
+    tmp = $(file $(replacesuffixes .ml, $"$(EMPTY)", $(tmp_ml)))
+    command[] = $(OCamlC) -warn-error -a -c -package $(package) $(tmp_ml)
+    println($(string $(command)))
+
+    # The program
+    program = $"""(* Configuration file; you can remove this. *)
+open $(module)
+"""
+    
+    # Compile it
+    fprint($(tmp_ml), $(program))
+
+    protected.result = $(shell-success-null $(command))
+
+    rm -f $(tmp_ml) $(tmp).cmi $(tmp).cmo $(tmp)$(EXE)
+
+    return $(ConfMsgYesNo $(result))
+
+#################################################################### build rule
+
+# annot, spot, spit files
+%.annot %.spot: %.ml %.cmi
+	$(OCamlC) -c $<
+
+%.spit: %.mli 
+	$(OCamlC) -c $<
+
+# of course it only works with unix
+OCamlMkLibC(name, files, ldflags) =
+  protected.COBJS=$(addsuffix .o, $(files))
+  dll$(name).so lib$(name).a: $(COBJS)
+    $(OCAMLMKLIB) -o $(name) $(LDFLAGS) $(ldflags) $(COBJS)
+  return $(array dll$(name).so, lib$(name).a)
+
+# If ocamlmklib does not work for you, you can do:
+# 1. Put -verbose switch to the above call of $(OCAMLMKLIB) and see the command.
+# 2. Tweak the commands ocamlmklib invokes for you environment.
+# 3. Redefine OCamlMklibC with the tweaked commands.
+# For example, in Linux,
+#
+# OCamlMkLibC(name, files, ldflags) =
+#   protected.COBJS=$(addsuffix .o, $(files))
+#   dll$(name).so lib$(name).a: $(COBJS)
+#     # Change the following
+#     $(CC) -shared -o dll$(name).so $(LDFLAGS) $(ldflags) $(COBJS)
+#     ar rc lib$(name).a $(COBJS); ranlib lib$(name).a
+#     # Upto here
+#   return $(array dll$(name).so, lib$(name).a)
+
+################################################################ config replace
+
+ConfReplaceAt(file)=
+  $(file): $(file).in
+    section: # I dunno but section is required
+      stdout = $(fopen $(file), w)
+      fsubst($(file).in)
+      case $"@\([A-Z0-9_]+\)@" g
+        if $(defined $1)
+          getvar($1)
+        else
+          value false
+      close($(stdout))
+
+ConfReplaceConfigH(file)=
+  $(file): $(file).in
+    section: # I dunno but section is required
+      stdout = $(fopen $(file), w)
+      fsubst($(file).in)
+      case $"#undef \([A-Z_0-9]+\)" g
+        try
+          v=$(getvar $1)
+          value $"#define $1 $(v)"
+        default
+          value $"/* undef $1 */"
+      close($(stdout))
+
+##################################################################### directory
+
+ROOT = $(dir .)
+SRCDIR = $(ROOT)/src
+
+################################################################### local build
+
+Subpackages_available(packs) =
+  sequence-forall($(fun elem, $(mem $(elem), core all_formats supported $(SUPPORTED_SUBPACKAGES))), $(packs))
+
+BuildExample(namex, modules, packages) = 
+  .PHONY: clean
+  if $(Subpackages_available $(packages))
+    subs=core $(packages)
+    # the library is created with -dllib: no -custom required
+    OCAML_BYTE_LINK_FLAGS= -linkall
+    OCAML_NATIVE_LINK_FLAGS= -linkall
+    OCAMLINCLUDES += $(SRCDIR)
+    OCAML_LIBS+= $(addprefix $(SRCDIR)/camlimages_, $(subs))
+    OCAML_BYTE_LINK_FLAGS+=-dllpath $(SRCDIR)
+    OCAMLPACKS[]+=unix # exif requires unix
+    export
+    .DEFAULT: $(OCamlProgram $(namex), $(modules))
+# too verbose
+#  else
+#    println(Warning: $(namex) is not built: it requires $(string $(packages)))
+#    println(Warning: Supported: $(string all_formats supported $(SUPPORTED_SUBPACKAGES)))
+
+  clean:
+    rm -f $(filter-proper-targets $(ls R, .)) *.cmt* *.sp*t
+
+  export
+
+
+###############################################################################
+
+pkg_config(name, libname) =
+  ConfMsgChecking(for $(libname) by pkg-config)
+  if $(and $(defined this.PATH_PKG_CONFIG), $(equal 0, $(shell-code $(PATH_PKG_CONFIG) $(libname))))
+    # this is required since it is called in .STATIC
+    setvar(this.LDFLAGS_$(name), $(shell $(PATH_PKG_CONFIG) --libs $(libname)))
+    setvar(this.CFLAGS_$(name), $(shell $(PATH_PKG_CONFIG) --cflags $(libname)))
+    setvar(this.SUPPORT_$(uppercase $(name)), true)
+    setvar(this.HAVE_$(uppercase $(name)), true)
+    ConfMsgResult(found)
+    export
+    value true
+  else 
+    ConfMsgResult(failed $(PATH_PKG_CONFIG) $(libname))
+    value false
+  export
+
+# PATH_PKG_CONFIG must be well defined
+pkg_config_version(libname) =
+  value $(shell $(PATH_PKG_CONFIG) $(libname) --modversion) 
+
+pkg_config_between_vers(name, libname, min_ver, too_high_ver) =
+  if $(pkg_config $(name), $(libname))
+    ConfMsgChecking($(libname): $(min_ver) <= version < $(too_high_ver))
+    ver=$(pkg_config_version $(libname)) 
+    if $(and $(le $(cmp-versions $(min_ver), $(ver)), 0), $(lt $(cmp-versions $(ver), $(too_high_ver)), 0))
+      ConfMsgResult($(ver) ... yes)
+      value true
+      export
+    else
+      ConfMsgResult($(ver) ... no)
+      value false # do not export
+    export
+  else
+    value false
+  export

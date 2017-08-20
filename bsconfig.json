@@ -1,16 +1,31 @@
 {
   "name": "ReasonglExampleProject",
-  "sources": "src",
+  "sources": [{
+    "dir": "src"
+  }, {
+    "dir": "vendor",
+    "subdirs": {
+      "dir": "camlimages",
+      "subdirs": {
+        "dir": "src",
+        "files": ["mstring.ml", "camlimages.ml", "color.ml", "bitmap.ml","tmpfile.ml", "info.mli", "rgb24.ml", "rgba32.ml", "image_intf.mli", "genimage.ml", "util.ml", "index8.ml","index16.ml","cmyk32.ml", "jis_table.ml", "jis_unicode.ml", "fttext.ml", "ftlow.ml", "freetype.ml", "region.ml", "images.ml", "oColor.ml", "oImages.ml", "oFreetype.ml"]
+      }
+    }
+  }],
   "bs-dependencies": ["ReasonglInterface", "ReasonglWeb", "ReasonglNative"],
-  "ocamlfind-dependencies": ["camlimages", "camlimages.freetype"],
-  "entries":[
-  {
-    "kind": "bytecode",
-    "main": "Index"
-  }, 
-  
-  {
-    "kind": "native",
-    "main": "Index"
-  }]
+  // "ocamlfind-dependencies": ["camlimages", "camlimages.freetype"],
+  "entries": [{
+      "kind": "bytecode",
+      "main": "Index"
+    },
+
+    {
+      "kind": "native",
+      "main": "Index"
+    }
+  ],
+  "static_libraries": [
+    "lib/bs/libTruetypebindings.o -add-clib -ccopt -add-clib -L/usr/local/Cellar/freetype/2.6.3/lib/ -add-clib -ccopt -add-clib -lfreetype",
+  ],
+  "build_script": "make"
 }

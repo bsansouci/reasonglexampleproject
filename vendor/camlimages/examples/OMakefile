@@ -1,0 +1,1 @@
+.SUBDIRS: edgedetect liv normalize ttfimg converter gifanim resize crop imgstat monochrome tiffps

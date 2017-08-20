@@ -1,0 +1,19 @@
+opam-version: "1.2"
+version: "4.2.4"
+maintainer: "jun.furuse@gmail.com"
+authors: ["Jun Furuse" "François Pessaux" "Pierre Weis"]
+homepage: "https://bitbucket.org/camlspotter/camlimages"
+bug-reports:
+  "https://bitbucket.org/camlspotter/camlimages/issues?status=new&status=open"
+license: "LGPL-2 with OCaml linking exception"
+dev-repo: "hg://https://bitbucket.org/camlspotter/camlimages"
+build: ["omake" "--configure"]
+install: ["omake" "install"]
+remove: ["ocamlfind" "remove" "camlimages"]
+depends: [
+  "ocamlfind" {build}
+  "base-unix"
+  "omake" {build}
+]
+depopts: "lablgtk"
+available: [ocaml-version >= "4.02.0"]

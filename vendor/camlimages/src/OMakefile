@@ -1,0 +1,305 @@
+#*********************************************************************#
+#                                                                     #
+#                          Caml Images                                #
+#                                                                     #
+#            Fran輟is Pessaux, projet Cristal, INRIA Rocquencourt     #
+#            Pierre Weis, projet Cristal, INRIA Rocquencourt          #
+#            Jun Furuse, projet Cristal, INRIA Rocquencourt           #
+#                                                                     #
+#  Copyright 1999-2004,                                               #
+#  Institut National de Recherche en Informatique et en Automatique.  #
+#  Distributed only by permission.                                    #
+#                                                                     #
+#*********************************************************************#
+
+.PHONY: all clean libraries install
+
+.DEFAULT: all
+
+LIBRARY_PREFIX=camlimages
+
+####################################################################### C FILES
+
+CFILES_freetype[]=
+  ftintf
+
+CFILES_freetype_na[]=
+  ftintf_na
+
+CFILES_gif[]=
+  gifread
+  gifwrite
+
+CFILES_gif_na[]=
+  gif_na
+
+CFILES_jpeg[]=
+  jpegread
+  jpegwrite
+
+CFILES_jpeg_na[]=
+  jpeg_na
+
+CFILES_exif[]=
+  exif_c
+
+CFILES_exif_na[]=
+  exif_na
+
+CFILES_png[]=
+  pngread
+  pngwrite
+
+CFILES_png_na[]=
+  png_na
+
+CFILES_tiff[]=
+  tiffread
+  tiffwrite
+
+CFILES_tiff_na[]=
+  tiff_na
+
+CFILES_xpm[]=
+  xpmread
+  xpmwrite
+
+CFILES_xpm_na[]=
+  xpm_na
+
+CFILES_ps[]=
+
+CFILES_ps_na[]=
+
+CFILES_lib(name) =
+  CFILES_VAR = $(if $(mem $(name), all all_formats supported $(SUPPORTED_SUBPACKAGES)), CFILES_$(name), CFILES_$(name)_na)
+  value $(getvar $(CFILES_VAR))
+
+CFILES_supported=
+  foreach(p, $(SUPPORTED_FORMATS))
+    value $(CFILES_lib $(p))
+
+CFILES_all_formats=
+  foreach(p, $(FORMATS))
+    value $(CFILES_lib $(p))
+
+###################################################################### ML FILES
+
+FILES_core[]=
+  util
+  bitmap
+  blend
+  camlimages
+  cmyk32
+  color
+  colorhist
+  genimage
+  geometry
+  images
+  index16
+  index8
+  jis_table
+  jis_unicode
+  mstring
+  oColor
+  oImages
+  reduce
+  region
+  rgb24
+  rgba32
+  tmpfile
+  units
+  bmp
+  oBmp
+  ppm
+  oPpm
+  xvthumb
+  oXvthumb
+
+FILES_gif[]=
+  gif
+  oGif
+
+FILES_jpeg[]=
+  jpeg
+  oJpeg
+
+FILES_exif[]=
+  exifutil
+  exif
+  exifanalyze
+
+exifanalyze.auto.mli: exifanalyze.ml
+    $(OCamlC) -c -i exifanalyze.ml > $@
+
+FILES_png[]=
+  png
+  oPng
+
+FILES_tiff[]=
+  tiff
+  oTiff
+
+FILES_freetype[]=
+  freetype
+  ftlow
+  fttext
+  oFreetype
+
+FILES_xpm[]=
+  xpm
+  oXpm
+
+FILES_ps[]=
+  ps
+  oPs
+
+FILES_supported=
+  foreach(p, $(SUPPORTED_FORMATS))
+    value $(getvar FILES_$(p))
+FILES_supported+=dummy_supported
+
+FILES_all_formats=
+  foreach(p, $(FORMATS))
+    value $(getvar FILES_$(p))
+
+FILES_graphics[]=
+  graphic_image
+  oGraphic
+
+FILES_lablgtk2[]=
+  imagegdk
+  oXimage
+  oXimage2
+  ximage
+  ximage2
+
+####################################################################### LDFLAGS
+
+LDFLAGS_core[]=
+
+LDFLAGS_supported=
+  x=
+  foreach(p, $(SUPPORTED_FORMATS))
+    x+= $(getvar LDFLAGS_$(p))
+    export
+  value $(x)
+
+LDFLAGS_all_formats=
+  x=
+  foreach(p, $(FORMATS))
+    x+= $(getvar LDFLAGS_$(p))
+    export
+  value $(x)
+
+###################################################################### PACKAGES
+
+PACKS_graphics[]=
+  graphics
+
+PACKS_lablgtk2[]=
+  lablgtk2
+
+################################################################## C BUILD RULE
+
+CFLAGS_supported=
+  x=
+  foreach(p, $(SUPPORTED_SUBPACKAGES))
+    x+= $(getvar CFLAGS_$(p))
+    export
+  value $(x)
+
+CFLAGS+= -fPIC -I $(OCAML_WHERE) $(CFLAGS_supported)
+
+MakeLibC(name) =
+  OCamlMkLibC($(LIBRARY_PREFIX)_$(name), \
+	$(CFILES_lib $(name)), \
+	$(getvar LDFLAGS_$(name)))
+
+################################################################# ML BUILD RULE
+
+MakeLibOCaml(name) =
+
+  OCAMLPACKS=
+    try
+      getvar(PACKS_$(name))
+    default
+      array() # default is empty
+
+  pure=
+    try $(equal 0, $(length $(getvar CFILES_$(name))))
+    default
+      value true
+
+  if $(pure)
+    # pure ocaml library
+    OCAML_LIB_FLAGS=
+      try
+        -linkall $(mapprefix -cclib, $(LDFLAGS) $(getvar LDFLAGS_$(name)))
+      default
+        array()
+    OCamlLibrary($(LIBRARY_PREFIX)_$(name), $(getvar FILES_$(name)))
+
+  else # inpure
+    $(LIBRARY_PREFIX)_$(name).cma $(LIBRARY_PREFIX)_$(name).cmxa: $(MakeLibC $(name))
+    # OCAML_{BYTE,NATIVE}_LINK_FLAGS do not work for OCamlLibrary
+    # Bit dirty workaround
+    OCAMLCFLAGS+=-dllib -l$(LIBRARY_PREFIX)_$(name) -cclib -l$(LIBRARY_PREFIX)_$(name)
+    OCAMLOPTFLAGS+=-cclib -l$(LIBRARY_PREFIX)_$(name)
+    # use mapprefix instead of addprefix, otherwise "-cclib -lgif"
+    # is considered one option.
+    OCAML_LIB_FLAGS=-linkall $(mapprefix -cclib, $(LDFLAGS) $(getvar LDFLAGS_$(name)))
+    OCamlLibrary($(LIBRARY_PREFIX)_$(name), $(getvar FILES_$(name)))
+
+LIBRARIES=
+  # CR jfurue: lablgtk2, freetype and graphics may not be buildable
+  foreach(i, core $(FORMATS) all_formats supported $(SUPPORTED_NON_FORMATS))
+    MakeLibOCaml($(i))
+
+libraries: $(LIBRARIES)
+
+clean:
+  rm -f *.sp*t *.cmt*
+  rm -f $(filter-proper-targets $(ls R, .))
+
+LocalOCamlGeneratedFiles(camlimages.ml)
+ConfReplaceAt(camlimages.ml)
+
+ConfReplaceAt(META)
+
+all: libraries META
+
+INSTALL_TARGETS()=
+    value META \
+      $(glob i, *.mli) \
+      $(glob i, *.cmi) \
+      $(glob i, *.cmt) \
+      $(glob i, *.cmti) \
+      $(glob i, *.cma) \
+      $(glob i, *.cmx) \
+      $(glob i, *.cmxa) \
+      $(glob i, *.a) \
+      $(glob i, *.so)
+
+INSTALL()=
+  value $(OCAMLFIND) install $(LIBRARY_PREFIX) $(INSTALL_TARGETS)
+
+UNINSTALL()=
+  value $(OCAMLFIND) remove $(LIBRARY_PREFIX)
+
+install: all
+  $(UNINSTALL) # I get bored typing ocamlfind remove camlimages each time before omake install
+  $(INSTALL)
+
+.PHONY: uninstall
+
+uninstall:
+  $(UNINSTALL)
+
+# Author's personal thing
+if $(defined BIG_ROOT)
+    %.cmx %.cmo %.cmi %.cma %.cmxa %.annot %.spot %.spit: $(INSTALLED)/lablgtk2
+    $(INSTALLED)/camlimages: $(LIBRARIES) META
+        $(touch_installed_md5 camlimages, $(INSTALL_TARGETS))
+        $(UNINSTALL)
+        $(INSTALL)
