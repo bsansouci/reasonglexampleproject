@@ -19,6 +19,8 @@ let font16 = Font.loadFont fontSize::16. fontPath::"assets/fonts/DroidSansMono.t
 
 let font12 = Font.loadFont fontSize::12. fontPath::"assets/fonts/DroidSansMono.ttf" id::0;
 
+open Plugin;
+
 let mouse = ref (0., 0.);
 
 type buttonStateT = {
@@ -59,6 +61,8 @@ Random.init 0;
 
 let maxHeight = Draw.getFontMaxHeight font24;
 
+let last_st_mtime = ref 0.;
+
 /*let baseline = Draw.getFontBaseline font24;*/
 let render time => {
   /* Remember to clear the clear at each tick */
@@ -76,16 +80,21 @@ let render time => {
       Node.{texture: textureBuffer, backgroundColor: defaultColor}
   };
 
-  /** */
-  let child1 = {
-    let {Draw.width: textWidth, height: textHeight, textureBuffer} =
-      Draw.drawText "this is not a word" font40;
-    let style = Layout.{...defaultStyle, width: textWidth, height: textHeight};
-    Layout.createNode
-      withChildren::[||]
-      andStyle::style
-      Node.{texture: textureBuffer, backgroundColor: defaultColor}
-  };
+  /** Magical child1 has hotreloading hooked up (turned off by default). See src/plugin.re */
+  let child1 =
+    switch !p {
+    | Some s =>
+      module M = (val (s: (module DYNAMIC_MODULE)));
+      M.render ()
+    | None =>
+      let {Draw.width: textWidth, height: textHeight, textureBuffer} =
+        Draw.drawText "this is not a word" font40;
+      let style = Layout.{...defaultStyle, width: textWidth, height: textHeight};
+      Layout.createNode
+        withChildren::[||]
+        andStyle::style
+        Node.{texture: textureBuffer, backgroundColor: defaultColor}
+    };
 
   /** */
   let child2 = {
@@ -269,7 +278,18 @@ let render time => {
 
   /** Reset the button state for having a way to check if a button was clicked for 1 frame. */
   mouseState.leftButton = {...mouseState.leftButton, isClicked: false};
-  mouseState.rightButton = {...mouseState.leftButton, isClicked: false}
+  mouseState.rightButton = {...mouseState.leftButton, isClicked: false};
+  
+  /* @Hack For hotreloading. 
+     See src/plugin.re for explanation.
+  */
+  /*let {Unix.st_mtime: st_mtime} = Unix.stat "src/hotreload.re";
+  if (st_mtime > !last_st_mtime) {
+    let _ =
+      Unix.system "ocamlc -c -I lib/bs/bytecode/src -I lib/bs/bytecode/vendor/ReLayout/src -pp './node_modules/bs-platform/bin/refmt.exe --print binary' -impl src/hotreload.re";
+    load_plug "src/hotreload.cmo";
+    last_st_mtime := st_mtime
+  }*/
 };
 
 let mouseMove ::x ::y => mouse := (float_of_int x, float_of_int y);
