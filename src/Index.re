@@ -343,25 +343,25 @@ let keyDown ::keycode ::repeat => {
     };
   switch keycode {
   | Backspace =>
-    if (keyboardState.altIsDown > 0) {
-      let rec iter i =>
-        if (i == 0) {
-          0
-        } else if (appState.inputText.[i] == ' ') {
-          i
+    if (String.length appState.inputText > 0) {
+      if (keyboardState.altIsDown > 0) {
+        let rec iter i =>
+          if (i == 0) {
+            0
+          } else if (appState.inputText.[i] == ' ') {
+            i
+          } else {
+            iter (i - 1)
+          };
+        let cutoffPoint = iter (String.length appState.inputText - 1);
+        if (cutoffPoint <= 0) {
+          appState.inputText = ""
         } else {
-          iter (i - 1)
-        };
-      let cutoffPoint = iter (String.length appState.inputText - 1);
-      if (cutoffPoint == 0) {
-        appState.inputText = ""
+          appState.inputText = String.sub appState.inputText 0 cutoffPoint
+        }
       } else {
-        appState.inputText = String.sub appState.inputText 0 cutoffPoint
+        appState.inputText = String.sub appState.inputText 0 (String.length appState.inputText - 1)
       }
-    } else if (
-      String.length appState.inputText > 0
-    ) {
-      appState.inputText = String.sub appState.inputText 0 (String.length appState.inputText - 1)
     }
   | LeftShift
   | RightShift => keyboardState.shiftIsDown = keyboardState.shiftIsDown + 1
