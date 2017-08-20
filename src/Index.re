@@ -124,7 +124,13 @@ let render time => {
   let child5 = {
     let {Draw.width: textWidth, height: textHeight, textureBuffer} =
       Draw.drawText appState.inputText font24;
-    let marginBottom = maxHeight -. textHeight;
+    /* @Hack This isn't giving good results anyway. It seems like it's not as simple as adjusting for the height. The texture moves around when there are capital letters vs lower case letters. What we  truly want is to figure out the baseline and draw the glyphs one by one so that they're baseline aligned. Also we want to find a bounding box to leave enough space for ascender / descender. */
+    let marginBottom =
+      if appState.easterEgg {
+        maxHeight -. textHeight
+      } else {
+        0.
+      };
     let style = Layout.{...defaultStyle, width: textWidth, height: textHeight, marginBottom};
     let child1 =
       Layout.createNode
