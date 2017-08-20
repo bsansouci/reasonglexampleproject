@@ -4,16 +4,21 @@
     "dir": "src"
   }, {
     "dir": "vendor",
-    "subdirs": {
+    "subdirs": [{
       "dir": "camlimages",
       "subdirs": {
         "dir": "src",
         "files": ["mstring.ml", "camlimages.ml", "color.ml", "bitmap.ml","tmpfile.ml", "info.mli", "rgb24.ml", "rgba32.ml", "image_intf.mli", "genimage.ml", "util.ml", "index8.ml","index16.ml","cmyk32.ml", "jis_table.ml", "jis_unicode.ml", "fttext.ml", "ftlow.ml", "freetype.ml", "region.ml", "images.ml", "oColor.ml", "oImages.ml", "oFreetype.ml"]
       }
-    }
+    }, {
+      "dir": "ReLayout",
+      "subdirs": {
+        "dir": "src",
+        "files": ["FixedEncoding.re", "FloatEncoding.re", "HardCodedEncoding.re", "Layout.re", "LayoutPrint.re", "LayoutSupport.re", "LayoutTypes.re", "Spec.re"]
+      }
+    }]
   }],
   "bs-dependencies": ["ReasonglInterface", "ReasonglWeb", "ReasonglNative"],
-  // "ocamlfind-dependencies": ["camlimages", "camlimages.freetype"],
   "entries": [{
       "kind": "bytecode",
       "main": "Index"

@@ -104,58 +104,72 @@
  */
 /*type scalar = int;
 
-let cssUndefined = min_int;
+  let cssUndefined = min_int;
 
-let isUndefined num => num === cssUndefined;
+  let isUndefined num => num === cssUndefined;
 
-let isDefined num => num !== cssUndefined;
+  let isDefined num => num !== cssUndefined;
 
-let zero = 0;
+  let zero = 0;
 
-let negativeOne = (-1);
+  let negativeOne = (-1);
 
-let divideScalarByInt = (/);
+  let divideScalarByInt = (/);
 
-let unitsPerPixel = 100.0;
+  let unitsPerPixel = 100.0;
 
-let scalarToFloat (f: int) => float_of_int f /. unitsPerPixel;*/
+  let scalarToFloat (f: int) => float_of_int f /. unitsPerPixel;
 
+  */
 
 /**
  * TODO: Test if it's the ternary that's causing the performance.
  */
 /*let (-.) a b =>
-  if (a == cssUndefined || b == cssUndefined) {
-    cssUndefined
-  } else {
-    a - b
-  };
+    if (a == cssUndefined || b == cssUndefined) {
+      cssUndefined
+    } else {
+      a - b
+    };
 
-let (+.) a b =>
-  if (a == cssUndefined || b == cssUndefined) {
-    cssUndefined
-  } else {
-    a + b
-  };
+  let (+.) a b =>
+    if (a == cssUndefined || b == cssUndefined) {
+      cssUndefined
+    } else {
+      a + b
+    };
 
-let (/.) = (/);
+  let (/.) = (/);
 
-let ( *. ) = ( * );
+  let ( *. ) = ( * );
 
-let (~-.) = (~-);
+  let (~-.) = (~-);
 
-let scalarToString = string_of_int;*/
+  let scalarToString = string_of_int;
+  */
 /* Comment out the above, and uncomment out below to enable floating point */
- type scalar = float; 
- let cssUndefined = nan; 
- let isUndefined (num : float) => num != num; 
- let zero = 0.0; 
- let negativeOne = (-1.);
- let divideScalarByInt (f : float) (i : int) => f /. float_of_int i; 
- let (-.) = (-.); 
- let (+.) = (+.); 
- let (/.) = (/.); 
- let ( *. ) = ( *. ); 
- let (~-.) = (~-.); 
- let scalarToString = string_of_float; 
- let scalarToFloat (f: float) => f; 
+type scalar = float;
+
+let cssUndefined = nan;
+
+let isUndefined (num: float) => num != num;
+
+let zero = 0.0;
+
+let negativeOne = (-1.);
+
+let divideScalarByInt (f: float) (i: int) => f /. float_of_int i;
+
+let (-.) = (-.);
+
+let (+.) = (+.);
+
+let (/.) = (/.);
+
+let ( *. ) = ( *. );
+
+let (~-.) = (~-.);
+
+let scalarToString = string_of_float;
+
+let scalarToFloat (f: float) => f;
