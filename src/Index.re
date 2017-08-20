@@ -3,21 +3,21 @@ module Layout = Draw.Layout;
 
 module Node = Draw.Node;
 
-let font40 = Font.loadFont fontSize::40. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0;
+let font40 = Font.loadFont fontSize::40. fontPath::"assets/fonts/DroidSansMono.ttf" id::0;
 
-let font36 = Font.loadFont fontSize::36. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0;
+let font36 = Font.loadFont fontSize::36. fontPath::"assets/fonts/DroidSansMono.ttf" id::0;
 
-let font32 = Font.loadFont fontSize::32. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0;
+let font32 = Font.loadFont fontSize::32. fontPath::"assets/fonts/DroidSansMono.ttf" id::0;
 
-let font28 = Font.loadFont fontSize::28. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0;
+let font28 = Font.loadFont fontSize::28. fontPath::"assets/fonts/DroidSansMono.ttf" id::0;
 
-let font24 = Font.loadFont fontSize::24. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0;
+let font24 = Font.loadFont fontSize::24. fontPath::"assets/fonts/DroidSansMono.ttf" id::0;
 
-let font20 = Font.loadFont fontSize::20. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0;
+let font20 = Font.loadFont fontSize::20. fontPath::"assets/fonts/DroidSansMono.ttf" id::0;
 
-let font16 = Font.loadFont fontSize::16. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0;
+let font16 = Font.loadFont fontSize::16. fontPath::"assets/fonts/DroidSansMono.ttf" id::0;
 
-let font12 = Font.loadFont fontSize::12. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0;
+let font12 = Font.loadFont fontSize::12. fontPath::"assets/fonts/DroidSansMono.ttf" id::0;
 
 let mouse = ref (0., 0.);
 
@@ -38,17 +38,28 @@ let mouseState = {
   rightButton: {state: Draw.Events.MouseUp, x: 0., y: 0., isClicked: false}
 };
 
+type keyboardStateT = {
+  mutable shiftIsDown: int,
+  mutable altIsDown: int
+};
+
+let keyboardState = {shiftIsDown: 0, altIsDown: 0};
+
 let defaultColor = (0.3, 0.4, 0.9, 1.);
 
 type appStateT = {
   mutable color: (float, float, float, float),
-  mutable inputText: string
+  mutable inputText: string,
+  mutable easterEgg: bool
 };
 
-let appState = {color: defaultColor, inputText: ""};
+let appState = {color: defaultColor, inputText: "this is not a word", easterEgg: false};
 
 Random.init 0;
 
+let maxHeight = Draw.getFontMaxHeight font24;
+
+/*let baseline = Draw.getFontBaseline font24;*/
 let render time => {
   /* Remember to clear the clear at each tick */
   Draw.clearScreen ();
@@ -109,15 +120,28 @@ let render time => {
       Node.{texture: textureBuffer, backgroundColor: defaultColor}
   };
 
-  /** */
+  /** Easter egg, you can edit this one! */
   let child5 = {
     let {Draw.width: textWidth, height: textHeight, textureBuffer} =
-      Draw.drawText "this is not a word" font24;
-    let style = Layout.{...defaultStyle, width: textWidth, height: textHeight};
+      Draw.drawText appState.inputText font24;
+    let marginBottom = maxHeight -. textHeight;
+    let style = Layout.{...defaultStyle, width: textWidth, height: textHeight, marginBottom};
+    let child1 =
+      Layout.createNode
+        withChildren::[||]
+        andStyle::style
+        Node.{texture: textureBuffer, backgroundColor: defaultColor};
+    let style = Layout.{...defaultStyle, width: 2., height: maxHeight -. 6.};
+    let cursor =
+      Layout.createNode
+        withChildren::[||]
+        andStyle::style
+        Node.{...nullContext, backgroundColor: appState.easterEgg ? Draw.red : Draw.noColor};
+    let style = Layout.{...defaultStyle, flexDirection: Row, alignItems: AlignCenter};
     Layout.createNode
-      withChildren::[||]
+      withChildren::[|child1, cursor|]
       andStyle::style
-      Node.{texture: textureBuffer, backgroundColor: defaultColor}
+      Node.{...nullContext, backgroundColor: Draw.noColor}
   };
 
   /** */
@@ -154,17 +178,18 @@ let render time => {
   /** */
   let child9 = {
     let innerChild = {
-      let {Draw.width: width, height, textureBuffer} =
+      let {Draw.width: textWidth, height: textHeight, textureBuffer} =
         Draw.drawText "Change colors when a click happens" font16;
-      let style = Layout.{...defaultStyle, width, height};
+      let style = Layout.{...defaultStyle, width: textWidth, height: textHeight};
       Layout.createNode
-        withChildren::[||] andStyle::style Node.{...nullContext, texture: textureBuffer}
+        withChildren::[||]
+        andStyle::style
+        Node.{...nullContext, backgroundColor: Draw.white, texture: textureBuffer}
     };
     let style =
       Layout.{
         ...defaultStyle,
         flexGrow: 1.,
-        /*width: 400.,*/
         height: 100.,
         marginTop: 32.,
         justifyContent: JustifyCenter,
@@ -263,6 +288,109 @@ let mouseUp ::button ::state ::x ::y =>
 
 let windowResize () => Draw.resizeWindow ();
 
+let keyDown ::keycode ::repeat => {
+  open Draw.Events;
+  appState.easterEgg = true;
+  let letter =
+    switch keycode {
+    | A => "a"
+    | B => "b"
+    | C => "c"
+    | D => "d"
+    | E => "e"
+    | F => "f"
+    | G => "g"
+    | H => "h"
+    | I => "i"
+    | J => "j"
+    | K => "k"
+    | L => "l"
+    | M => "m"
+    | N => "n"
+    | O => "o"
+    | P => "p"
+    | Q => "q"
+    | R => "r"
+    | S => "s"
+    | T => "t"
+    | U => "u"
+    | V => "v"
+    | W => "w"
+    | X => "x"
+    | Y => "y"
+    | Z => "z"
+    | Quote => "\""
+    | Comma => ","
+    | Minus when keyboardState.shiftIsDown == 0 => "-"
+    | Minus when keyboardState.shiftIsDown > 0 => "_"
+    | Equals when keyboardState.shiftIsDown == 0 => "="
+    | Equals when keyboardState.shiftIsDown > 0 => "+"
+    | Slash => "/"
+    | Num_0 => "0"
+    | Num_1 => "1"
+    | Num_2 => "2"
+    | Num_3 => "3"
+    | Num_4 => "4"
+    | Num_5 => "5"
+    | Num_6 => "6"
+    | Num_7 => "7"
+    | Num_8 => "8"
+    | Num_9 => "9"
+    | Semicolon => ";"
+    | Period => "."
+    | Space => " "
+    | _ => ""
+    };
+  switch keycode {
+  | Backspace =>
+    if (keyboardState.altIsDown > 0) {
+      let rec iter i =>
+        if (i == 0) {
+          0
+        } else if (appState.inputText.[i] == ' ') {
+          i
+        } else {
+          iter (i - 1)
+        };
+      let cutoffPoint = iter (String.length appState.inputText - 1);
+      if (cutoffPoint == 0) {
+        appState.inputText = ""
+      } else {
+        appState.inputText = String.sub appState.inputText 0 cutoffPoint
+      }
+    } else if (
+      String.length appState.inputText > 0
+    ) {
+      appState.inputText = String.sub appState.inputText 0 (String.length appState.inputText - 1)
+    }
+  | LeftShift
+  | RightShift => keyboardState.shiftIsDown = keyboardState.shiftIsDown + 1
+  | LeftAlt
+  | RightAlt => keyboardState.altIsDown = keyboardState.altIsDown + 1
+  | _ => ()
+  };
+  let letter =
+    if (keyboardState.shiftIsDown > 0) {
+      String.capitalize letter
+    } else {
+      letter
+    };
+  if (String.length letter > 0) {
+    appState.inputText = appState.inputText ^ letter
+  }
+};
+
+let keyUp ::keycode =>
+  Draw.Events.(
+    switch keycode {
+    | LeftShift
+    | RightShift => keyboardState.shiftIsDown = keyboardState.shiftIsDown - 1
+    | LeftAlt
+    | RightAlt => keyboardState.altIsDown = keyboardState.altIsDown - 1
+    | _ => ()
+    }
+  );
+
 
 /** Start the render loop. **/
-Draw.render ::windowResize ::mouseMove ::mouseDown ::mouseUp render;
+Draw.render ::keyUp ::keyDown ::windowResize ::mouseMove ::mouseDown ::mouseUp render;
