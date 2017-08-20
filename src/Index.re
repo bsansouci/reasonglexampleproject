@@ -3,13 +3,13 @@ module Layout = Draw.Layout;
 
 module Node = Draw.Node;
 
-let font24 = Font.loadFont fontSize::24 fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0;
+let font24 = Font.loadFont fontSize::24. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0;
 
-let font20 = Font.loadFont fontSize::20 fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0;
+let font20 = Font.loadFont fontSize::20. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0;
 
-let font16 = Font.loadFont fontSize::16 fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0;
+let font16 = Font.loadFont fontSize::16. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0;
 
-let font12 = Font.loadFont fontSize::12 fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0;
+let font12 = Font.loadFont fontSize::12. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0;
 
 let mouse = ref (0., 0.);
 
@@ -36,16 +36,28 @@ type appStateT = {mutable num: int};
 
 let appState = {num: 0};
 
+let averageOverTime = ref [];
+
 let render time => {
   Random.init appState.num;
   /* Remember to clear the clear at each tick */
   Draw.clearScreen ();
+  averageOverTime := [1000. /. time, ...!averageOverTime];
+
+  /** */
+  let child0 = {
+    /* FPS counter :) */
+    let {Draw.width: textWidth, height: textHeight, textureBuffer} =
+      Draw.drawText ("fps: " ^ string_of_int (int_of_float (1000. /. time))) font16;
+    let style = Layout.{...defaultStyle, width: textWidth, height: textHeight};
+    Layout.createNode
+      withChildren::[||]
+      andStyle::style
+      Node.{texture: textureBuffer, backgroundColor: defaultColor}
+  };
 
   /** */
   let child1 = {
-    /* FPS counter :) */
-    /*let {Draw.width: textWidth, height: textHeight, textureBuffer} =
-      Draw.drawText ("fps: " ^ string_of_int (int_of_float (1000. /. time))) font24;*/
     let {Draw.width: textWidth, height: textHeight, textureBuffer} =
       Draw.drawText "this is not a word" font24;
     let style = Layout.{...defaultStyle, width: textWidth, height: textHeight};
@@ -122,7 +134,7 @@ let render time => {
         height: float_of_int Draw.windowSize
       };
     Layout.createNode
-      withChildren::[|child1, child2, child3, child4, child5|]
+      withChildren::[|child0, child1, child2, child3, child4, child5|]
       andStyle::rootStyle
       Node.{...nullContext, backgroundColor: (0.9, 0.9, 0.9, 1.)}
   };
@@ -185,3 +197,8 @@ let mouseUp ::button ::state ::x ::y =>
 
 /** Start the render loop. **/
 Draw.render ::mouseMove ::mouseDown ::mouseUp render;
+
+let total = List.fold_left (fun acc v => v +. acc) 0. !averageOverTime;
+
+print_endline @@
+"average " ^ string_of_float @@ total /. float_of_int (List.length !averageOverTime);

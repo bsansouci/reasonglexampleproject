@@ -254,11 +254,26 @@ Gl.Mat4.ortho
   near::0.
   far::100.;
 
+/*
+ * This array packs all of the values that the shaders need: vertices, colors and texture coordinates.
+ * We put them all in one as an optimization, so there are less back and forths between us and the GPU.
+ *
+ * The vertex array looks like:
+ *
+ * |<--------  8 * 4 bytes  ------->|
+ *  --------------------------------
+ * |  x  y  |  r  g  b  a  |  s  t  |  x2  y2  |  r2  g2  b2  a2  |  s2  t2  | ....
+ *  --------------------------------
+ * |           |              |
+ * +- offset: 0 bytes, stride: 8 * 4 bytes (because we need to move by 8*4 bytes to get to the next x)
+ *             |              |
+ *             +- offset: 3 * 4 bytes, stride: 8 * 4 bytes
+ *                            |
+ *                            +- offset: (3 + 4) * 4 bytes, stride: 8 * 4 bytes
+ *
+ */
 /* @Speed There are  couple things w could do to optimize this function.
      The first thing we could do is not reallocate arrays at each call.
-
-     The second thing is to pack the data into one single buffer instead of multiple that we send
-     one by one.
 
      The third thing is to use triangles and element indices in conjunction with a larger
      buffer that we flush only a couple of times per frame. See Reprocessing which does that.
@@ -267,13 +282,45 @@ Gl.Mat4.ortho
           Ben - August 19th 2017
    */
 let drawRect x y width height (r, g, b, a) texture => {
-  /* Texture */
-  let square_vertices = [|x +. width, y +. height, x, y +. height, x +. width, y, x, y|];
+  let packedVertexData = [|
+    x +. width,
+    y +. height,
+    r,
+    g,
+    b,
+    a,
+    1.0,
+    1.0,
+    x,
+    y +. height,
+    r,
+    g,
+    b,
+    a,
+    0.,
+    1.,
+    x +. width,
+    y,
+    r,
+    g,
+    b,
+    a,
+    1.,
+    0.,
+    x,
+    y,
+    r,
+    g,
+    b,
+    a,
+    0.,
+    0.
+  |];
   Gl.bindBuffer ::context target::Constants.array_buffer buffer::vertexBuffer;
   Gl.bufferData
     ::context
     target::Constants.array_buffer
-    data::(Gl.Bigarray.of_array Gl.Bigarray.Float32 square_vertices)
+    data::(Gl.Bigarray.of_array Gl.Bigarray.Float32 packedVertexData)
     usage::Constants.stream_draw;
   Gl.vertexAttribPointer
     ::context
@@ -281,42 +328,28 @@ let drawRect x y width height (r, g, b, a) texture => {
     size::2
     type_::Constants.float_
     normalize::false
-    stride::0
+    stride::(8 * 4)
     offset::0;
 
   /** Color */
-  let square_colors = [|r, g, b, a, r, g, b, a, r, g, b, a, r, g, b, a|];
-  Gl.bindBuffer ::context target::Constants.array_buffer buffer::colorBuffer;
-  Gl.bufferData
-    ::context
-    target::Constants.array_buffer
-    data::(Gl.Bigarray.of_array Gl.Bigarray.Float32 square_colors)
-    usage::Constants.stream_draw;
   Gl.vertexAttribPointer
     ::context
     attribute::aVertexColor
     size::4
     type_::Constants.float_
     normalize::false
-    stride::0
-    offset::0;
+    stride::(8 * 4)
+    offset::(2 * 4);
 
   /** Texture */
-  let uv_map = [|1., 1., 0., 1., 1., 0., 0., 0.|];
-  Gl.bindBuffer ::context target::Constants.array_buffer buffer::textureBuffer;
-  Gl.bufferData
-    ::context
-    target::Constants.array_buffer
-    data::(Gl.Bigarray.of_array Gl.Bigarray.Float32 uv_map)
-    usage::Constants.stream_draw;
   Gl.vertexAttribPointer
     ::context
     attribute::aTextureCoord
     size::2
     type_::Constants.float_
     normalize::false
-    stride::0
-    offset::0;
+    stride::(8 * 4)
+    offset::(6 * 4);
   Gl.uniformMatrix4fv ::context location::pMatrixUniform value::camera.projectionMatrix;
 
   /** Tell OpenGL about what the uniform called `uSampler` is pointing at, here it's given 0 which
@@ -332,7 +365,6 @@ let fg = Images.{color: {r: 255, g: 255, b: 255}, alpha: 255};
 
 let bg = Images.{color: {r: 0, g: 0, b: 0}, alpha: 0};
 
-/*  Oh geez we'll have to explain what's going on here one day. */
 type ourOwnTextureT = {
   width: float,
   height: float,
@@ -340,7 +372,7 @@ type ourOwnTextureT = {
 };
 
 let drawText s face => {
-  /* Copy pasted from https://bitbucket.org/camlspotter/camlimages/src/b18e82a3d840c458f5db3f33309dd2d6e97bef91/examples/ttfimg/ttfimg.ml?at=default&fileviewer=file-view-default */
+  /* @Dumb Copy pasted from https://bitbucket.org/camlspotter/camlimages/src/b18e82a3d840c458f5db3f33309dd2d6e97bef91/examples/ttfimg/ttfimg.ml?at=default&fileviewer=file-view-default */
   let plus = 8;
   let encoded = Fttext.unicode_of_latin s;
   let (x1, y1, x2, y2) = face#size encoded;
@@ -369,6 +401,8 @@ let drawText s face => {
   /** Custom code starts here. */
   let data = rgba#dump;
   let length = String.length data;
+  /* @Speed We shouldn't have to allocate a new array of chars here, this is a waste.
+     To fix this we might have to vendor camlimages and make them use a bigarray... */
   let bigarrayTextData = Gl.Bigarray.create Gl.Bigarray.Char length;
   for i in 0 to (length / 4 - 1) {
     Gl.Bigarray.set bigarrayTextData (4 * i) (char_of_int 255);

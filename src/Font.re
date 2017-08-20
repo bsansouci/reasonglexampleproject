@@ -1,15 +1,15 @@
 /* no idea what this is */
-let csize = 100.0;
+let csize = 100;
 
 let debug = false;
 
-let loadFont ::fontSize=24 ::fontPath ::id => {
+let loadFont ::fontSize=24. ::fontPath ::id => {
   if debug {
     prerr_endline (Printf.sprintf "Processing %s" fontPath);
     prerr_endline "opening font..."
   };
   let face = (new OFreetype.face) fontPath id;
-  face#set_char_size csize csize fontSize fontSize;
+  face#set_char_size fontSize fontSize csize csize;
   /*List.iter
     (
       fun cmap =>
