@@ -5,7 +5,8 @@
   "scripts": {
     "build": "bsb -make-world -backend bytecode",
     "clean": "bsb -clean-world",
-    "start": "./lib/bs/bytecode/index.byte"
+    "start": "./lib/bs/bytecode/index.byte",
+    "postinstall": "./makefreetype.sh"
   },
   "dependencies": {
     "ReasonglInterface": "bsansouci/reasongl-interface#bsb-support-new",

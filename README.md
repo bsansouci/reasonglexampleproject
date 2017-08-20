@@ -6,9 +6,9 @@ This project is showing how to:
 - handle events
 - layout things using [Relayout](https://github.com/jordwalke/ReLayout)
 
-This only builds on native currently because it depends on [camlimages](https://bitbucket.org/camlspotter/camlimages) which is a library that binds to the C lib freetype. You'll need to install `camlimages` through [opam](https://opam.ocaml.org/doc/Install.html) (`opam install camlimages`) and you'll need to install `freetype` through homebrew (`brew install freetype`).
+This only builds on native currently because it depends on [camlimages](https://bitbucket.org/camlspotter/camlimages) which is a library that binds to the C lib freetype. Everything needed is vendored inside the repo so we don't depend on opam.
 
-To install all the non-global deps, run `npm install`.
+To install run `npm install`.
 
 To build `npm run build` and to start `npm run start`.
 

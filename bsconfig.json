@@ -30,7 +30,8 @@
     }
   ],
   "static_libraries": [
-    "lib/bs/libTruetypebindings.o -add-clib -ccopt -add-clib -L/usr/local/Cellar/freetype/2.6.3/lib/ -add-clib -ccopt -add-clib -lfreetype",
+    "vendor/freetype-2.8/release/lib/libfreetype.a",
+    "lib/bs/libTruetypebindings.o",
   ],
   "build_script": "make"
 }
