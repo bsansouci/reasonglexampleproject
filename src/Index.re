@@ -40,9 +40,12 @@ let mouseState = {
 
 let defaultColor = (0.3, 0.4, 0.9, 1.);
 
-type appStateT = {mutable color: (float, float, float, float)};
+type appStateT = {
+  mutable color: (float, float, float, float),
+  mutable inputText: string
+};
 
-let appState = {color: defaultColor};
+let appState = {color: defaultColor, inputText: ""};
 
 Random.init 0;
 
@@ -54,7 +57,7 @@ let render time => {
   let child0 = {
     /* FPS counter :) */
     let {Draw.width: textWidth, height: textHeight, textureBuffer} =
-      Draw.drawText ("fps: " ^ string_of_int (int_of_float ((1000. /. time) +. 0.5))) font16;
+      Draw.drawText ("fps: " ^ string_of_int (int_of_float (1000. /. time +. 0.5))) font16;
     let style = Layout.{...defaultStyle, width: textWidth, height: textHeight};
     Layout.createNode
       withChildren::[||]
@@ -160,7 +163,8 @@ let render time => {
     let style =
       Layout.{
         ...defaultStyle,
-        width: 400.,
+        flexGrow: 1.,
+        /*width: 400.,*/
         height: 100.,
         marginTop: 32.,
         justifyContent: JustifyCenter,
@@ -179,9 +183,11 @@ let render time => {
         ...defaultStyle,
         flexDirection: Column,
         paddingLeft: 24.,
+        paddingRight: 24.,
         paddingTop: 24.,
-        width: float_of_int Draw.windowSize,
-        height: float_of_int Draw.windowSize
+        paddingBottom: 24.,
+        width: float_of_int @@ Draw.getWindowWidth (),
+        height: float_of_int @@ Draw.getWindowHeight ()
       };
     Layout.createNode
       withChildren::[|
@@ -255,6 +261,8 @@ let mouseUp ::button ::state ::x ::y =>
   | _ => ()
   };
 
+let windowResize () => Draw.resizeWindow ();
+
 
 /** Start the render loop. **/
-Draw.render ::mouseMove ::mouseDown ::mouseUp render;
+Draw.render ::windowResize ::mouseMove ::mouseDown ::mouseUp render;

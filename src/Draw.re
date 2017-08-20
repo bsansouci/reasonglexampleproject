@@ -135,12 +135,30 @@ let context = Gl.Window.getContext window;
 
 Gl.viewport ::context x::0 y::0 width::windowSize height::windowSize;
 
+let getWindowWidth () => Gl.Window.getWidth window;
+
+let getWindowHeight () => Gl.Window.getHeight window;
+
 /* Gl.clearColor context 1.0 1.0 1.0 1.0; */
 Gl.clear ::context mask::(Constants.color_buffer_bit lor Constants.depth_buffer_bit);
 
 
 /** Camera is a simple record containing one matrix used to project a point in 3D onto the screen. **/
 let camera = {projectionMatrix: Gl.Mat4.create ()};
+
+let resizeWindow () => {
+  let width = Gl.Window.getWidth window;
+  let height = Gl.Window.getHeight window;
+  Gl.viewport ::context x::0 y::0 ::width ::height;
+  Gl.Mat4.ortho
+    out::camera.projectionMatrix
+    left::0.
+    right::(float_of_int width)
+    bottom::(float_of_int height)
+    top::0.
+    near::0.
+    far::100.
+};
 
 
 /**
@@ -531,8 +549,8 @@ let drawText s face =>
       ();
     imageRef
   };*/
-let render ::mouseMove ::mouseDown ::mouseUp r =>
-  Gl.render ::mouseDown ::mouseUp ::mouseMove ::window displayFunc::r ();
+let render ::keyDown=? ::windowResize ::mouseMove ::mouseDown ::mouseUp r =>
+  Gl.render ::?keyDown ::windowResize ::mouseDown ::mouseUp ::mouseMove ::window displayFunc::r ();
 
 let clearScreen () => Gl.clear ::context mask::Constants.color_buffer_bit;
 
