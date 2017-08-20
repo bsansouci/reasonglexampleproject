@@ -2,8 +2,7 @@
   "name": "ReasonglExampleProject",
   "sources": "src",
   "bs-dependencies": ["ReasonglInterface", "ReasonglWeb", "ReasonglNative"],
-  "ocamlfind-dependencies": ["camlimages", "camlimages.freetype"
-  ],
+  "ocamlfind-dependencies": ["camlimages", "camlimages.freetype"],
   "entries":[
   {
     "kind": "bytecode",

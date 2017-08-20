@@ -2,6 +2,8 @@ module Constants = ReasonglInterface.Constants;
 
 module Gl: ReasonglInterface.Gl.t = Reasongl.Gl;
 
+module Events = Gl.Events;
+
 
 /**
  * Helper function which will initialize the shaders and attach them to the GL context.
@@ -468,7 +470,8 @@ let drawText s face => {
       ();
     imageRef
   };*/
-let render r => Gl.render ::window displayFunc::r ();
+let render ::mouseMove ::mouseDown ::mouseUp r =>
+  Gl.render ::mouseDown ::mouseUp ::mouseMove ::window displayFunc::r ();
 
 let clearScreen () => Gl.clear ::context mask::Constants.color_buffer_bit;
 
@@ -514,10 +517,7 @@ module Layout = {
 };
 
 let rec traverseAndDraw root left top => {
-  /* @Cleanup This is awful, no idea where things come from. */
   open Layout;
-  open LayoutTypes;
-  open Node;
   let absoluteLeft = left +. root.layout.left;
   let absoluteTop = top +. root.layout.top;
   drawRect
@@ -525,7 +525,7 @@ let rec traverseAndDraw root left top => {
     absoluteTop
     root.layout.width
     root.layout.height
-    root.context.backgroundColor
-    root.context.texture;
+    root.context.Node.backgroundColor
+    root.context.Node.texture;
   Array.iter (fun child => traverseAndDraw child absoluteLeft absoluteTop) root.children
 };
