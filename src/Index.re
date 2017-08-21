@@ -3,6 +3,8 @@ module Layout = Draw.Layout;
 
 module Node = Draw.Node;
 
+let ocamlPath = Hotreloader.ocamlPath;
+
 let font40 = Font.loadFont fontSize::40. fontPath::"assets/fonts/DroidSansMono.ttf" id::0;
 
 let font36 = Font.loadFont fontSize::36. fontPath::"assets/fonts/DroidSansMono.ttf" id::0;
@@ -18,8 +20,6 @@ let font20 = Font.loadFont fontSize::20. fontPath::"assets/fonts/DroidSansMono.t
 let font16 = Font.loadFont fontSize::16. fontPath::"assets/fonts/DroidSansMono.ttf" id::0;
 
 let font12 = Font.loadFont fontSize::12. fontPath::"assets/fonts/DroidSansMono.ttf" id::0;
-
-open Plugin;
 
 let mouse = ref (0., 0.);
 
@@ -82,18 +82,12 @@ let render time => {
 
   /** Magical child1 has hot-reloading hooked up */
   let child1 =
-    switch !p {
+    switch !Hotreloader.p {
     | Some s =>
-      module M = (val (s: (module DYNAMIC_MODULE)));
+      module M = (val (s: (module Hotreloader.DYNAMIC_MODULE)));
       M.render ()
     | None =>
-      let {Draw.width: textWidth, height: textHeight, textureBuffer} =
-        Draw.drawText "this is not a word" font40;
-      let style = Layout.{...defaultStyle, width: textWidth, height: textHeight};
-      Layout.createNode
-        withChildren::[||]
-        andStyle::style
-        Node.{texture: textureBuffer, backgroundColor: defaultColor}
+      Child1.M.render ()
     };
 
   /** */
@@ -280,12 +274,13 @@ let render time => {
   mouseState.leftButton = {...mouseState.leftButton, isClicked: false};
   mouseState.rightButton = {...mouseState.leftButton, isClicked: false};
   /* @Hack For hotreloading. */
-  let {Unix.st_mtime: st_mtime} = Unix.stat "src/hotreload.re";
+  let {Unix.st_mtime: st_mtime} = Unix.stat "src/Child1.re";
   if (st_mtime > !last_st_mtime) {
     let _ =
-      Unix.system "ocamlc -c -I lib/bs/bytecode/src -I lib/bs/bytecode/vendor/ReLayout/src -pp './node_modules/bs-platform/bin/refmt.exe --print binary' -o lib/bs/bytecode/src/hotreload.cmo -impl src/hotreload.re";
+      Unix.system @@
+      ocamlPath ^ " -c -I lib/bs/bytecode/src -I lib/bs/bytecode/vendor/ReLayout/src -pp './node_modules/bs-platform/bin/refmt.exe --print binary' -o lib/bs/bytecode/src/Child1.cmo -impl src/Child1.re";
     /*Unix.system "./node_modules/.bin/bsb";*/
-    load_plug "lib/bs/bytecode/src/hotreload.cmo";
+    Hotreloader.load_plug "lib/bs/bytecode/src/Child1.cmo";
     last_st_mtime := st_mtime
   }
 };

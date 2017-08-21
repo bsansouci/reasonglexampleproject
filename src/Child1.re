@@ -2,13 +2,11 @@ module Layout = Draw.Layout;
 
 module Node = Draw.Node;
 
-open Plugin;
-
 let font40 = Font.loadFont fontSize::24. fontPath::"assets/fonts/DroidSansMono.ttf" id::0;
 
 let defaultColor = (0.3, 0.4, 0.9, 1.);
 
-module M: DYNAMIC_MODULE = {
+module M: Hotreloader.DYNAMIC_MODULE = {
   let render () => {
     let {Draw.width: textWidth, height: textHeight, textureBuffer} =
       Draw.drawText "this is not a world" font40;
@@ -20,4 +18,4 @@ module M: DYNAMIC_MODULE = {
   };
 };
 
-p := Some ((module M): (module DYNAMIC_MODULE));
+Hotreloader.p := Some ((module M): (module Hotreloader.DYNAMIC_MODULE));
