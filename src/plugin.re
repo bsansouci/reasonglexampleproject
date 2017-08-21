@@ -1,7 +1,3 @@
-/* Commented out because it depends on Dynlink. To have that you need a global install of ocaml.
-   If you'd like to try it, all you need is to install ocaml 4.02.3 using opam. Then uncomment
-   the `ocamlfind-dependencies` in the bsconfig.json file. You can now build.
-   */
 module Layout = Draw.Layout;
 
 module type DYNAMIC_MODULE = {let render: unit => Layout.node;};
@@ -13,7 +9,7 @@ let get_plugin () :(module DYNAMIC_MODULE) =>
   | Some s => s
   | None => failwith "No plugin loaded"
   };
-/*
+
  let load_plug fname => {
    let fname = Dynlink.adapt_filename fname;
    if (Sys.file_exists fname) {
@@ -27,4 +23,4 @@ let get_plugin () :(module DYNAMIC_MODULE) =>
      failwith "Plugin file does not exist"
    }
  };
- */
+ 

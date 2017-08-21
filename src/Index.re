@@ -80,7 +80,7 @@ let render time => {
       Node.{texture: textureBuffer, backgroundColor: defaultColor}
   };
 
-  /** Magical child1 has hotreloading hooked up (turned off by default). See src/plugin.re */
+  /** Magical child1 has hot-reloading hooked up */
   let child1 =
     switch !p {
     | Some s =>
@@ -279,17 +279,15 @@ let render time => {
   /** Reset the button state for having a way to check if a button was clicked for 1 frame. */
   mouseState.leftButton = {...mouseState.leftButton, isClicked: false};
   mouseState.rightButton = {...mouseState.leftButton, isClicked: false};
-  
-  /* @Hack For hotreloading. 
-     See src/plugin.re for explanation.
-  */
-  /*let {Unix.st_mtime: st_mtime} = Unix.stat "src/hotreload.re";
+  /* @Hack For hotreloading. */
+  let {Unix.st_mtime: st_mtime} = Unix.stat "src/hotreload.re";
   if (st_mtime > !last_st_mtime) {
     let _ =
-      Unix.system "ocamlc -c -I lib/bs/bytecode/src -I lib/bs/bytecode/vendor/ReLayout/src -pp './node_modules/bs-platform/bin/refmt.exe --print binary' -impl src/hotreload.re";
-    load_plug "src/hotreload.cmo";
+      Unix.system "ocamlc -c -I lib/bs/bytecode/src -I lib/bs/bytecode/vendor/ReLayout/src -pp './node_modules/bs-platform/bin/refmt.exe --print binary' -o lib/bs/bytecode/src/hotreload.cmo -impl src/hotreload.re";
+    /*Unix.system "./node_modules/.bin/bsb";*/
+    load_plug "lib/bs/bytecode/src/hotreload.cmo";
     last_st_mtime := st_mtime
-  }*/
+  }
 };
 
 let mouseMove ::x ::y => mouse := (float_of_int x, float_of_int y);

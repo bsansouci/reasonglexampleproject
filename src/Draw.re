@@ -126,6 +126,7 @@ type glCamera = {projectionMatrix: Gl.Mat4.t};
 let window = Gl.Window.init argv::Sys.argv;
 
 let windowWidth = 900;
+
 let windowHeight = 600;
 
 Gl.Window.setWindowSize ::window width::windowWidth height::windowHeight;

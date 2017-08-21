@@ -19,7 +19,6 @@
     }]
   }],
   "bs-dependencies": ["ReasonglInterface", "ReasonglWeb", "ReasonglNative"],
-  // "ocamlfind-dependencies": ["dynlink"],
   "entries": [{
       "kind": "bytecode",
       "main": "Index"
