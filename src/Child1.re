@@ -2,7 +2,7 @@ module Layout = Draw.Layout;
 
 module Node = Draw.Node;
 
-let font40 = Font.loadFont fontSize::24. fontPath::"assets/fonts/DroidSansMono.ttf" id::0;
+let font40 = Font.loadFont fontSize::40. fontPath::"assets/fonts/DroidSansMono.ttf" id::0;
 
 let defaultColor = (0.3, 0.4, 0.9, 1.);
 
