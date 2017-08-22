@@ -1,6 +1,4 @@
-module Layout = Draw.Layout;
-
-module type DYNAMIC_MODULE = {let render: unit => Layout.node;};
+module type DYNAMIC_MODULE = {let render: unit => unit;};
 
 let p = ref None;
 
@@ -38,9 +36,41 @@ try (
 
 Unix.close_process (ic, oc);
 
+let last_st_mtime = ref 0.;
+
+let ocaml = Dynlink.is_native ? "ocamlopt" : "ocamlc";
+
+let extension = Dynlink.is_native ? "cmxs" : "cmo";
+
+let shared = Dynlink.is_native ? "-shared" : "-c";
+
+let folder = Dynlink.is_native ? "native" : "bytecode";
+
 let ocamlPath =
   if (Buffer.contents buf == "") {
-    "node_modules/bs-platform/vendor/ocaml/ocamlc"
+    "node_modules/bs-platform/vendor/ocaml/" ^ ocaml
   } else {
-    "ocamlc"
+    ocaml
   };
+
+let checkRebuild () => {
+  let {Unix.st_mtime: st_mtime} = Unix.stat "src/Child1.re";
+  if (st_mtime > !last_st_mtime) {
+    print_endline "Rebuilding hotloaded module";
+    /* @Incomplete Check the error code sent back. Also don't do this, use stdout/stderr. */
+    let _ =
+      Unix.system @@
+      Printf.sprintf
+        "%s -I lib/bs/%s/src %s -I lib/bs/%s/vendor/ReLayout/src -pp './node_modules/bs-platform/bin/refmt.exe --print binary' -o lib/bs/%s/src/Child1.%s -impl src/Child1.re 2>&1 | berror"
+        ocamlPath
+        folder
+        shared
+        folder
+        folder
+        extension;
+    /*Unix.system "./node_modules/.bin/bsb";*/
+    load_plug @@ Printf.sprintf "lib/bs/%s/src/Child1.%s" folder extension;
+    last_st_mtime := st_mtime;
+    print_endline "----------------------"
+  }
+};

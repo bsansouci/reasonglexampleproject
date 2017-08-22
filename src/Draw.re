@@ -301,7 +301,13 @@ Gl.Mat4.ortho
 
           Ben - August 19th 2017
    */
-let drawRect x y width height (r, g, b, a) texture => {
+let drawRect
+    (x: float)
+    (y: float)
+    (width: float)
+    (height: float)
+    (r, g, b, a)
+    (texture: Gl.textureT) => {
   let packedVertexData = [|
     x +. width,
     y +. height,
@@ -516,6 +522,60 @@ let drawText s face =>
     }
   };
 
+let drawCircle x y ::radius color::(r, g, b, a) => {
+
+  /** Instantiate a list of points for the circle and bind to the circleBuffer. **/
+  let circle_vertex = ref [];
+  for i in 0 to 360 {
+    let deg2grad = 3.14159 /. 180.;
+    let degInGrad = float_of_int i *. deg2grad;
+    circle_vertex := [
+      cos degInGrad *. radius +. x,
+      sin degInGrad *. radius +. y,
+      0.,
+      ...!circle_vertex
+    ]
+  };
+  Gl.bindBuffer ::context target::Constants.array_buffer buffer::vertexBuffer;
+  Gl.bufferData
+    ::context
+    target::Constants.array_buffer
+    data::(Gl.Bigarray.of_array Gl.Bigarray.Float32 (Array.of_list !circle_vertex))
+    usage::Constants.static_draw;
+  Gl.vertexAttribPointer
+    ::context
+    attribute::aVertexPosition
+    size::3
+    type_::Constants.float_
+    normalize::false
+    stride::0
+    offset::0;
+
+  /** Instantiate color array **/
+  let circle_colors = ref [];
+  for _ in 0 to 360 {
+    circle_colors := [r, g, b, a, ...!circle_colors]
+  };
+  Gl.bindBuffer ::context target::Constants.array_buffer buffer::colorBuffer;
+  Gl.bufferData
+    ::context
+    target::Constants.array_buffer
+    data::(Gl.Bigarray.of_array Gl.Bigarray.Float32 (Array.of_list !circle_colors))
+    usage::Constants.stream_draw;
+  Gl.vertexAttribPointer
+    ::context
+    attribute::aVertexColor
+    size::4
+    type_::Constants.float_
+    normalize::false
+    stride::0
+    offset::0;
+  Gl.uniformMatrix4fv ::context location::pMatrixUniform value::camera.projectionMatrix;
+  Gl.uniform1i ::context location::uSampler val::0;
+  Gl.bindTexture ::context target::RGLConstants.texture_2d texture::nullTex;
+  Gl.drawArrays ::context mode::Constants.triangle_fan first::0 count::360
+};
+
 /* Commented out because not used. */
 /*type _imageT = {
     textureBuffer: Gl.textureT,
@@ -593,13 +653,14 @@ module Node = {
     /* Each field is mutable for performance reason. We want to encourage creating a pretty
        static tree that gets its nodes mutated and fully composited each frame. */
     mutable texture: Gl.textureT,
-    mutable backgroundColor: (float, float, float, float)
+    mutable backgroundColor: (float, float, float, float),
+    mutable visible: bool
   };
   /* @Hack we're using nullTex which is a value that we're assuming has
        been loaded already. This is very bad but it'll work for now.
              Ben - August 19th 2017
      */
-  let nullContext = {texture: nullTex, backgroundColor: noColor};
+  let nullContext = {texture: nullTex, backgroundColor: noColor, visible: true};
 };
 
 module Layout = {
@@ -617,16 +678,18 @@ module Layout = {
   let doLayoutNow root => Layout.layoutNode root Encoding.cssUndefined Encoding.cssUndefined Ltr;
 };
 
-let rec traverseAndDraw root left top => {
-  open Layout;
-  let absoluteLeft = left +. root.layout.left;
-  let absoluteTop = top +. root.layout.top;
-  drawRect
-    absoluteLeft
-    absoluteTop
-    root.layout.width
-    root.layout.height
-    root.context.Node.backgroundColor
-    root.context.Node.texture;
-  Array.iter (fun child => traverseAndDraw child absoluteLeft absoluteTop) root.children
-};
+let rec traverseAndDraw root left top =>
+  Layout.(
+    if root.context.visible {
+      let absoluteLeft = left +. root.layout.left;
+      let absoluteTop = top +. root.layout.top;
+      drawRect
+        (floor absoluteLeft)
+        (floor absoluteTop)
+        root.layout.width
+        root.layout.height
+        root.context.Node.backgroundColor
+        root.context.Node.texture;
+      Array.iter (fun child => traverseAndDraw child absoluteLeft absoluteTop) root.children
+    }
+  );

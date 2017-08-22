@@ -5,20 +5,19 @@ module Node = Draw.Node;
 
 let ocamlPath = Hotreloader.ocamlPath;
 
-let font40 = Font.loadFont fontSize::40. fontPath::"assets/fonts/DroidSansMono.ttf" id::0;
+/*let font40 = Font.loadFont fontSize::40. fontPath::"assets/fonts/DroidSansMono.ttf" id::0;
 
-let font36 = Font.loadFont fontSize::36. fontPath::"assets/fonts/DroidSansMono.ttf" id::0;
+  let font36 = Font.loadFont fontSize::36. fontPath::"assets/fonts/DroidSansMono.ttf" id::0;
 
-let font32 = Font.loadFont fontSize::32. fontPath::"assets/fonts/DroidSansMono.ttf" id::0;
+  let font32 = Font.loadFont fontSize::32. fontPath::"assets/fonts/DroidSansMono.ttf" id::0;
 
-let font28 = Font.loadFont fontSize::28. fontPath::"assets/fonts/DroidSansMono.ttf" id::0;
+  let font28 = Font.loadFont fontSize::28. fontPath::"assets/fonts/DroidSansMono.ttf" id::0;
 
-let font24 = Font.loadFont fontSize::24. fontPath::"assets/fonts/DroidSansMono.ttf" id::0;
+  let font24 = Font.loadFont fontSize::24. fontPath::"assets/fonts/DroidSansMono.ttf" id::0;
 
-let font20 = Font.loadFont fontSize::20. fontPath::"assets/fonts/DroidSansMono.ttf" id::0;
+  let font20 = Font.loadFont fontSize::20. fontPath::"assets/fonts/DroidSansMono.ttf" id::0;
 
-let font16 = Font.loadFont fontSize::16. fontPath::"assets/fonts/DroidSansMono.ttf" id::0;
-
+  let font16 = Font.loadFont fontSize::16. fontPath::"assets/fonts/DroidSansMono.ttf" id::0;*/
 let font12 = Font.loadFont fontSize::12. fontPath::"assets/fonts/DroidSansMono.ttf" id::0;
 
 let mouse = ref (0., 0.);
@@ -59,230 +58,25 @@ let appState = {color: defaultColor, inputText: "this is not a word", easterEgg:
 
 Random.init 0;
 
-let maxHeight = Draw.getFontMaxHeight font24;
-
-let last_st_mtime = ref 0.;
-
-/*let baseline = Draw.getFontBaseline font24;*/
 let render time => {
   /* Remember to clear the clear at each tick */
   Draw.clearScreen ();
 
-  /** */
-  let child0 = {
-    /* FPS counter :) */
-    let {Draw.width: textWidth, height: textHeight, textureBuffer} =
-      Draw.drawText ("fps: " ^ string_of_int (int_of_float (1000. /. time +. 0.5))) font16;
-    let style = Layout.{...defaultStyle, width: textWidth, height: textHeight};
-    Layout.createNode
-      withChildren::[||]
-      andStyle::style
-      Node.{texture: textureBuffer, backgroundColor: defaultColor}
+  /** Magical src/Child1.re has hot-reloading hooked up */
+  switch !Hotreloader.p {
+  | Some s =>
+    module M = (val (s: (module Hotreloader.DYNAMIC_MODULE)));
+    M.render ()
+  | None => Dummy.M.render ()
   };
 
-  /** Magical child1 has hot-reloading hooked up */
-  let child1 =
-    switch !Hotreloader.p {
-    | Some s =>
-      module M = (val (s: (module Hotreloader.DYNAMIC_MODULE)));
-      M.render ()
-    | None =>
-      Child1.M.render ()
-    };
+  /** Happy FPS counter. */
+  let {Draw.width: textWidth, height: textHeight, textureBuffer} =
+    Draw.drawText ("fps: " ^ string_of_int (int_of_float (1000. /. time +. 0.5))) font12;
+  Draw.drawRect 5. 5. textWidth textHeight (1., 1., 1., 1.) textureBuffer;
 
-  /** */
-  let child2 = {
-    let {Draw.width: textWidth, height: textHeight, textureBuffer} =
-      Draw.drawText "this is not a word" font36;
-    let style = Layout.{...defaultStyle, width: textWidth, height: textHeight};
-    Layout.createNode
-      withChildren::[||]
-      andStyle::style
-      Node.{texture: textureBuffer, backgroundColor: defaultColor}
-  };
-
-  /** */
-  let child3 = {
-    let {Draw.width: textWidth, height: textHeight, textureBuffer} =
-      Draw.drawText "this is not a word" font32;
-    let style = Layout.{...defaultStyle, width: textWidth, height: textHeight};
-    Layout.createNode
-      withChildren::[||]
-      andStyle::style
-      Node.{texture: textureBuffer, backgroundColor: defaultColor}
-  };
-
-  /** */
-  let child4 = {
-    let {Draw.width: textWidth, height: textHeight, textureBuffer} =
-      Draw.drawText "this is not a word" font28;
-    let style = Layout.{...defaultStyle, width: textWidth, height: textHeight};
-    Layout.createNode
-      withChildren::[||]
-      andStyle::style
-      Node.{texture: textureBuffer, backgroundColor: defaultColor}
-  };
-
-  /** Easter egg, you can edit this one! */
-  let child5 = {
-    let {Draw.width: textWidth, height: textHeight, textureBuffer} =
-      Draw.drawText appState.inputText font24;
-    /* @Hack This isn't giving good results anyway. It seems like it's not as simple as adjusting for the height. The texture moves around when there are capital letters vs lower case letters. What we  truly want is to figure out the baseline and draw the glyphs one by one so that they're baseline aligned. Also we want to find a bounding box to leave enough space for ascender / descender. */
-    let marginBottom =
-      if appState.easterEgg {
-        maxHeight -. textHeight
-      } else {
-        0.
-      };
-    let style = Layout.{...defaultStyle, width: textWidth, height: textHeight, marginBottom};
-    let child1 =
-      Layout.createNode
-        withChildren::[||]
-        andStyle::style
-        Node.{texture: textureBuffer, backgroundColor: defaultColor};
-    let style = Layout.{...defaultStyle, width: 2., height: maxHeight -. 6.};
-    let cursor =
-      Layout.createNode
-        withChildren::[||]
-        andStyle::style
-        Node.{...nullContext, backgroundColor: appState.easterEgg ? Draw.red : Draw.noColor};
-    let style = Layout.{...defaultStyle, flexDirection: Row, alignItems: AlignCenter};
-    Layout.createNode
-      withChildren::[|child1, cursor|]
-      andStyle::style
-      Node.{...nullContext, backgroundColor: Draw.noColor}
-  };
-
-  /** */
-  let child6 = {
-    let {Draw.width: textWidth, height: textHeight, textureBuffer} =
-      Draw.drawText "this is not a word" font20;
-    let style = Layout.{...defaultStyle, width: textWidth, height: textHeight};
-    Layout.createNode
-      withChildren::[||]
-      andStyle::style
-      Node.{texture: textureBuffer, backgroundColor: defaultColor}
-  };
-  let child7 = {
-    let {Draw.width: textWidth, height: textHeight, textureBuffer} =
-      Draw.drawText "this is not a word" font16;
-    let style = Layout.{...defaultStyle, width: textWidth, height: textHeight};
-    Layout.createNode
-      withChildren::[||]
-      andStyle::style
-      Node.{texture: textureBuffer, backgroundColor: defaultColor}
-  };
-
-  /** */
-  let child8 = {
-    let {Draw.width: textWidth, height: textHeight, textureBuffer} =
-      Draw.drawText "this is not a word" font12;
-    let style = Layout.{...defaultStyle, width: textWidth, height: textHeight};
-    Layout.createNode
-      withChildren::[||]
-      andStyle::style
-      Node.{texture: textureBuffer, backgroundColor: defaultColor}
-  };
-
-  /** */
-  let child9 = {
-    let innerChild = {
-      let {Draw.width: textWidth, height: textHeight, textureBuffer} =
-        Draw.drawText "Change colors when a click happens" font16;
-      let style = Layout.{...defaultStyle, width: textWidth, height: textHeight};
-      Layout.createNode
-        withChildren::[||]
-        andStyle::style
-        Node.{...nullContext, backgroundColor: Draw.white, texture: textureBuffer}
-    };
-    let style =
-      Layout.{
-        ...defaultStyle,
-        flexGrow: 1.,
-        height: 100.,
-        marginTop: 32.,
-        justifyContent: JustifyCenter,
-        alignItems: AlignCenter
-      };
-    Layout.createNode
-      withChildren::[|innerChild|]
-      andStyle::style
-      Node.{...nullContext, backgroundColor: appState.color}
-  };
-
-  /** */
-  let root = {
-    let rootStyle =
-      Layout.{
-        ...defaultStyle,
-        flexDirection: Column,
-        paddingLeft: 24.,
-        paddingRight: 24.,
-        paddingTop: 24.,
-        paddingBottom: 24.,
-        width: float_of_int @@ Draw.getWindowWidth (),
-        height: float_of_int @@ Draw.getWindowHeight ()
-      };
-    Layout.createNode
-      withChildren::[|
-        child0,
-        child1,
-        child2,
-        child3,
-        child4,
-        child5,
-        child6,
-        child7,
-        child8,
-        child9
-      |]
-      andStyle::rootStyle
-      Node.{...nullContext, backgroundColor: (0.9, 0.9, 0.9, 1.)}
-  };
-
-  /** This will perform all of the Flexbox calculations and mutate the layouts to have left, top, width, height set. The positions are relative to the parent. */
-  Layout.doLayoutNow root;
-
-  /** Immediate-style event handling.
-      This works kinda like a game engine. You check the state of the input every frame and act
-      on it. By now the layout has been calculated, so we have up-to-date values and we can
-      choose to change them if needed.
-        */
-  let (mouseX, mouseY) = !mouse;
-  Array.iter
-    (
-      fun child => {
-        let {Layout.top: top, left, width, height} = child.Layout.layout;
-        if (mouseX > left && mouseX < left +. width && mouseY > top && mouseY < top +. height) {
-          if (mouseState.leftButton.state == Draw.Events.MouseDown) {
-            child.Layout.context.Node.backgroundColor = (0.9, 0.4, 0.9, 1.)
-          } else {
-            child.Layout.context.Node.backgroundColor = (0.9, 0.4, 0.3, 1.)
-          };
-          if mouseState.leftButton.isClicked {
-            appState.color = Draw.randomColor ()
-          }
-        }
-      }
-    )
-    root.Layout.children;
-
-  /** This will traverse the layout tree and blit each item to the screen one by one. */
-  Draw.traverseAndDraw root 0. 0.;
-
-  /** Reset the button state for having a way to check if a button was clicked for 1 frame. */
-  mouseState.leftButton = {...mouseState.leftButton, isClicked: false};
-  mouseState.rightButton = {...mouseState.leftButton, isClicked: false};
-  /* @Hack For hotreloading. */
-  let {Unix.st_mtime: st_mtime} = Unix.stat "src/Child1.re";
-  if (st_mtime > !last_st_mtime) {
-    let _ =
-      Unix.system @@
-      ocamlPath ^ " -c -I lib/bs/bytecode/src -I lib/bs/bytecode/vendor/ReLayout/src -pp './node_modules/bs-platform/bin/refmt.exe --print binary' -o lib/bs/bytecode/src/Child1.cmo -impl src/Child1.re";
-    /*Unix.system "./node_modules/.bin/bsb";*/
-    Hotreloader.load_plug "lib/bs/bytecode/src/Child1.cmo";
-    last_st_mtime := st_mtime
-  }
+  /** @Hack For hotreloading. */
+  Hotreloader.checkRebuild ()
 };
 
 let mouseMove ::x ::y => mouse := (float_of_int x, float_of_int y);
