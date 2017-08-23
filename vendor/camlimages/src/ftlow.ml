@@ -121,6 +121,8 @@ module C = struct
   external get_size_metrics : face -> size_metrics = "get_Size_Metrics"
   external get_outline_contents :
     face -> outline_contents = "get_Outline_Contents"
+    
+  external get_kerning : face -> int -> int -> int * int = "get_Kerning"
 end
 
 include C

@@ -373,6 +373,19 @@ value read_Bitmap( vface, vx, vy ) /* This "y" is in Y upwards convention */
 
 }
 
+value get_Kerning(value face, value left_glyph, value right_glyph) {
+  CAMLparam3(face, left_glyph, right_glyph);
+  CAMLlocal1(ret);
+  
+  FT_Vector delta;
+  FT_Get_Kerning(*(FT_Face *)face, Int_val(left_glyph), Int_val(right_glyph), FT_KERNING_DEFAULT, &delta);
+  
+  ret = caml_alloc_small(2, 0);
+  Field(ret, 0) = Val_int(delta.x);
+  Field(ret, 1) = Val_int(delta.y);
+  CAMLreturn(ret);
+}
+
 value get_Glyph_Metrics( face )
      value face;
 {

@@ -4,6 +4,44 @@ module Gl: ReasonglInterface.Gl.t = Reasongl.Gl;
 
 module Events = Gl.Events;
 
+module IntMap =
+  Map.Make {
+    type t = int;
+    let compare = compare;
+  };
+
+module IntPairMap =
+  Map.Make {
+    type t = (int, int);
+    let compare (a1, a2) (b1, b2) => {
+      let first = compare a1 b1;
+      if (first != 0) {
+        first
+      } else {
+        compare a2 b2
+      }
+    };
+  };
+
+type glyphInfoT = {
+  width: float,
+  height: float,
+  atlasX: float,
+  atlasY: float,
+  bearingX: float,
+  bearingY: float,
+  advance: float
+};
+
+type fontT = {
+  /*face: Ftlow.face,*/
+  chars: IntMap.t glyphInfoT,
+  kerning: IntPairMap.t (float, float),
+  textureBuffer: Gl.textureT,
+  textureWidth: float,
+  textureHeight: float
+};
+
 
 /**
  * Helper function which will initialize the shaders and attach them to the GL context.
@@ -306,6 +344,10 @@ let drawRect
     (y: float)
     (width: float)
     (height: float)
+    (texX: float)
+    (texY: float)
+    (texW: float)
+    (texH: float)
     (r, g, b, a)
     (texture: Gl.textureT) => {
   let packedVertexData = [|
@@ -315,32 +357,32 @@ let drawRect
     g,
     b,
     a,
-    1.0,
-    1.0,
+    texX +. texW,
+    texY +. texH,
     x,
     y +. height,
     r,
     g,
     b,
     a,
-    0.,
-    1.,
+    texX,
+    texY +. texH,
     x +. width,
     y,
     r,
     g,
     b,
     a,
-    1.,
-    0.,
+    texX +. texW,
+    texY,
     x,
     y,
     r,
     g,
     b,
     a,
-    0.,
-    0.
+    texX,
+    texY
   |];
   Gl.bindBuffer ::context target::Constants.array_buffer buffer::vertexBuffer;
   Gl.bufferData
@@ -418,8 +460,7 @@ module FontCompare = {
 
 module MemoizedText = Map.Make FontCompare;
 
-let memoizedText = ref MemoizedText.empty;
-
+/*let memoizedText = ref MemoizedText.empty;*/
 let getFontMaxHeight face => {
   let (x1, y1, x2, y2) =
     face#size (Fttext.unicode_of_latin "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
@@ -433,95 +474,138 @@ let getFontBaseline face => {
   y2 -. y1 +. plus
 };
 
-let drawText s face =>
-  if (String.length s == 0) {
+let drawText
+    (x: float)
+    (y: float)
+    (s: string)
+    color
+    ({textureBuffer, textureWidth, textureHeight, chars, kerning}: fontT) => {
+  let offset = ref 0.;
+  let prevChar = ref None;
+  String.iter
+    (
+      fun c => {
+        let code = Char.code c;
+        switch (IntMap.find code chars) {
+        | {width, height, atlasX, atlasY, bearingX, bearingY, advance} =>
+          let (kerningOffsetX, kerningOffsetY) =
+            switch !prevChar {
+            | None => (0., 0.)
+            | Some c =>
+              switch (IntPairMap.find (c, code) kerning) {
+              | v => v
+              | exception Not_found => (0., 0.)
+              }
+            };
+          drawRect
+            (x +. !offset +. bearingX +. kerningOffsetX)
+            (y -. bearingY -. kerningOffsetY)
+            width
+            height
+            (atlasX /. textureWidth)
+            ((atlasY +. 1.) /. textureHeight)
+            (width /. textureWidth)
+            (height /. textureHeight)
+            color
+            textureBuffer;
+          prevChar := Some code;
+          offset := !offset +. advance
+        | exception Not_found =>
+          failwith (Printf.sprintf "Couldn't find character %c in atlas :(" c)
+        }
+      }
+    )
+    s
+};
+
+/*if (String.length s == 0) {
     {width: 0., height: 0., textureBuffer: nullTex}
   } else {
     try (MemoizedText.find (s, face) !memoizedText) {
-    | Not_found =>
-      /* @Dumb Copy pasted from https://bitbucket.org/camlspotter/camlimages/src/b18e82a3d840c458f5db3f33309dd2d6e97bef91/examples/ttfimg/ttfimg.ml?at=default&fileviewer=file-view-default */
-      let plus = 8;
-      let encoded = Fttext.unicode_of_latin s;
-      let (x1, y1, x2, y2) = face#size encoded;
-      let h = truncate (ceil y2) - truncate y1 + 1 + plus;
-      let rgba = (new OImages.rgba32_filled) (truncate (x2 -. x1) + plus) h bg;
-      OFreetype.draw_text
-        face
-        (
-          fun org level => {
-            let level' = 255 - level;
-            Images.{
-              color: {
-                r: (org.color.r * level' + fg.color.r * level) / 255,
-                g: (org.color.g * level' + fg.color.g * level) / 255,
-                b: (org.color.b * level' + fg.color.b * level) / 255
-              },
-              alpha: (org.alpha * level' + fg.alpha * level) / 255
-            }
-          }
-        )
-        (rgba :> OImages.map Images.rgba)
-        (plus / 2 - truncate x1)
-        (truncate y2 + plus / 2)
-        encoded;
+    | Not_found =>*/
+/* @Dumb Copy pasted from https://bitbucket.org/camlspotter/camlimages/src/b18e82a3d840c458f5db3f33309dd2d6e97bef91/examples/ttfimg/ttfimg.ml?at=default&fileviewer=file-view-default */
+/*let plus = 8;
+  let encoded = Fttext.unicode_of_latin s;
+  let (x1, y1, x2, y2) = face#size encoded;
+  let h = truncate (ceil y2) - truncate y1 + 1 + plus;
+  let rgba = (new OImages.rgba32_filled) (truncate (x2 -. x1) + plus) h bg;
+  OFreetype.draw_text
+    face
+    (
+      fun org level => {
+        let level' = 255 - level;
+        Images.{
+          color: {
+            r: (org.color.r * level' + fg.color.r * level) / 255,
+            g: (org.color.g * level' + fg.color.g * level) / 255,
+            b: (org.color.b * level' + fg.color.b * level) / 255
+          },
+          alpha: (org.alpha * level' + fg.alpha * level) / 255
+        }
+      }
+    )
+    (rgba :> OImages.map Images.rgba)
+    (plus / 2 - truncate x1)
+    (truncate y2 + plus / 2)
+    encoded;
 
-      /** Custom code starts here. */
-      let data = rgba#dump;
-      let length = String.length data;
-      /* @Speed We shouldn't have to allocate a new array of chars here, this is a waste.
-         To fix this we might have to vendor camlimages and make them use a bigarray... */
-      let bigarrayTextData = Gl.Bigarray.create Gl.Bigarray.Char length;
-      for i in 0 to (length / 4 - 1) {
-        Gl.Bigarray.set bigarrayTextData (4 * i) (char_of_int 255);
-        Gl.Bigarray.set bigarrayTextData (4 * i + 1) (char_of_int 255);
-        Gl.Bigarray.set bigarrayTextData (4 * i + 2) (char_of_int 255);
+  /** Custom code starts here. */
+  let data = rgba#dump;
+  let length = String.length data;
+  /* @Speed We shouldn't have to allocate a new array of chars here, this is a waste.
+     To fix this we might have to vendor camlimages and make them use a bigarray... */
+  let bigarrayTextData = Gl.Bigarray.create Gl.Bigarray.Char length;
+  for i in 0 to (length / 4 - 1) {
+    Gl.Bigarray.set bigarrayTextData (4 * i) (char_of_int 255);
+    Gl.Bigarray.set bigarrayTextData (4 * i + 1) (char_of_int 255);
+    Gl.Bigarray.set bigarrayTextData (4 * i + 2) (char_of_int 255);
 
-        /** What if we just take the alpha? What are you gonna do about it. HUH */
-        Gl.Bigarray.set bigarrayTextData (4 * i + 3) (Bytes.get data (4 * i + 3))
-      };
-      let imageWidth = rgba#width;
-      let imageHeight = rgba#height;
-      /* @Speed we shouldn't be creating a textureBuffer at EVERY FRAME. That's
-         pretty hardcore. We should make this function take one and let the user
-         figure out how they want to do their thing.
-                    Ben - August 19th 2017
-            */
-      let textureBuffer = Gl.createTexture context;
-      Gl.bindTexture ::context target::Constants.texture_2d texture::textureBuffer;
-      Gl.texImage2D_RGBA
-        ::context
-        target::Constants.texture_2d
-        level::0
-        width::imageWidth
-        height::imageHeight
-        border::0
-        data::bigarrayTextData;
-      Gl.texParameteri
-        ::context
-        target::Constants.texture_2d
-        pname::Constants.texture_mag_filter
-        param::Constants.linear;
-      Gl.texParameteri
-        ::context
-        target::Constants.texture_2d
-        pname::Constants.texture_min_filter
-        param::Constants.linear;
-      Gl.texParameteri
-        ::context
-        target::Constants.texture_2d
-        pname::Constants.texture_wrap_s
-        param::Constants.clamp_to_edge;
-      Gl.texParameteri
-        ::context
-        target::Constants.texture_2d
-        pname::Constants.texture_wrap_t
-        param::Constants.clamp_to_edge;
-      let ret = {width: float_of_int imageWidth, height: float_of_int imageHeight, textureBuffer};
-      memoizedText := MemoizedText.add (s, face) ret !memoizedText;
-      ret
-    }
+    /** What if we just take the alpha? What are you gonna do about it. HUH */
+    Gl.Bigarray.set bigarrayTextData (4 * i + 3) (Bytes.get data (4 * i + 3))
   };
-
+  let imageWidth = rgba#width;
+  let imageHeight = rgba#height;*/
+/* @Speed we shouldn't be creating a textureBuffer at EVERY FRAME. That's
+       pretty hardcore. We should make this function take one and let the user
+       figure out how they want to do their thing.
+                  Ben - August 19th 2017
+   /*       */
+    let imageWidth = 2048;
+    let imageHeight = 2048;
+    let textureBuffer = Gl.createTexture context;
+    Gl.bindTexture ::context target::Constants.texture_2d texture::textureBuffer;
+    Gl.texImage2D_RGBA
+      ::context
+      target::Constants.texture_2d
+      level::0
+      width::imageWidth
+      height::imageHeight
+      border::0
+      data::bigarrayTextData;
+    Gl.texParameteri
+      ::context
+      target::Constants.texture_2d
+      pname::Constants.texture_mag_filter
+      param::Constants.linear;
+    Gl.texParameteri
+      ::context
+      target::Constants.texture_2d
+      pname::Constants.texture_min_filter
+      param::Constants.linear;
+    Gl.texParameteri
+      ::context
+      target::Constants.texture_2d
+      pname::Constants.texture_wrap_s
+      param::Constants.clamp_to_edge;
+    Gl.texParameteri
+      ::context
+      target::Constants.texture_2d
+      pname::Constants.texture_wrap_t
+      param::Constants.clamp_to_edge;
+    let ret = {width: float_of_int imageWidth, height: float_of_int imageHeight, textureBuffer};
+    /*memoizedText := MemoizedText.add (s, face) ret !memoizedText;*/
+    ret*/
+/*}*/
 let drawCircle x y ::radius color::(r, g, b, a) => {
 
   /** Instantiate a list of points for the circle and bind to the circleBuffer. **/
@@ -688,6 +772,10 @@ let rec traverseAndDraw root left top =>
         (floor absoluteTop)
         root.layout.width
         root.layout.height
+        0.
+        0.
+        1.
+        1.
         root.context.Node.backgroundColor
         root.context.Node.texture;
       Array.iter (fun child => traverseAndDraw child absoluteLeft absoluteTop) root.children

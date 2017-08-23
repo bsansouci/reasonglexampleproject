@@ -3,6 +3,8 @@ module Layout = Draw.Layout;
 
 module Node = Draw.Node;
 
+module Font = Font;
+
 let ocamlPath = Hotreloader.ocamlPath;
 
 /*let font40 = Font.loadFont fontSize::40. fontPath::"assets/fonts/DroidSansMono.ttf" id::0;
@@ -18,7 +20,7 @@ let ocamlPath = Hotreloader.ocamlPath;
   let font20 = Font.loadFont fontSize::20. fontPath::"assets/fonts/DroidSansMono.ttf" id::0;
 
   let font16 = Font.loadFont fontSize::16. fontPath::"assets/fonts/DroidSansMono.ttf" id::0;*/
-let font12 = Font.loadFont fontSize::12. fontPath::"assets/fonts/DroidSansMono.ttf" id::0;
+/*let font12 = Font.loadFont fontSize::12. fontPath::"assets/fonts/DroidSansMono.ttf" id::0;*/
 
 let mouse = ref (0., 0.);
 
@@ -67,13 +69,13 @@ let render time => {
   | Some s =>
     module M = (val (s: (module Hotreloader.DYNAMIC_MODULE)));
     M.render ()
-  | None => Dummy.M.render ()
+  | None => ()
   };
 
   /** Happy FPS counter. */
-  let {Draw.width: textWidth, height: textHeight, textureBuffer} =
+  /*let {Draw.width: textWidth, height: textHeight, textureBuffer} =
     Draw.drawText ("fps: " ^ string_of_int (int_of_float (1000. /. time +. 0.5))) font12;
-  Draw.drawRect 5. 5. textWidth textHeight (1., 1., 1., 1.) textureBuffer;
+  Draw.drawRect 5. 5. textWidth textHeight (1., 1., 1., 1.) textureBuffer;*/
 
   /** @Hack For hotreloading. */
   Hotreloader.checkRebuild ()

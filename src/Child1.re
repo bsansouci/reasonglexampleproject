@@ -2,10 +2,13 @@ module Layout = Draw.Layout;
 
 module Node = Draw.Node;
 
-let font40 = Font.loadFont fontSize::40. fontPath::"assets/fonts/DroidSansMono.ttf" id::0;
+let font40TextBufferThingData =
+  Font.loadFont fontSize::24. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0;
+  
+let font24TextBufferThingData =
+  Font.loadFont fontSize::40. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0;
 
-let font10 = Font.loadFont fontSize::6. fontPath::"assets/fonts/DroidSansMono.ttf" id::0;
-
+/*let font10 = Font.loadFont fontSize::7. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0;*/
 let defaultColor = (0.6, 0.6, 0.9, 1.);
 
 let invisibleColor = (0.0, 0.0, 0.0, 0.0);
@@ -17,7 +20,7 @@ let colors = [|
   (0.7, 0.4, 0.3, 1.)
 |];
 
-let tiles =
+/*let tiles =
   Array.init
     100
     (
@@ -29,8 +32,7 @@ let tiles =
           backgroundColor: colors.(i / 5 mod Array.length colors)
         }
       )
-    );
-
+    );*/
 let ballV = ref (4., 4.);
 
 let ballPos = ref (300., 300.);
@@ -71,8 +73,22 @@ module M: Hotreloader.DYNAMIC_MODULE = {
         width: float_of_int @@ Draw.getWindowWidth () - 200,
         height: float_of_int @@ Draw.getWindowHeight ()
       };
-    let emptyArray = [||];
-    let children: array Layout.node =
+    /*let emptyArray = [||];*/
+    Draw.drawText 100. 100. "Hey Yitong why is this so bad " Draw.white font40TextBufferThingData;
+    Draw.drawText 100. 200. "Hey Yitong why is this so bad " Draw.white font24TextBufferThingData;
+    Draw.drawRect
+      100.
+      100.
+      300.
+      1.
+      0.
+      0.
+      (1. /. 2048.)
+      (1. /. 2048.)
+      Draw.red
+      font40TextBufferThingData.textureBuffer;
+    ()
+    /*let children: array Layout.node =
       Array.map
         (
           fun ({Draw.textureBuffer: textureBuffer, width, height}, context) =>
@@ -95,16 +111,14 @@ module M: Hotreloader.DYNAMIC_MODULE = {
                 }
               context
         )
-        tiles;
-    let root =
+        tiles;*/
+    /*let root =
       Layout.createNode
         withChildren::children
         andStyle::rootstyle
-        Node.{...nullContext, backgroundColor: defaultColor};
-
+        Node.{...nullContext, backgroundColor: defaultColor};*/
     /** This will perform all of the Flexbox calculations and mutate the layouts to have left, top, width, height set. The positions are relative to the parent. */
-    Layout.doLayoutNow root;
-
+    /*Layout.doLayoutNow root;*/
     /** Immediate-style event handling.
         This works kinda like a game engine. You check the state of the input every frame and act
         on it. By now the layout has been calculated, so we have up-to-date values and we can
@@ -128,76 +142,74 @@ module M: Hotreloader.DYNAMIC_MODULE = {
           }
         )
         root.Layout.children;*/
-
     /** This will traverse the layout tree and blit each item to the screen one by one. */
-    Draw.traverseAndDraw root 0. 0.;
+    /*Draw.traverseAndDraw root 0. 0.;*/
     /* Move ball */
-    let (ballX, ballY) = !ballPos;
-    let r = tileMargin *. 5.;
-    Draw.drawCircle ballX ballY r (0., 0., 0., 1.);
-    let (ballVX, ballVY) = !ballV;
-    let (nextX, nextY) = (ballVX +. ballX, ballVY +. ballY);
-    if Layout.(nextX -. r < root.layout.left || nextX +. r > root.layout.left +. root.layout.width) {
-      ballV := (-. ballVX, ballVY)
-    } else if (
-      nextY -. r < root.layout.top || nextY +. r > root.layout.top +. root.layout.height
-    ) {
-      ballV := (ballVX, -. ballVY)
-    } else {
-      let collided = ref false;
-      let parentLeft = root.layout.left;
-      let parentTop = root.layout.top;
-      Array.iter
-        (
-          fun {Layout.context: context, layout: {top, left, width, height}} =>
-            /*let insideX = Layout.(nextX +. r > left +. r && nextX +. r < left +. width -. r);
-              let insideY = Layout.(nextY +. r > top +. r && nextY +. r < top +. height -. r);
-              if (insideX && insideY && not !collided) {
-                collided := true;
-                ballV := (-. ballVX, ballVY)
-              }*/
-            if context.visible {
-              let topLeft = (parentLeft +. left, parentTop +. top);
-              let topRight = (parentLeft +. left +. width, parentTop +. top);
-              let bottomRight = (parentLeft +. left +. width, parentTop +. top +. height);
-              let bottomLeft = (parentLeft +. left, parentTop +. top +. height);
-              /*Draw.drawRect left top 10. 10. (1., 1., 1., 1.) Node.nullContext.texture;*/
-              /*Draw.drawRect (left +. width) top 10. 10. (1., 1., 0.3, 1.) Node.nullContext.texture;*/
-              if (segmentIntersection (ballX, ballY) (nextX, nextY) topRight bottomRight) {
-                collided := true;
-                ballV := (-. ballVX, ballVY);
-                context.visible = false;
-                context.backgroundColor = invisibleColor
-              } else if (
-                segmentIntersection (ballX, ballY) (nextX, nextY) topLeft bottomLeft
-              ) {
-                collided := true;
-                ballV := (-. ballVX, ballVY);
-                context.visible = false;
-                context.backgroundColor = invisibleColor
-              } else if (
-                segmentIntersection (ballX, ballY) (nextX, nextY) topLeft topRight
-              ) {
-                collided := true;
-                ballV := (ballVX, -. ballVY);
-                context.visible = false;
-                context.backgroundColor = invisibleColor
-              } else if (
-                segmentIntersection (ballX, ballY) (nextX, nextY) bottomLeft bottomRight
-              ) {
-                collided := true;
-                ballV := (ballVX, -. ballVY);
-                context.visible = false;
-                context.backgroundColor = invisibleColor
+    /*let (ballX, ballY) = !ballPos;
+      let r = tileMargin *. 5.;
+      Draw.drawCircle ballX ballY r (0., 0., 0., 1.);
+      let (ballVX, ballVY) = !ballV;
+      let (nextX, nextY) = (ballVX +. ballX, ballVY +. ballY);
+      if Layout.(nextX -. r < root.layout.left || nextX +. r > root.layout.left +. root.layout.width) {
+        ballV := (-. ballVX, ballVY)
+      } else if (
+        nextY -. r < root.layout.top || nextY +. r > root.layout.top +. root.layout.height
+      ) {
+        ballV := (ballVX, -. ballVY)
+      } else {
+        let collided = ref false;
+        let parentLeft = root.layout.left;
+        let parentTop = root.layout.top;
+        Array.iter
+          (
+            fun {Layout.context: context, layout: {top, left, width, height}} =>
+              /*let insideX = Layout.(nextX +. r > left +. r && nextX +. r < left +. width -. r);
+                let insideY = Layout.(nextY +. r > top +. r && nextY +. r < top +. height -. r);
+                if (insideX && insideY && not !collided) {
+                  collided := true;
+                  ballV := (-. ballVX, ballVY)
+                }*/
+              if context.visible {
+                let topLeft = (parentLeft +. left, parentTop +. top);
+                let topRight = (parentLeft +. left +. width, parentTop +. top);
+                let bottomRight = (parentLeft +. left +. width, parentTop +. top +. height);
+                let bottomLeft = (parentLeft +. left, parentTop +. top +. height);
+                Draw.drawRect left top 10. 10. (1., 1., 1., 1.) Node.nullContext.texture;
+                /*Draw.drawRect (left +. width) top 10. 10. (1., 1., 0.3, 1.) Node.nullContext.texture;*/
+                if (segmentIntersection (ballX, ballY) (nextX, nextY) topRight bottomRight) {
+                  collided := true;
+                  ballV := (-. ballVX, ballVY);
+                  context.visible = false;
+                  context.backgroundColor = invisibleColor
+                } else if (
+                  segmentIntersection (ballX, ballY) (nextX, nextY) topLeft bottomLeft
+                ) {
+                  collided := true;
+                  ballV := (-. ballVX, ballVY);
+                  context.visible = false;
+                  context.backgroundColor = invisibleColor
+                } else if (
+                  segmentIntersection (ballX, ballY) (nextX, nextY) topLeft topRight
+                ) {
+                  collided := true;
+                  ballV := (ballVX, -. ballVY);
+                  context.visible = false;
+                  context.backgroundColor = invisibleColor
+                } else if (
+                  segmentIntersection (ballX, ballY) (nextX, nextY) bottomLeft bottomRight
+                ) {
+                  collided := true;
+                  ballV := (ballVX, -. ballVY);
+                  context.visible = false;
+                  context.backgroundColor = invisibleColor
+                }
               }
-            }
-        )
-        children;
-      if (not !collided) {
-        ballPos := (nextX, nextY)
-      }
-    }
-    /*print_endline "collided"*/
+          )
+          children;
+        if (not !collided) {
+          ballPos := (nextX, nextY)
+        }
+      }*/
   };
 };
 
