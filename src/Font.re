@@ -53,7 +53,8 @@ let loadFont ::fontSize=24. ::fontPath ::id => {
   let texLength = 2048;
   let bigarrayTextData =
     Draw.Gl.Bigarray.create Draw.Gl.Bigarray.Uint8 (texLength * texLength * 4);
-  /* @Todo fill bigarray with 0s */
+  /* @Incomplete @Hack fill bigarray with 0s. We need to add Bigarray.fill to reasongl-interface
+     to get this to work. */
   /*for i in 0 to (texLength * texLength - 1) {
       Draw.Gl.Bigarray.set bigarrayTextData (i * 4 + 0) 255;
       Draw.Gl.Bigarray.set bigarrayTextData (i * 4 + 1) 255;
@@ -77,7 +78,6 @@ let loadFont ::fontSize=24. ::fontPath ::id => {
   Array.iter
     (
       fun c => {
-        /*let charIndex = Ftlow.get_char_index face c;*/
         ignore @@ Ftlow.render_char_raw face.cont c 0 Ftlow.Render_Normal;
         let glyphMetrics = Ftlow.get_glyph_metrics face.cont;
         let bitmapInfo = Ftlow.get_bitmap_info face.cont;
@@ -90,8 +90,6 @@ let loadFont ::fontSize=24. ::fontPath ::id => {
           Array.iter
             (
               fun c2 => {
-                let s = String.make 1 (char_of_int c);
-                let s2 = String.make 1 (char_of_int c2);
                 let code2 = Ftlow.get_char_index face.cont c2;
                 let (x, y) = Ftlow.get_kerning face.cont code code2;
                 let (x, y) = (float_of_int x /. 64., float_of_int y /. 64.);

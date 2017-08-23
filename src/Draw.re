@@ -448,32 +448,31 @@ type ourOwnTextureT = {
 
        Ben - August 19th 2017
    */
-module FontCompare = {
-  type t = (string, OFreetype.face);
-  let compare (a1, a2) (b1, b2) =>
-    if (a2 === b2) {
-      String.compare a1 b1
-    } else {
-      1
-    };
-};
-
-module MemoizedText = Map.Make FontCompare;
-
+/*module FontCompare = {
+    type t = (string, OFreetype.face);
+    let compare (a1, a2) (b1, b2) =>
+      if (a2 === b2) {
+        String.compare a1 b1
+      } else {
+        1
+      };
+  };
+  */
+/*module MemoizedText = Map.Make FontCompare;*/
 /*let memoizedText = ref MemoizedText.empty;*/
-let getFontMaxHeight face => {
-  let (x1, y1, x2, y2) =
-    face#size (Fttext.unicode_of_latin "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
-  let plus = 8.;
-  y2 -. y1 +. plus +. 1.
-};
+/*let getFontMaxHeight face => {
+    let (x1, y1, x2, y2) =
+      face#size (Fttext.unicode_of_latin "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
+    let plus = 8.;
+    y2 -. y1 +. plus +. 1.
+  };
 
-let getFontBaseline face => {
-  let (x1, y1, x2, y2) = face#size (Fttext.unicode_of_latin "m");
-  let plus = 8.;
-  y2 -. y1 +. plus
-};
-
+  let getFontBaseline face => {
+    let (x1, y1, x2, y2) = face#size (Fttext.unicode_of_latin "m");
+    let plus = 8.;
+    y2 -. y1 +. plus
+  };
+  */
 let drawText
     (x: float)
     (y: float)
@@ -518,94 +517,6 @@ let drawText
     s
 };
 
-/*if (String.length s == 0) {
-    {width: 0., height: 0., textureBuffer: nullTex}
-  } else {
-    try (MemoizedText.find (s, face) !memoizedText) {
-    | Not_found =>*/
-/* @Dumb Copy pasted from https://bitbucket.org/camlspotter/camlimages/src/b18e82a3d840c458f5db3f33309dd2d6e97bef91/examples/ttfimg/ttfimg.ml?at=default&fileviewer=file-view-default */
-/*let plus = 8;
-  let encoded = Fttext.unicode_of_latin s;
-  let (x1, y1, x2, y2) = face#size encoded;
-  let h = truncate (ceil y2) - truncate y1 + 1 + plus;
-  let rgba = (new OImages.rgba32_filled) (truncate (x2 -. x1) + plus) h bg;
-  OFreetype.draw_text
-    face
-    (
-      fun org level => {
-        let level' = 255 - level;
-        Images.{
-          color: {
-            r: (org.color.r * level' + fg.color.r * level) / 255,
-            g: (org.color.g * level' + fg.color.g * level) / 255,
-            b: (org.color.b * level' + fg.color.b * level) / 255
-          },
-          alpha: (org.alpha * level' + fg.alpha * level) / 255
-        }
-      }
-    )
-    (rgba :> OImages.map Images.rgba)
-    (plus / 2 - truncate x1)
-    (truncate y2 + plus / 2)
-    encoded;
-
-  /** Custom code starts here. */
-  let data = rgba#dump;
-  let length = String.length data;
-  /* @Speed We shouldn't have to allocate a new array of chars here, this is a waste.
-     To fix this we might have to vendor camlimages and make them use a bigarray... */
-  let bigarrayTextData = Gl.Bigarray.create Gl.Bigarray.Char length;
-  for i in 0 to (length / 4 - 1) {
-    Gl.Bigarray.set bigarrayTextData (4 * i) (char_of_int 255);
-    Gl.Bigarray.set bigarrayTextData (4 * i + 1) (char_of_int 255);
-    Gl.Bigarray.set bigarrayTextData (4 * i + 2) (char_of_int 255);
-
-    /** What if we just take the alpha? What are you gonna do about it. HUH */
-    Gl.Bigarray.set bigarrayTextData (4 * i + 3) (Bytes.get data (4 * i + 3))
-  };
-  let imageWidth = rgba#width;
-  let imageHeight = rgba#height;*/
-/* @Speed we shouldn't be creating a textureBuffer at EVERY FRAME. That's
-       pretty hardcore. We should make this function take one and let the user
-       figure out how they want to do their thing.
-                  Ben - August 19th 2017
-   /*       */
-    let imageWidth = 2048;
-    let imageHeight = 2048;
-    let textureBuffer = Gl.createTexture context;
-    Gl.bindTexture ::context target::Constants.texture_2d texture::textureBuffer;
-    Gl.texImage2D_RGBA
-      ::context
-      target::Constants.texture_2d
-      level::0
-      width::imageWidth
-      height::imageHeight
-      border::0
-      data::bigarrayTextData;
-    Gl.texParameteri
-      ::context
-      target::Constants.texture_2d
-      pname::Constants.texture_mag_filter
-      param::Constants.linear;
-    Gl.texParameteri
-      ::context
-      target::Constants.texture_2d
-      pname::Constants.texture_min_filter
-      param::Constants.linear;
-    Gl.texParameteri
-      ::context
-      target::Constants.texture_2d
-      pname::Constants.texture_wrap_s
-      param::Constants.clamp_to_edge;
-    Gl.texParameteri
-      ::context
-      target::Constants.texture_2d
-      pname::Constants.texture_wrap_t
-      param::Constants.clamp_to_edge;
-    let ret = {width: float_of_int imageWidth, height: float_of_int imageHeight, textureBuffer};
-    /*memoizedText := MemoizedText.add (s, face) ret !memoizedText;*/
-    ret*/
-/*}*/
 let drawCircle x y ::radius color::(r, g, b, a) => {
 
   /** Instantiate a list of points for the circle and bind to the circleBuffer. **/
