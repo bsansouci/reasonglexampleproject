@@ -1,4 +1,4 @@
-module type DYNAMIC_MODULE = {let render: unit => unit;};
+module type DYNAMIC_MODULE = {let render: float => unit;};
 
 let p = ref None;
 

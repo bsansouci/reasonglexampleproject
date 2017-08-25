@@ -61,6 +61,8 @@ Random.init 0;
 
 let font12 = Font.loadFont fontSize::12. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0;
 
+let lastCoupleOfFrames = ref [];
+
 let render time => {
   /* Remember to clear the clear at each tick */
   Draw.clearScreen ();
@@ -69,13 +71,36 @@ let render time => {
   switch !Hotreloader.p {
   | Some s =>
     module M = (val (s: (module Hotreloader.DYNAMIC_MODULE)));
-    M.render ()
+    M.render time
   | None => ()
   };
 
-  /** Happy FPS counter. */
-  Draw.drawText
-    5. 50. 1. ("fps: " ^ string_of_int (int_of_float (1000. /. time +. 0.5))) Draw.white font12;
+  /** Happy FPS counter that smoothes things out. */
+  let fps = 1000. /. time;
+  if (List.length !lastCoupleOfFrames > 30) {
+    switch !lastCoupleOfFrames {
+    | [_, ...rest] => lastCoupleOfFrames := rest @ [fps]
+    | _ => assert false
+    }
+  } else {
+    lastCoupleOfFrames := !lastCoupleOfFrames @ [fps]
+  };
+  Draw.drawTextImmediate
+    12.
+    20.
+    2.
+    (
+      "fps: " ^
+      string_of_int (
+        int_of_float (
+          List.fold_left (+.) 0. !lastCoupleOfFrames /. (
+            float_of_int @@ List.length !lastCoupleOfFrames
+          ) +. 0.5
+        )
+      )
+    )
+    Draw.black
+    font12;
 
   /** @Hack For hotreloading. */
   Hotreloader.checkRebuild ()
