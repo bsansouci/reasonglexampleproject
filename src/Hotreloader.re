@@ -61,10 +61,11 @@ let checkRebuild () => {
     let _ =
       Unix.system @@
       Printf.sprintf
-        "%s -I lib/bs/%s/src %s -I lib/bs/%s/vendor/ReLayout/src -pp './node_modules/bs-platform/bin/refmt.exe --print binary' -o lib/bs/%s/src/Child1.%s -impl src/Child1.re 2>&1 | berror"
+        "%s %s -I lib/bs/%s/src -I node_modules/ReasonglInterface/lib/bs/%s/src  -I lib/bs/%s/vendor/ReLayout/src -pp './node_modules/bs-platform/bin/refmt.exe --print binary' -o lib/bs/%s/src/Child1.%s -impl src/Child1.re 2>&1 | berror"
         ocamlPath
-        folder
         shared
+        folder
+        folder
         folder
         folder
         extension;

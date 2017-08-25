@@ -21,7 +21,6 @@ let ocamlPath = Hotreloader.ocamlPath;
 
   let font16 = Font.loadFont fontSize::16. fontPath::"assets/fonts/DroidSansMono.ttf" id::0;*/
 /*let font12 = Font.loadFont fontSize::12. fontPath::"assets/fonts/DroidSansMono.ttf" id::0;*/
-
 let mouse = ref (0., 0.);
 
 type buttonStateT = {
@@ -60,6 +59,9 @@ let appState = {color: defaultColor, inputText: "this is not a word", easterEgg:
 
 Random.init 0;
 
+let font12 =
+  Font.loadFont fontSize::12. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0;
+
 let render time => {
   /* Remember to clear the clear at each tick */
   Draw.clearScreen ();
@@ -73,9 +75,14 @@ let render time => {
   };
 
   /** Happy FPS counter. */
-  /*let {Draw.width: textWidth, height: textHeight, textureBuffer} =
-    Draw.drawText ("fps: " ^ string_of_int (int_of_float (1000. /. time +. 0.5))) font12;
-  Draw.drawRect 5. 5. textWidth textHeight (1., 1., 1., 1.) textureBuffer;*/
+  Draw.drawText
+    5.
+    50.
+    999.
+    ("fps: " ^ string_of_int (int_of_float (1000. /. time +. 0.5)))
+    Draw.white
+    font12;
+  Draw.flushGlobalBatch font12.textureBuffer;
 
   /** @Hack For hotreloading. */
   Hotreloader.checkRebuild ()
