@@ -22,21 +22,21 @@ let colors = [|
 
 let tiles =
   Array.init
-    17000
+    1000
     (
-      fun i => {
-        let vertexData =
-          Draw.generateTextVertexData "Hello sailor sailor!" Draw.white datOneTextureWePassAround;
+      fun i =>
+        /*let glData =*/
+        Draw.generateTextContext "Hello sailor!" Draw.white datOneTextureWePassAround
         /*Draw.Gl.Mat4.translate vertexData.posMatrix vertexData.posMatrix [|0.1, -.0.2, 0.1, 0.|];*/
-        Node.{
-          ...nullContext,
-          /*visible: true,*/
-          /*text: Some {Draw.text: "Hello world world", font: datOneTextureWePassAround},*/
-          backgroundColor: colors.(i / 5 mod Array.length colors),
-          /*cachedVertexData: Some vertexData*/
-          /*texture: datOneTextureWePassAround.textureBuffer*/
-        }
-      }
+        /*Node.{
+
+            /*...nullContext,*/
+            /*visible: true,*/
+            /*text: Some {Draw.text: "Hello world world", font: datOneTextureWePassAround},*/
+            backgroundColor: colors.(i / 5 mod Array.length colors)
+            /*cachedVertexData: Some vertexData*/
+            /*texture: datOneTextureWePassAround.textureBuffer*/
+          }*/
     );
 
 let ballV = ref (4., 4.);
@@ -57,9 +57,9 @@ let segmentIntersection (x1, y1) (x2, y2) (bx1, by1) (bx2, by2) => {
   }
 };
 
-let tileWidth = (float_of_int @@ Draw.getWindowWidth ()) /. 200.;
+let tileWidth = (float_of_int @@ Draw.getWindowWidth ()) /. 20.;
 
-let tileHeight = (float_of_int @@ Draw.getWindowHeight ()) /. 300.;
+let tileHeight = (float_of_int @@ Draw.getWindowHeight ()) /. 30.;
 
 let tileMargin = (float_of_int @@ Draw.getWindowHeight ()) /. 400.;
 
@@ -79,6 +79,17 @@ let rootstyle =
     height: float_of_int @@ Draw.getWindowHeight ()
   };
 
+let childStyle =
+  Layout.{
+    ...defaultStyle,
+    marginLeft: tileMargin,
+    marginRight: tileMargin,
+    marginTop: tileMargin,
+    marginBottom: tileMargin,
+    width: tileWidth,
+    height: tileHeight
+  };
+
 let emptyArray = [||];
 
 let children: array Layout.node =
@@ -87,24 +98,7 @@ let children: array Layout.node =
       fun (context: Node.context) =>
         /*switch context.text {*/
         /*| None =>*/
-        Layout.createNode
-          withChildren::[|
-            /* Layout.createNode
-               withChildren::emptyArray
-               andStyle::{...Layout.defaultStyle, width, height}
-               context*/
-          |]
-          andStyle::
-            Layout.{
-              ...defaultStyle,
-              marginLeft: tileMargin,
-              marginRight: tileMargin,
-              marginTop: tileMargin,
-              marginBottom: tileMargin,
-              width: tileWidth,
-              height: tileHeight
-            }
-          context
+        Layout.createNode withChildren::emptyArray andStyle::childStyle context
         /*Node.{
             ...nullContext,
             backgroundColor: Draw.white,
@@ -148,26 +142,15 @@ let children: array Layout.node =
     )
     tiles;
 
-let root =
-  Layout.createNode
-    withChildren::children
-    andStyle::rootstyle
-    Node.{
-      ...nullContext,
-      backgroundColor: defaultColor
-      /*visible: false,*/
-      /*texture: datOneTextureWePassAround.textureBuffer*/
-    };
-
-
-/** This will perform all of the Flexbox calculations and mutate the layouts to have left, top, width, height set. The positions are relative to the parent. */
-Layout.doLayoutNow root;
+let root = Layout.createNode withChildren::children andStyle::rootstyle Node.nullContext;
 
 module M: Hotreloader.DYNAMIC_MODULE = {
   let render () => {
     /* Remember to clear the screen at each tick */
     Draw.clearScreen ();
-    Array.iteri
+    /*root.children = children;*/
+    root.isDirty = true;
+    /*Array.iteri
       (
         fun i {Node.cachedVertexData: cachedVertexData} =>
           switch cachedVertexData {
@@ -181,9 +164,19 @@ module M: Hotreloader.DYNAMIC_MODULE = {
             Draw.drawGeometry ::vertexArray ::elementArray ::count ::textureBuffer posMatrix::m
           }
       )
-      tiles;
+      tiles;*/
+    /*Node.{*/
+    /*...nullContext,*/
+    /*backgroundColor: defaultColor*/
+    /*visible: false,*/
+    /*texture: datOneTextureWePassAround.textureBuffer*/
+    /*};*/
+
+    /** This will perform all of the Flexbox calculations and mutate the layouts to have left, top, width, height set. The positions are relative to the parent. */
+    Layout.doLayoutNow root;
+
     /** This will traverse the layout tree and blit each item to the screen one by one. */
-    /*Draw.traverseAndDraw root 0. 0.*/
+    Draw.traverseAndDraw root 0. 0.
     /* Move ball */
     /*let (ballX, ballY) = !ballPos;
       let r = tileMargin *. 5.;

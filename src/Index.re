@@ -59,8 +59,7 @@ let appState = {color: defaultColor, inputText: "this is not a word", easterEgg:
 
 Random.init 0;
 
-let font12 =
-  Font.loadFont fontSize::12. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0;
+let font12 = Font.loadFont fontSize::12. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0;
 
 let render time => {
   /* Remember to clear the clear at each tick */
@@ -76,13 +75,7 @@ let render time => {
 
   /** Happy FPS counter. */
   Draw.drawText
-    5.
-    50.
-    999.
-    ("fps: " ^ string_of_int (int_of_float (1000. /. time +. 0.5)))
-    Draw.white
-    font12;
-  Draw.flushGlobalBatch font12.textureBuffer;
+    5. 50. 1. ("fps: " ^ string_of_int (int_of_float (1000. /. time +. 0.5))) Draw.white font12;
 
   /** @Hack For hotreloading. */
   Hotreloader.checkRebuild ()

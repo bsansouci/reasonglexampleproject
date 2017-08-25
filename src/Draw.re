@@ -124,7 +124,7 @@ let vertexShaderSource = {|
   varying vec2 vTextureCoord;
 
   void main(void) {
-    gl_Position = posMatrix * uPMatrix * vec4(aVertexPosition, 1.0);
+    gl_Position = uPMatrix * posMatrix * vec4(aVertexPosition, 1.0);
     vColor = aVertexColor;
     vTextureCoord = aTextureCoord;
   }
@@ -349,36 +349,37 @@ let resizeWindow () => {
   doOrtho ()
 };
 
-let circularBufferSize = 6 * 100;
-
 let vertexSize = 9;
 
-type batchT = {
-  mutable elementPtr: int,
-  mutable vertexPtr: int,
-  mutable currTex: Gl.textureT,
-  vertexArray: Gl.Bigarray.t float Gl.Bigarray.float32_elt,
-  elementArray: Gl.Bigarray.t int Gl.Bigarray.int16_unsigned_elt
-};
+/*let circularBufferSize = 6 * 100;
 
-let batch1 = {
-  elementPtr: 0,
-  vertexPtr: 0,
-  vertexArray: Gl.Bigarray.create Gl.Bigarray.Float32 (circularBufferSize * vertexSize),
-  elementArray: Gl.Bigarray.create Gl.Bigarray.Uint16 circularBufferSize,
-  currTex: nullTex
-};
 
-let batch2 = {
-  elementPtr: 0,
-  vertexPtr: 0,
-  vertexArray: Gl.Bigarray.create Gl.Bigarray.Float32 (circularBufferSize * vertexSize),
-  elementArray: Gl.Bigarray.create Gl.Bigarray.Uint16 circularBufferSize,
-  currTex: nullTex
-};
 
-let curBatch = ref 0;
+  type batchT = {
+    mutable elementPtr: int,
+    mutable vertexPtr: int,
+    mutable currTex: Gl.textureT,
+    vertexArray: Gl.Bigarray.t float Gl.Bigarray.float32_elt,
+    elementArray: Gl.Bigarray.t int Gl.Bigarray.int16_unsigned_elt
+  };
 
+  let batch1 = {
+    elementPtr: 0,
+    vertexPtr: 0,
+    vertexArray: Gl.Bigarray.create Gl.Bigarray.Float32 (circularBufferSize * vertexSize),
+    elementArray: Gl.Bigarray.create Gl.Bigarray.Uint16 circularBufferSize,
+    currTex: nullTex
+  };
+
+  let batch2 = {
+    elementPtr: 0,
+    vertexPtr: 0,
+    vertexArray: Gl.Bigarray.create Gl.Bigarray.Float32 (circularBufferSize * vertexSize),
+    elementArray: Gl.Bigarray.create Gl.Bigarray.Uint16 circularBufferSize,
+    currTex: nullTex
+  };
+
+  let curBatch = ref 0;*/
 /*
  * This array packs all of the values that the shaders need: vertices, colors and texture coordinates.
  * We put them all in one as an optimization, so there are less back and forths between us and the GPU.
@@ -412,11 +413,7 @@ let drawGeometry
     count::(count: int)
     textureBuffer::(textureBuffer: Gl.textureT)
     posMatrix::(pm: Gl.Mat4.t) => {
-  if (!curBatch mod 2 === 0) {
-    Gl.bindBuffer ::context target::Constants.array_buffer buffer::vertexBuffer1
-  } else {
-    Gl.bindBuffer ::context target::Constants.array_buffer buffer::vertexBuffer2
-  };
+  Gl.bindBuffer ::context target::Constants.array_buffer buffer::vertexBuffer1;
   Gl.bufferData
     ::context target::Constants.array_buffer data::vertexArray usage::Constants.stream_draw;
   Gl.vertexAttribPointer
@@ -457,11 +454,7 @@ let drawGeometry
   Gl.uniform1i ::context location::uSampler val::0;
 
   /** */
-  if (!curBatch mod 2 === 0) {
-    Gl.bindBuffer ::context target::RGLConstants.element_array_buffer buffer::elementBuffer1
-  } else {
-    Gl.bindBuffer ::context target::RGLConstants.element_array_buffer buffer::elementBuffer2
-  };
+  Gl.bindBuffer ::context target::RGLConstants.element_array_buffer buffer::elementBuffer1;
 
   /** Copy the `elementArray` into whatever buffer is in `element_array_buffer` **/
   Gl.bufferData
@@ -487,8 +480,7 @@ let drawGeometry
  */
 let u = Gl.Mat4.create ();
 
-let flushGlobalBatch textureBuffer =>
-  if (!curBatch mod 2 === 0) {
+/*let flushGlobalBatch textureBuffer =>
     if (batch1.elementPtr > 0) {
       drawGeometry
         vertexArray::(Gl.Bigarray.sub batch1.vertexArray offset::0 len::batch1.vertexPtr)
@@ -500,113 +492,93 @@ let flushGlobalBatch textureBuffer =>
       batch1.elementPtr = 0;
       batch1.currTex = textureBuffer;
       curBatch := !curBatch + 1
-    }
-  } else if (
-    batch2.elementPtr > 0
-  ) {
-    drawGeometry
-      vertexArray::(Gl.Bigarray.sub batch2.vertexArray offset::0 len::batch2.vertexPtr)
-      elementArray::(Gl.Bigarray.sub batch2.elementArray offset::0 len::batch2.elementPtr)
-      count::batch2.elementPtr
-      ::textureBuffer
-      posMatrix::u;
-    batch2.vertexPtr = 0;
-    batch2.elementPtr = 0;
-    batch2.currTex = textureBuffer;
-    curBatch := !curBatch + 1
-  };
+    };
 
-let maybeFlushBatch ::el ::vert textureBuffer =>
-  if (!curBatch mod 2 === 0) {
-    if (
-      batch1.elementPtr + el >= circularBufferSize || batch1.vertexPtr + vert >= circularBufferSize
-      /*|| batch1.elementPtr > 0 && batch1.currTex != textureBuffer*/
+  let maybeFlushBatch ::el ::vert textureBuffer =>
+    if (!curBatch mod 2 === 0) {
+      if (
+        batch1.elementPtr + el >= circularBufferSize || batch1.vertexPtr + vert >= circularBufferSize
+        /*|| batch1.elementPtr > 0 && batch1.currTex != textureBuffer*/
+      ) {
+        /*print_endline @@ Printf.sprintf "tex: %b" (batch1.currTex != textureBuffer);*/
+        /*assert false;*/
+        flushGlobalBatch textureBuffer
+      }
+    } else if (
+      batch2.elementPtr + el >= circularBufferSize || batch2.vertexPtr + vert >= circularBufferSize
+      /*|| batch2.elementPtr > 0 && batch2.currTex != textureBuffer*/
     ) {
-      /*print_endline @@ Printf.sprintf "tex: %b" (batch1.currTex != textureBuffer);*/
+      /*print_endline @@ Printf.sprintf "tex: %b" (batch2.currTex != textureBuffer);*/
       /*assert false;*/
       flushGlobalBatch textureBuffer
+    };*/
+/*let addRectToGlobalBatch = {
+    let set = Gl.Bigarray.set;
+    fun (x: float)
+        (y: float)
+        (z: float)
+        (width: float)
+        (height: float)
+        (texX: float)
+        (texY: float)
+        (texW: float)
+        (texH: float)
+        (r, g, b, a)
+        (textureBuffer: Gl.textureT) => {
+      maybeFlushBatch el::6 vert::36 textureBuffer;
+      let batch = !curBatch mod 2 === 0 ? batch1 : batch2;
+      let i = batch.vertexPtr;
+      let vertexArrayToMutate = batch.vertexArray;
+      set vertexArrayToMutate (i + 0) (x +. width);
+      set vertexArrayToMutate (i + 1) (y +. height);
+      set vertexArrayToMutate (i + 2) z;
+      set vertexArrayToMutate (i + 3) r;
+      set vertexArrayToMutate (i + 4) g;
+      set vertexArrayToMutate (i + 5) b;
+      set vertexArrayToMutate (i + 6) a;
+      set vertexArrayToMutate (i + 7) (texX +. texW);
+      set vertexArrayToMutate (i + 8) (texY +. texH);
+      set vertexArrayToMutate (i + 9) x;
+      set vertexArrayToMutate (i + 10) (y +. height);
+      set vertexArrayToMutate (i + 11) z;
+      set vertexArrayToMutate (i + 12) r;
+      set vertexArrayToMutate (i + 13) g;
+      set vertexArrayToMutate (i + 14) b;
+      set vertexArrayToMutate (i + 15) a;
+      set vertexArrayToMutate (i + 16) texX;
+      set vertexArrayToMutate (i + 17) (texY +. texH);
+      set vertexArrayToMutate (i + 18) (x +. width);
+      set vertexArrayToMutate (i + 19) y;
+      set vertexArrayToMutate (i + 20) z;
+      set vertexArrayToMutate (i + 21) r;
+      set vertexArrayToMutate (i + 22) g;
+      set vertexArrayToMutate (i + 23) b;
+      set vertexArrayToMutate (i + 24) a;
+      set vertexArrayToMutate (i + 25) (texX +. texW);
+      set vertexArrayToMutate (i + 26) texY;
+      set vertexArrayToMutate (i + 27) x;
+      set vertexArrayToMutate (i + 28) y;
+      set vertexArrayToMutate (i + 29) z;
+      set vertexArrayToMutate (i + 30) r;
+      set vertexArrayToMutate (i + 31) g;
+      set vertexArrayToMutate (i + 32) b;
+      set vertexArrayToMutate (i + 33) a;
+      set vertexArrayToMutate (i + 34) texX;
+      set vertexArrayToMutate (i + 35) texY;
+      let ii = i / vertexSize;
+      let j = batch.elementPtr;
+      let elementArrayToMutate = batch.elementArray;
+      set elementArrayToMutate (j + 0) ii;
+      set elementArrayToMutate (j + 1) (ii + 1);
+      set elementArrayToMutate (j + 2) (ii + 2);
+      set elementArrayToMutate (j + 3) (ii + 1);
+      set elementArrayToMutate (j + 4) (ii + 2);
+      set elementArrayToMutate (j + 5) (ii + 3);
+      batch.vertexPtr = i + 4 * vertexSize;
+      batch.elementPtr = j + 6;
+      batch.currTex = textureBuffer
     }
-  } else if (
-    batch2.elementPtr + el >= circularBufferSize || batch2.vertexPtr + vert >= circularBufferSize
-    /*|| batch2.elementPtr > 0 && batch2.currTex != textureBuffer*/
-  ) {
-    /*print_endline @@ Printf.sprintf "tex: %b" (batch2.currTex != textureBuffer);*/
-    /*assert false;*/
-    flushGlobalBatch textureBuffer
-  };
-
-let addRectToGlobalBatch = {
-  let set = Gl.Bigarray.set;
-  fun (x: float)
-      (y: float)
-      (z: float)
-      (width: float)
-      (height: float)
-      (texX: float)
-      (texY: float)
-      (texW: float)
-      (texH: float)
-      (r, g, b, a)
-      (textureBuffer: Gl.textureT) => {
-    maybeFlushBatch el::6 vert::36 textureBuffer;
-    let batch = !curBatch mod 2 === 0 ? batch1 : batch2;
-    let i = batch.vertexPtr;
-    let vertexArrayToMutate = batch.vertexArray;
-    set vertexArrayToMutate (i + 0) (x +. width);
-    set vertexArrayToMutate (i + 1) (y +. height);
-    set vertexArrayToMutate (i + 2) z;
-    set vertexArrayToMutate (i + 3) r;
-    set vertexArrayToMutate (i + 4) g;
-    set vertexArrayToMutate (i + 5) b;
-    set vertexArrayToMutate (i + 6) a;
-    set vertexArrayToMutate (i + 7) (texX +. texW);
-    set vertexArrayToMutate (i + 8) (texY +. texH);
-    set vertexArrayToMutate (i + 9) x;
-    set vertexArrayToMutate (i + 10) (y +. height);
-    set vertexArrayToMutate (i + 11) z;
-    set vertexArrayToMutate (i + 12) r;
-    set vertexArrayToMutate (i + 13) g;
-    set vertexArrayToMutate (i + 14) b;
-    set vertexArrayToMutate (i + 15) a;
-    set vertexArrayToMutate (i + 16) texX;
-    set vertexArrayToMutate (i + 17) (texY +. texH);
-    set vertexArrayToMutate (i + 18) (x +. width);
-    set vertexArrayToMutate (i + 19) y;
-    set vertexArrayToMutate (i + 20) z;
-    set vertexArrayToMutate (i + 21) r;
-    set vertexArrayToMutate (i + 22) g;
-    set vertexArrayToMutate (i + 23) b;
-    set vertexArrayToMutate (i + 24) a;
-    set vertexArrayToMutate (i + 25) (texX +. texW);
-    set vertexArrayToMutate (i + 26) texY;
-    set vertexArrayToMutate (i + 27) x;
-    set vertexArrayToMutate (i + 28) y;
-    set vertexArrayToMutate (i + 29) z;
-    set vertexArrayToMutate (i + 30) r;
-    set vertexArrayToMutate (i + 31) g;
-    set vertexArrayToMutate (i + 32) b;
-    set vertexArrayToMutate (i + 33) a;
-    set vertexArrayToMutate (i + 34) texX;
-    set vertexArrayToMutate (i + 35) texY;
-    let ii = i / vertexSize;
-    let j = batch.elementPtr;
-    let elementArrayToMutate = batch.elementArray;
-    set elementArrayToMutate (j + 0) ii;
-    set elementArrayToMutate (j + 1) (ii + 1);
-    set elementArrayToMutate (j + 2) (ii + 2);
-    set elementArrayToMutate (j + 3) (ii + 1);
-    set elementArrayToMutate (j + 4) (ii + 2);
-    set elementArrayToMutate (j + 5) (ii + 3);
-    batch.vertexPtr = i + 4 * vertexSize;
-    batch.elementPtr = j + 6;
-    batch.currTex = textureBuffer
-  }
-};
-
-let fg = Images.{color: {r: 255, g: 255, b: 255}, alpha: 255};
-
-let bg = Images.{color: {r: 0, g: 0, b: 0}, alpha: 0};
-
+  };*/
 /*type ourOwnTextureT = {
     width: float,
     height: float,
@@ -699,7 +671,37 @@ type vertexDataT = {
   posMatrix: Gl.Mat4.t
 };
 
-let generateTextVertexData
+/* Each node contains all possible values, it's probably faster than
+   conditional on type. */
+module Node = {
+  type context = {
+    /* Each field is mutable for performance reason. We want to encourage creating a pretty
+       static tree that gets its nodes mutated and fully composited each frame. */
+    /*mutable texture: Gl.textureT,*/
+    /*mutable backgroundColor: (float, float, float, float),*/
+    mutable visible: bool,
+    mutable allGLData: vertexDataT
+    /*mutable text: option textT*/
+  };
+  /* @Hack we're using nullTex which is a value that we're assuming has
+       been loaded already. This is very bad but it'll work for now.
+             Ben - August 19th 2017
+     */
+  let nullContext = {
+    visible: true,
+    allGLData: {
+      vertexArrayBuffer: vertexBuffer1,
+      elementArrayBuffer: elementBuffer1,
+      vertexArray: Gl.Bigarray.create Gl.Bigarray.Float32 0,
+      elementArray: Gl.Bigarray.create Gl.Bigarray.Uint16 0,
+      count: 0,
+      textureBuffer: nullTex,
+      posMatrix: Gl.Mat4.create ()
+    }
+  };
+};
+
+let generateTextContext
     (s: string)
     color
     ({textureBuffer, textureWidth, textureHeight, chars, kerning}: fontT) => {
@@ -807,115 +809,82 @@ let generateTextVertexData
       }
     )
     s;
-  {
-    vertexArray: Gl.Bigarray.sub vertexArray offset::0 len::!vertexPtr,
-    elementArray: Gl.Bigarray.sub elementArray offset::0 len::!elementPtr,
-    count: !elementPtr,
-    textureBuffer,
-    posMatrix: Gl.Mat4.create ()
+  Node.{
+    visible: true,
+    allGLData: {
+      vertexArrayBuffer: Gl.createBuffer context,
+      elementArrayBuffer: Gl.createBuffer context,
+      vertexArray: Gl.Bigarray.sub vertexArray offset::0 len::!vertexPtr,
+      elementArray: Gl.Bigarray.sub elementArray offset::0 len::!elementPtr,
+      count: !elementPtr,
+      textureBuffer,
+      posMatrix: Gl.Mat4.create ()
+    }
   }
 };
 
-let drawText
-    (x: float)
-    (y: float)
-    (z: float)
-    (s: string)
-    color
-    ({textureBuffer, textureWidth, textureHeight, chars, kerning}: fontT) => {
-  let offset = ref 0.;
-  let prevChar = ref None;
-  String.iter
-    (
-      fun c => {
-        let code = Char.code c;
-        switch (IntMap.find code chars) {
-        | {width, height, atlasX, atlasY, bearingX, bearingY, advance} =>
-          let (kerningOffsetX, kerningOffsetY) =
-            switch !prevChar {
-            | None => (0., 0.)
-            | Some c =>
-              switch (IntPairMap.find (c, code) kerning) {
-              | v => v
-              | exception Not_found => (0., 0.)
-              }
-            };
-          addRectToGlobalBatch
-            (x +. !offset +. bearingX +. kerningOffsetX)
-            (y -. bearingY -. kerningOffsetY)
-            z
-            width
-            height
-            (atlasX /. textureWidth)
-            ((atlasY +. 1.) /. textureHeight)
-            (width /. textureWidth)
-            (height /. textureHeight)
-            color
-            textureBuffer;
-          prevChar := Some code;
-          offset := !offset +. advance
-        | exception Not_found =>
-          failwith (Printf.sprintf "Couldn't find character %c in atlas :(" c)
-        }
-      }
-    )
-    s
+let drawText (x: float) (y: float) (z: float) (s: string) color font => {
+  let {Node.allGLData: {vertexArray, elementArray, count, textureBuffer, posMatrix}} =
+    generateTextContext s color font;
+  let m = Gl.Mat4.create ();
+  Gl.Mat4.translate m posMatrix [|x, y, z, 0.|];
+  drawGeometry ::vertexArray ::elementArray ::count ::textureBuffer posMatrix::m
 };
 
-let drawCircle x y ::radius color::(r, g, b, a) => {
+/*let drawCircle x y ::radius color::(r, g, b, a) => {
 
-  /** Instantiate a list of points for the circle and bind to the circleBuffer. **/
-  let circle_vertex = ref [];
-  for i in 0 to 360 {
-    let deg2grad = 3.14159 /. 180.;
-    let degInGrad = float_of_int i *. deg2grad;
-    circle_vertex := [
-      cos degInGrad *. radius +. x,
-      sin degInGrad *. radius +. y,
-      0.,
-      ...!circle_vertex
-    ]
+    /** Instantiate a list of points for the circle and bind to the circleBuffer. **/
+    let circle_vertex = ref [];
+    for i in 0 to 360 {
+      let deg2grad = 3.14159 /. 180.;
+      let degInGrad = float_of_int i *. deg2grad;
+      circle_vertex := [
+        cos degInGrad *. radius +. x,
+        sin degInGrad *. radius +. y,
+        0.,
+        ...!circle_vertex
+      ]
+    };
+    Gl.bindBuffer ::context target::Constants.array_buffer buffer::vertexBuffer1;
+    Gl.bufferData
+      ::context
+      target::Constants.array_buffer
+      data::(Gl.Bigarray.of_array Gl.Bigarray.Float32 (Array.of_list !circle_vertex))
+      usage::Constants.static_draw;
+    Gl.vertexAttribPointer
+      ::context
+      attribute::aVertexPosition
+      size::3
+      type_::Constants.float_
+      normalize::false
+      stride::0
+      offset::0;
+
+    * Instantiate color array *
+    let circle_colors = ref [];
+    for _ in 0 to 360 {
+      circle_colors := [r, g, b, a, ...!circle_colors]
+    };
+    Gl.bindBuffer ::context target::Constants.array_buffer buffer::colorBuffer;
+    Gl.bufferData
+      ::context
+      target::Constants.array_buffer
+      data::(Gl.Bigarray.of_array Gl.Bigarray.Float32 (Array.of_list !circle_colors))
+      usage::Constants.stream_draw;
+    Gl.vertexAttribPointer
+      ::context
+      attribute::aVertexColor
+      size::4
+      type_::Constants.float_
+      normalize::false
+      stride::0
+      offset::0;
+    Gl.uniformMatrix4fv ::context location::pMatrixUniform value::camera.projectionMatrix;
+    Gl.uniform1i ::context location::uSampler val::0;
+    Gl.bindTexture ::context target::RGLConstants.texture_2d texture::nullTex;
+    Gl.drawArrays ::context mode::Constants.triangle_fan first::0 count::360
   };
-  Gl.bindBuffer ::context target::Constants.array_buffer buffer::vertexBuffer1;
-  Gl.bufferData
-    ::context
-    target::Constants.array_buffer
-    data::(Gl.Bigarray.of_array Gl.Bigarray.Float32 (Array.of_list !circle_vertex))
-    usage::Constants.static_draw;
-  Gl.vertexAttribPointer
-    ::context
-    attribute::aVertexPosition
-    size::3
-    type_::Constants.float_
-    normalize::false
-    stride::0
-    offset::0;
-
-  /** Instantiate color array **/
-  let circle_colors = ref [];
-  for _ in 0 to 360 {
-    circle_colors := [r, g, b, a, ...!circle_colors]
-  };
-  Gl.bindBuffer ::context target::Constants.array_buffer buffer::colorBuffer;
-  Gl.bufferData
-    ::context
-    target::Constants.array_buffer
-    data::(Gl.Bigarray.of_array Gl.Bigarray.Float32 (Array.of_list !circle_colors))
-    usage::Constants.stream_draw;
-  Gl.vertexAttribPointer
-    ::context
-    attribute::aVertexColor
-    size::4
-    type_::Constants.float_
-    normalize::false
-    stride::0
-    offset::0;
-  Gl.uniformMatrix4fv ::context location::pMatrixUniform value::camera.projectionMatrix;
-  Gl.uniform1i ::context location::uSampler val::0;
-  Gl.bindTexture ::context target::RGLConstants.texture_2d texture::nullTex;
-  Gl.drawArrays ::context mode::Constants.triangle_fan first::0 count::360
-};
-
+  */
 /* Commented out because not used. */
 /*type _imageT = {
     textureBuffer: Gl.textureT,
@@ -987,41 +956,6 @@ let noColor = (0., 0., 0., 0.);
 
 let randomColor () => (Random.float 1., Random.float 1., Random.float 1., 1.);
 
-type textT = {
-  mutable font: fontT,
-  text: string
-};
-
-/* Each node contains all possible values, it's probably faster than
-   conditional on type. */
-module Node = {
-  type context = {
-    /* Each field is mutable for performance reason. We want to encourage creating a pretty
-       static tree that gets its nodes mutated and fully composited each frame. */
-    /*mutable texture: Gl.textureT,*/
-    /*mutable backgroundColor: (float, float, float, float),*/
-    mutable visible: bool,
-    mutable allGLData: vertexDataT
-    /*mutable text: option textT*/
-  };
-  /* @Hack we're using nullTex which is a value that we're assuming has
-       been loaded already. This is very bad but it'll work for now.
-             Ben - August 19th 2017
-     */
-  let nullContext = {
-    visible: true,
-    allGLData: {
-      vertexArrayBuffer: vertexBuffer1,
-      elementArrayBuffer: elementBuffer1,
-      vertexArray: Gl.Bigarray.create Gl.Bigarray.Float32 0,
-      elementArray: Gl.Bigarray.create Gl.Bigarray.Uint16 0,
-      count: 0,
-      textureBuffer: nullTex,
-      posMatrix: Gl.Mat4.create ()
-    }
-  };
-};
-
 module Layout = {
   module Encoding = FloatEncoding;
   module Layout = Layout.Create Node Encoding;
@@ -1061,106 +995,73 @@ module Layout = {
       }
   };
   traverseAndDraw !allChildren */
-  
-  let rec traverseAndDraw ::depth=defaultZBuffer root left top =>
+let rec traverseAndDraw ::depth=defaultZBuffer root left top =>
   Layout.(
     if root.context.visible {
       let absoluteLeft = left +. root.layout.left;
       let absoluteTop = top +. root.layout.top;
-      switch root.context.Node.allGLData {
-      | Some {vertexArray, elementArray, count, textureBuffer, posMatrix} =>
-        drawGeometry ::vertexArray ::elementArray ::count ::textureBuffer ::posMatrix
-      /*drawText
-        (floor absoluteLeft)
-        (floor absoluteTop)
-        depth
-        text
-        root.context.Node.backgroundColor
-        font*/
-      | None =>
-        switch root.context.text {
-        | None =>
-          addRectToGlobalBatch
-            (floor absoluteLeft)
-            (floor absoluteTop)
-            depth
-            root.layout.width
-            root.layout.height
-            0.
-            0.
-            (0.5 /. 2048.)
-            (0.5 /. 2048.)
-            root.context.Node.backgroundColor
-            root.context.Node.texture
-        | Some {text, font} =>
-          drawText
-            (floor absoluteLeft)
-            (floor absoluteTop)
-            depth
-            text
-            root.context.Node.backgroundColor
-            font
-        }
-      /*print_endline @@ "None allGLData doing nothing for now"*/
-      };
+      let {vertexArray, elementArray, count, textureBuffer, posMatrix} =
+        root.context.Node.allGLData;
+      let m = Gl.Mat4.create ();
+      Gl.Mat4.translate m posMatrix [|absoluteLeft, absoluteTop, 1., 0.|];
+      drawGeometry ::vertexArray ::elementArray ::count ::textureBuffer posMatrix::m;
       Array.iter
         (fun child => traverseAndDraw child absoluteLeft absoluteTop depth::(depth +. 1.))
         root.children
     }
   );
-
 /*let rec traverseAndDraw ::depth=defaultZBuffer root left top =>
-  Layout.(
-    if root.context.visible {
-      let absoluteLeft = left +. root.layout.left;
-      let absoluteTop = top +. root.layout.top;
-      switch root.context.Node.allGLData {
-      | Some {vertexArray, elementArray, count, textureBuffer, posMatrix} =>
-        drawGeometry ::vertexArray ::elementArray ::count ::textureBuffer ::posMatrix
-      /*drawText
-        (floor absoluteLeft)
-        (floor absoluteTop)
-        depth
-        text
-        root.context.Node.backgroundColor
-        font*/
-      | None =>
-        switch root.context.text {
+    Layout.(
+      if root.context.visible {
+        let absoluteLeft = left +. root.layout.left;
+        let absoluteTop = top +. root.layout.top;
+        switch root.context.Node.allGLData {
+        | Some {vertexArray, elementArray, count, textureBuffer, posMatrix} =>
+          drawGeometry ::vertexArray ::elementArray ::count ::textureBuffer ::posMatrix
+        /*drawText
+          (floor absoluteLeft)
+          (floor absoluteTop)
+          depth
+          text
+          root.context.Node.backgroundColor
+          font*/
         | None =>
-          addRectToGlobalBatch
-            (floor absoluteLeft)
-            (floor absoluteTop)
-            depth
-            root.layout.width
-            root.layout.height
-            0.
-            0.
-            (0.5 /. 2048.)
-            (0.5 /. 2048.)
-            root.context.Node.backgroundColor
-            root.context.Node.texture
-        | Some {text, font} =>
-          drawText
-            (floor absoluteLeft)
-            (floor absoluteTop)
-            depth
-            text
-            root.context.Node.backgroundColor
-            font
-        }
-      /*print_endline @@ "None allGLData doing nothing for now"*/
-      };
-      Array.iter
-        (fun child => traverseAndDraw child absoluteLeft absoluteTop depth::(depth +. 1.))
-        root.children
-    }
-  );
+          switch root.context.text {
+          | None =>
+            addRectToGlobalBatch
+              (floor absoluteLeft)
+              (floor absoluteTop)
+              depth
+              root.layout.width
+              root.layout.height
+              0.
+              0.
+              (0.5 /. 2048.)
+              (0.5 /. 2048.)
+              root.context.Node.backgroundColor
+              root.context.Node.texture
+          | Some {text, font} =>
+            drawText
+              (floor absoluteLeft)
+              (floor absoluteTop)
+              depth
+              text
+              root.context.Node.backgroundColor
+              font
+          }
+        /*print_endline @@ "None allGLData doing nothing for now"*/
+        };
+        Array.iter
+          (fun child => traverseAndDraw child absoluteLeft absoluteTop depth::(depth +. 1.))
+          root.children
+      }
+    );
 
-let traverseAndDraw root left top => {
-  traverseAndDraw root left top;
-  if (!curBatch mod 2 === 0) {
-    flushGlobalBatch batch1.currTex
-  } else {
-    flushGlobalBatch batch2.currTex
-  }
-};*/
+  let traverseAndDraw root left top => {
+    traverseAndDraw root left top;
+    if (!curBatch mod 2 === 0) {
+      flushGlobalBatch batch1.currTex
+    } else {
+      flushGlobalBatch batch2.currTex
+    }
+  };*/
