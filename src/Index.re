@@ -88,7 +88,6 @@ let render time => {
   Draw.drawTextImmediate
     12.
     20.
-    2.
     (
       "fps: " ^
       string_of_int (

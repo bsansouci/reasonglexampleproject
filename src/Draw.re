@@ -96,18 +96,19 @@ let getProgram
 
 /** */
 let vertexShaderSource = {|
-  attribute vec3 aVertexPosition;
+  attribute vec2 aVertexPosition;
   attribute vec4 aVertexColor;
   attribute vec2 aTextureCoord;
 
   uniform mat4 uPMatrix;
-  uniform mat4 posMatrix;
+  uniform vec2 posVec;
+  uniform vec2 scaleVec;
 
   varying vec4 vColor;
   varying vec2 vTextureCoord;
 
   void main(void) {
-    gl_Position = (uPMatrix * posMatrix) * vec4(aVertexPosition, 1.0);
+    gl_Position = uPMatrix * vec4(posVec + scaleVec * aVertexPosition, 0., 1.0);
     vColor = aVertexColor;
     vTextureCoord = aTextureCoord;
   }
@@ -224,10 +225,12 @@ let pMatrixUniform = Gl.getUniformLocation context program "uPMatrix";
 
 Gl.uniformMatrix4fv ::context location::pMatrixUniform value::camera.projectionMatrix;
 
-let posMatrix = Gl.getUniformLocation context program "posMatrix";
+let posVec = Gl.getUniformLocation context program "posVec";
 
-Gl.uniformMatrix4fv ::context location::posMatrix value::(Gl.Mat4.create ());
+/*Gl.uniformMatrix4fv ::context location::posVec value::(Gl.Bigarray.of_array Gl.Bigarray.Float32 [|255, 255|]);*/
+let scaleVec = Gl.getUniformLocation context program "scaleVec";
 
+/*Gl.uniformMatrix4fv ::context location::scaleVec value::(Gl.Mat4.create ());*/
 let aTextureCoord = Gl.getAttribLocation ::context ::program name::"aTextureCoord";
 
 Gl.enableVertexAttribArray ::context attribute::aTextureCoord;
@@ -312,8 +315,6 @@ let minZBuffer = 0.;
 
 let maxZBuffer = 1000.;
 
-let defaultZBuffer = 500.;
-
 
 /**
  * Will mutate the projectionMatrix to be an ortho matrix with the given boundaries.
@@ -339,7 +340,7 @@ let resizeWindow () => {
   doOrtho ()
 };
 
-let vertexSize = 9;
+let vertexSize = 8;
 
 /*
  * This array packs all of the values that the shaders need: vertices, colors and texture coordinates.
@@ -347,16 +348,16 @@ let vertexSize = 9;
  *
  * The vertex array looks like:
  *
- * |<--------  9 * 4 bytes  ------->|
+ * |<--------  8 * 4 bytes  ------->|
  *  --------------------------------
- * |  x  y  z  |  r  g  b  a  |  s  t  |  x2  y2  |  r2  g2  b2  a2  |  s2  t2  | ....
+ * |  x  y  |  r  g  b  a  |  s  t  |  x2  y2  |  r2  g2  b2  a2  |  s2  t2  | ....
  *  --------------------------------
- * |             |              |
- * +- offset: 0 bytes, stride: 9 * 4 bytes (because we need to move by 8*4 bytes to get to the next x)
- *               |              |
- *               +- offset: 3 * 4 bytes, stride: 9 * 4 bytes
- *                              |
- *                              +- offset: (3 + 4) * 4 bytes, stride: 9 * 4 bytes
+ * |        |              |
+ * +- offset: 0 bytes, stride: 8 * 4 bytes (because we need to move by 8*4 bytes to get to the next x)
+ *          |              |
+ *          +- offset: 2 * 4 bytes, stride: 8 * 4 bytes
+ *                         |
+ *                         +- offset: (2 + 4) * 4 bytes, stride: 8 * 4 bytes
  *
  */
 let drawGeometrySendData
@@ -366,14 +367,15 @@ let drawGeometrySendData
     elementArray::(elementArray: Gl.Bigarray.t int Gl.Bigarray.int16_unsigned_elt)
     count::(count: int)
     textureBuffer::(textureBuffer: Gl.textureT)
-    posMatrix::(pm: Gl.Mat4.t) => {
+    posVecData::((x, y): (float, float))
+    scaleVecData::((width, height): (float, float)) => {
   Gl.bindBuffer ::context target::Constants.array_buffer buffer::vertexBuffer;
   Gl.bufferData
     ::context target::Constants.array_buffer data::vertexArray usage::Constants.static_draw;
   Gl.vertexAttribPointer
     ::context
     attribute::aVertexPosition
-    size::3
+    size::2
     type_::Constants.float_
     normalize::false
     stride::(vertexSize * 4)
@@ -387,7 +389,7 @@ let drawGeometrySendData
     type_::Constants.float_
     normalize::false
     stride::(vertexSize * 4)
-    offset::(3 * 4);
+    offset::(2 * 4);
 
   /** Texture */
   Gl.vertexAttribPointer
@@ -397,11 +399,12 @@ let drawGeometrySendData
     type_::Constants.float_
     normalize::false
     stride::(vertexSize * 4)
-    offset::(7 * 4);
+    offset::(6 * 4);
 
   /** */
   Gl.uniformMatrix4fv ::context location::pMatrixUniform value::camera.projectionMatrix;
-  Gl.uniformMatrix4fv ::context location::posMatrix value::pm;
+  Gl.uniform2f ::context location::posVec v1::x v2::y;
+  Gl.uniform2f ::context location::scaleVec v1::width v2::height;
 
   /** Tell OpenGL about what the uniform called `uSampler` is pointing at, here it's given 0 which
       is what texture0 represent.  **/
@@ -430,12 +433,13 @@ let drawGeometry2
     ::vertexBuffer
     ::elementBuffer
     textureBuffer::(textureBuffer: Gl.textureT)
-    posMatrix::(pm: Gl.Mat4.t) => {
+    posVecData::((x, y): (float, float))
+    scaleVecData::((width, height): (float, float)) => {
   Gl.bindBuffer ::context target::Constants.array_buffer buffer::vertexBuffer;
   Gl.vertexAttribPointer
     ::context
     attribute::aVertexPosition
-    size::3
+    size::2
     type_::Constants.float_
     normalize::false
     stride::(vertexSize * 4)
@@ -449,7 +453,7 @@ let drawGeometry2
     type_::Constants.float_
     normalize::false
     stride::(vertexSize * 4)
-    offset::(3 * 4);
+    offset::(2 * 4);
 
   /** Texture */
   Gl.vertexAttribPointer
@@ -459,11 +463,12 @@ let drawGeometry2
     type_::Constants.float_
     normalize::false
     stride::(vertexSize * 4)
-    offset::(7 * 4);
+    offset::(6 * 4);
 
   /** */
   Gl.uniformMatrix4fv ::context location::pMatrixUniform value::camera.projectionMatrix;
-  Gl.uniformMatrix4fv ::context location::posMatrix value::pm;
+  Gl.uniform2f ::context location::posVec v1::x v2::y;
+  Gl.uniform2f ::context location::scaleVec v1::width v2::height;
 
   /** Tell OpenGL about what the uniform called `uSampler` is pointing at, here it's given 0 which
       is what texture0 represent.  **/
@@ -531,40 +536,36 @@ let generateRectContext (r, g, b, a) => {
   let texH = 1.;
   set vertexArray 0 1.;
   set vertexArray 1 1.;
-  set vertexArray 2 2.;
-  set vertexArray 3 r;
-  set vertexArray 4 g;
-  set vertexArray 5 b;
-  set vertexArray 6 a;
-  set vertexArray 7 (texX +. texW);
-  set vertexArray 8 (texY +. texH);
-  set vertexArray 9 0.;
-  set vertexArray 10 1.;
-  set vertexArray 11 2.;
-  set vertexArray 12 r;
-  set vertexArray 13 g;
-  set vertexArray 14 b;
-  set vertexArray 15 a;
-  set vertexArray 16 texX;
-  set vertexArray 17 (texY +. texH);
-  set vertexArray 18 1.;
-  set vertexArray 19 0.;
-  set vertexArray 20 2.;
-  set vertexArray 21 r;
-  set vertexArray 22 g;
-  set vertexArray 23 b;
-  set vertexArray 24 a;
-  set vertexArray 25 (texX +. texW);
-  set vertexArray 26 texY;
-  set vertexArray 27 0.;
-  set vertexArray 28 0.;
-  set vertexArray 29 2.;
-  set vertexArray 30 r;
-  set vertexArray 31 g;
-  set vertexArray 32 b;
-  set vertexArray 33 a;
-  set vertexArray 34 texX;
-  set vertexArray 35 texY;
+  set vertexArray 2 r;
+  set vertexArray 3 g;
+  set vertexArray 4 b;
+  set vertexArray 5 a;
+  set vertexArray 6 (texX +. texW);
+  set vertexArray 7 (texY +. texH);
+  set vertexArray 8 0.;
+  set vertexArray 9 1.;
+  set vertexArray 10 r;
+  set vertexArray 11 g;
+  set vertexArray 12 b;
+  set vertexArray 13 a;
+  set vertexArray 14 texX;
+  set vertexArray 15 (texY +. texH);
+  set vertexArray 16 1.;
+  set vertexArray 17 0.;
+  set vertexArray 18 r;
+  set vertexArray 19 g;
+  set vertexArray 20 b;
+  set vertexArray 21 a;
+  set vertexArray 22 (texX +. texW);
+  set vertexArray 23 texY;
+  set vertexArray 24 0.;
+  set vertexArray 25 0.;
+  set vertexArray 26 r;
+  set vertexArray 27 g;
+  set vertexArray 28 b;
+  set vertexArray 29 a;
+  set vertexArray 30 texX;
+  set vertexArray 31 texY;
   set elementArray 0 0;
   set elementArray 1 1;
   set elementArray 2 2;
@@ -590,7 +591,7 @@ let generateTextContext
     (s: string)
     color
     ({textureBuffer, textureWidth, textureHeight, chars, kerning}: fontT) => {
-  let vertexArray = Gl.Bigarray.create Gl.Bigarray.Float32 (6 * String.length s * vertexSize);
+  let vertexArray = Gl.Bigarray.create Gl.Bigarray.Float32 (4 * String.length s * vertexSize);
   let elementArray = Gl.Bigarray.create Gl.Bigarray.Uint16 (6 * String.length s);
   let vertexPtr = ref 0;
   let elementPtr = ref 0;
@@ -598,7 +599,6 @@ let generateTextContext
   let addRectToBatch
       (x: float)
       (y: float)
-      (z: float)
       (width: float)
       (height: float)
       (texX: float)
@@ -610,40 +610,36 @@ let generateTextContext
     let i = !vertexPtr;
     set vertexArray (i + 0) (x +. width);
     set vertexArray (i + 1) (y +. height);
-    set vertexArray (i + 2) z;
-    set vertexArray (i + 3) r;
-    set vertexArray (i + 4) g;
-    set vertexArray (i + 5) b;
-    set vertexArray (i + 6) a;
-    set vertexArray (i + 7) (texX +. texW);
-    set vertexArray (i + 8) (texY +. texH);
-    set vertexArray (i + 9) x;
-    set vertexArray (i + 10) (y +. height);
-    set vertexArray (i + 11) z;
-    set vertexArray (i + 12) r;
-    set vertexArray (i + 13) g;
-    set vertexArray (i + 14) b;
-    set vertexArray (i + 15) a;
-    set vertexArray (i + 16) texX;
-    set vertexArray (i + 17) (texY +. texH);
-    set vertexArray (i + 18) (x +. width);
-    set vertexArray (i + 19) y;
-    set vertexArray (i + 20) z;
-    set vertexArray (i + 21) r;
-    set vertexArray (i + 22) g;
-    set vertexArray (i + 23) b;
-    set vertexArray (i + 24) a;
-    set vertexArray (i + 25) (texX +. texW);
-    set vertexArray (i + 26) texY;
-    set vertexArray (i + 27) x;
-    set vertexArray (i + 28) y;
-    set vertexArray (i + 29) z;
-    set vertexArray (i + 30) r;
-    set vertexArray (i + 31) g;
-    set vertexArray (i + 32) b;
-    set vertexArray (i + 33) a;
-    set vertexArray (i + 34) texX;
-    set vertexArray (i + 35) texY;
+    set vertexArray (i + 2) r;
+    set vertexArray (i + 3) g;
+    set vertexArray (i + 4) b;
+    set vertexArray (i + 5) a;
+    set vertexArray (i + 6) (texX +. texW);
+    set vertexArray (i + 7) (texY +. texH);
+    set vertexArray (i + 8) x;
+    set vertexArray (i + 9) (y +. height);
+    set vertexArray (i + 10) r;
+    set vertexArray (i + 11) g;
+    set vertexArray (i + 12) b;
+    set vertexArray (i + 13) a;
+    set vertexArray (i + 14) texX;
+    set vertexArray (i + 15) (texY +. texH);
+    set vertexArray (i + 16) (x +. width);
+    set vertexArray (i + 17) y;
+    set vertexArray (i + 18) r;
+    set vertexArray (i + 19) g;
+    set vertexArray (i + 20) b;
+    set vertexArray (i + 21) a;
+    set vertexArray (i + 22) (texX +. texW);
+    set vertexArray (i + 23) texY;
+    set vertexArray (i + 24) x;
+    set vertexArray (i + 25) y;
+    set vertexArray (i + 26) r;
+    set vertexArray (i + 27) g;
+    set vertexArray (i + 28) b;
+    set vertexArray (i + 29) a;
+    set vertexArray (i + 30) texX;
+    set vertexArray (i + 31) texY;
     let ii = i / vertexSize;
     let j = !elementPtr;
     let elementArrayToMutate = elementArray;
@@ -676,7 +672,6 @@ let generateTextContext
           addRectToBatch
             (!offset +. bearingX +. kerningOffsetX)
             (-. bearingY -. kerningOffsetY)
-            defaultZBuffer
             width
             height
             (atlasX /. textureWidth)
@@ -708,7 +703,7 @@ let generateTextContext
   }
 };
 
-let drawTextImmediate (x: float) (y: float) (z: float) (s: string) color font => {
+let drawTextImmediate (x: float) (y: float) (s: string) color font => {
   let {
     Node.allGLData: {
       vertexArray,
@@ -720,8 +715,6 @@ let drawTextImmediate (x: float) (y: float) (z: float) (s: string) color font =>
     }
   } =
     generateTextContext s color font;
-  let m = Gl.Mat4.create ();
-  Gl.Mat4.translate m m [|x, y, z, 0.|];
   drawGeometrySendData
     vertexBuffer::vertexArrayBuffer
     elementBuffer::elementArrayBuffer
@@ -729,7 +722,8 @@ let drawTextImmediate (x: float) (y: float) (z: float) (s: string) color font =>
     ::elementArray
     ::count
     ::textureBuffer
-    posMatrix::m
+    posVecData::(x, y)
+    scaleVecData::(1., 1.)
 };
 
 let drawCircle x y ::radius color::(r, g, b, a) pm => {
@@ -739,12 +733,7 @@ let drawCircle x y ::radius color::(r, g, b, a) pm => {
   for i in 0 to 360 {
     let deg2grad = 3.14159 /. 180.;
     let degInGrad = float_of_int i *. deg2grad;
-    circle_vertex := [
-      cos degInGrad *. radius +. x,
-      sin degInGrad *. radius +. y,
-      0.,
-      ...!circle_vertex
-    ]
+    circle_vertex := [cos degInGrad *. radius, sin degInGrad *. radius, ...!circle_vertex]
   };
   Gl.bindBuffer ::context target::Constants.array_buffer buffer::vertexBuffer;
   Gl.bufferData
@@ -755,7 +744,7 @@ let drawCircle x y ::radius color::(r, g, b, a) pm => {
   Gl.vertexAttribPointer
     ::context
     attribute::aVertexPosition
-    size::3
+    size::2
     type_::Constants.float_
     normalize::false
     stride::0
@@ -781,7 +770,8 @@ let drawCircle x y ::radius color::(r, g, b, a) pm => {
     stride::0
     offset::0;
   Gl.uniformMatrix4fv ::context location::pMatrixUniform value::camera.projectionMatrix;
-  Gl.uniformMatrix4fv ::context location::posMatrix value::pm;
+  Gl.uniform2f ::context location::posVec v1::x v2::y;
+  Gl.uniform2f ::context location::scaleVec v1::1. v2::1.;
   Gl.uniform1i ::context location::uSampler val::0;
   Gl.bindTexture ::context target::RGLConstants.texture_2d texture::nullTex;
   Gl.drawArrays ::context mode::Constants.triangle_fan first::0 count::360
@@ -875,7 +865,7 @@ module Layout = {
   let doLayoutNow root => Layout.layoutNode root Encoding.cssUndefined Encoding.cssUndefined Ltr;
 };
 
-let rec traverseAndDraw ::depth=defaultZBuffer root left top =>
+let rec traverseAndDraw root left top =>
   Layout.(
     if root.context.visible {
       let absoluteLeft = left +. root.layout.left;
@@ -890,11 +880,12 @@ let rec traverseAndDraw ::depth=defaultZBuffer root left top =>
         elementArrayBuffer
       } =
         root.context.Node.allGLData;
-      let m = Gl.Mat4.create ();
-      Gl.Mat4.translate m m [|floor absoluteLeft, floor absoluteTop, 1., 0.|];
-      if scalable {
-        Gl.Mat4.scale m m [|root.layout.width, root.layout.height, 1., 0.|]
-      };
+      let scaleVecData =
+        if scalable {
+          (root.layout.width, root.layout.height)
+        } else {
+          (1.0, 1.0)
+        };
       if (not root.context.Node.isDataSentToGPU) {
         drawGeometrySendData
           vertexBuffer::vertexArrayBuffer
@@ -903,7 +894,8 @@ let rec traverseAndDraw ::depth=defaultZBuffer root left top =>
           ::elementArray
           ::count
           ::textureBuffer
-          posMatrix::m;
+          posVecData::(floor absoluteLeft, floor absoluteTop)
+          ::scaleVecData;
         root.context.Node.isDataSentToGPU = true
       } else {
         drawGeometry2
@@ -911,10 +903,9 @@ let rec traverseAndDraw ::depth=defaultZBuffer root left top =>
           elementBuffer::elementArrayBuffer
           ::count
           ::textureBuffer
-          posMatrix::m
+          posVecData::(floor absoluteLeft, floor absoluteTop)
+          ::scaleVecData
       };
-      Array.iter
-        (fun child => traverseAndDraw child absoluteLeft absoluteTop depth::(depth +. 1.))
-        root.children
+      Array.iter (fun child => traverseAndDraw child absoluteLeft absoluteTop) root.children
     }
   );

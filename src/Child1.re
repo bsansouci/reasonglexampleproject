@@ -54,8 +54,8 @@ module M: Hotreloader.DYNAMIC_MODULE = {
   let render time => {
     /* Remember to clear the screen at each tick */
     Draw.clearScreen ();
-    let tileWidth = (float_of_int @@ Draw.getWindowWidth ()) /. 20.;
-    let tileHeight = (float_of_int @@ Draw.getWindowHeight ()) /. 30.;
+    let tileWidth = (float_of_int @@ Draw.getWindowWidth ()) /. 50.;
+    let tileHeight = (float_of_int @@ Draw.getWindowHeight ()) /. 60.;
     let tileMargin = (float_of_int @@ Draw.getWindowHeight ()) /. 400.;
     let rootstyle =
       Layout.{
