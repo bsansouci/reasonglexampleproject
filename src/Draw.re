@@ -101,14 +101,13 @@ let vertexShaderSource = {|
   attribute vec2 aTextureCoord;
 
   uniform mat4 uPMatrix;
-  uniform vec2 posVec;
-  uniform vec2 scaleVec;
+  uniform vec4 posAndScaleVec;
 
   varying vec4 vColor;
   varying vec2 vTextureCoord;
 
   void main(void) {
-    gl_Position = uPMatrix * vec4(posVec + scaleVec * aVertexPosition, 0., 1.0);
+    gl_Position = uPMatrix * vec4(posAndScaleVec.xy + posAndScaleVec.zw * aVertexPosition, 0., 1.0);
     vColor = aVertexColor;
     vTextureCoord = aTextureCoord;
   }
@@ -225,11 +224,10 @@ let pMatrixUniform = Gl.getUniformLocation context program "uPMatrix";
 
 Gl.uniformMatrix4fv ::context location::pMatrixUniform value::camera.projectionMatrix;
 
-let posVec = Gl.getUniformLocation context program "posVec";
+let posAndScaleVec = Gl.getUniformLocation context program "posAndScaleVec";
 
-/*Gl.uniformMatrix4fv ::context location::posVec value::(Gl.Bigarray.of_array Gl.Bigarray.Float32 [|255, 255|]);*/
-let scaleVec = Gl.getUniformLocation context program "scaleVec";
-
+/*Gl.uniformMatrix4fv ::context location::posAndScaleVec value::(Gl.Bigarray.of_array Gl.Bigarray.Float32 [|255, 255|]);*/
+/*let scaleVec = Gl.getUniformLocation context program "scaleVec";*/
 /*Gl.uniformMatrix4fv ::context location::scaleVec value::(Gl.Mat4.create ());*/
 let aTextureCoord = Gl.getAttribLocation ::context ::program name::"aTextureCoord";
 
@@ -321,7 +319,7 @@ let maxZBuffer = 1000.;
  * See this link for quick explanation of what this is.
  * https://shearer12345.github.io/graphics/assets/projectionPerspectiveVSOrthographic.png
  */
-let doOrtho () =>
+let doOrtho () => {
   Gl.Mat4.ortho
     out::camera.projectionMatrix
     left::0.
@@ -330,6 +328,8 @@ let doOrtho () =>
     top::0.
     near::(-. maxZBuffer)
     far::(minZBuffer +. 1.);
+  Gl.uniformMatrix4fv ::context location::pMatrixUniform value::camera.projectionMatrix
+};
 
 doOrtho ();
 
@@ -402,9 +402,7 @@ let drawGeometrySendData
     offset::(6 * 4);
 
   /** */
-  Gl.uniformMatrix4fv ::context location::pMatrixUniform value::camera.projectionMatrix;
-  Gl.uniform2f ::context location::posVec v1::x v2::y;
-  Gl.uniform2f ::context location::scaleVec v1::width v2::height;
+  Gl.uniform4f ::context location::posAndScaleVec v1::x v2::y v3::width v4::height;
 
   /** Tell OpenGL about what the uniform called `uSampler` is pointing at, here it's given 0 which
       is what texture0 represent.  **/
@@ -466,9 +464,7 @@ let drawGeometry2
     offset::(6 * 4);
 
   /** */
-  Gl.uniformMatrix4fv ::context location::pMatrixUniform value::camera.projectionMatrix;
-  Gl.uniform2f ::context location::posVec v1::x v2::y;
-  Gl.uniform2f ::context location::scaleVec v1::width v2::height;
+  Gl.uniform4f ::context location::posAndScaleVec v1::x v2::y v3::width v4::height;
 
   /** Tell OpenGL about what the uniform called `uSampler` is pointing at, here it's given 0 which
       is what texture0 represent.  **/
@@ -486,13 +482,13 @@ let drawGeometry2
 };
 
 type vertexDataT = {
-  scalable: bool,
-  vertexArrayBuffer: Gl.bufferT,
-  elementArrayBuffer: Gl.bufferT,
-  vertexArray: Gl.Bigarray.t float Gl.Bigarray.float32_elt,
-  elementArray: Gl.Bigarray.t int Gl.Bigarray.int16_unsigned_elt,
-  count: int,
-  textureBuffer: Gl.textureT
+  mutable scalable: bool,
+  mutable vertexArrayBuffer: Gl.bufferT,
+  mutable elementArrayBuffer: Gl.bufferT,
+  mutable vertexArray: Gl.Bigarray.t float Gl.Bigarray.float32_elt,
+  mutable elementArray: Gl.Bigarray.t int Gl.Bigarray.int16_unsigned_elt,
+  mutable count: int,
+  mutable textureBuffer: Gl.textureT
 };
 
 /* Each node contains all possible values, it's probably faster than
@@ -590,6 +586,7 @@ let generateRectContext (r, g, b, a) => {
 let generateTextContext
     (s: string)
     color
+    mutableThing::(mutableThing: option Node.context)=?
     ({textureBuffer, textureWidth, textureHeight, chars, kerning}: fontT) => {
   let vertexArray = Gl.Bigarray.create Gl.Bigarray.Float32 (4 * String.length s * vertexSize);
   let elementArray = Gl.Bigarray.create Gl.Bigarray.Uint16 (6 * String.length s);
@@ -688,33 +685,51 @@ let generateTextContext
       }
     )
     s;
-  Node.{
-    visible: true,
-    isDataSentToGPU: false,
-    allGLData: {
-      scalable: false,
-      vertexArrayBuffer: Gl.createBuffer context,
-      elementArrayBuffer: Gl.createBuffer context,
-      vertexArray: Gl.Bigarray.sub vertexArray offset::0 len::!vertexPtr,
-      elementArray: Gl.Bigarray.sub elementArray offset::0 len::!elementPtr,
-      count: !elementPtr,
-      textureBuffer
+  switch mutableThing {
+  | None =>
+    Node.{
+      visible: true,
+      isDataSentToGPU: false,
+      allGLData: {
+        scalable: false,
+        vertexArrayBuffer: Gl.createBuffer context,
+        elementArrayBuffer: Gl.createBuffer context,
+        vertexArray: Gl.Bigarray.sub vertexArray offset::0 len::!vertexPtr,
+        elementArray: Gl.Bigarray.sub elementArray offset::0 len::!elementPtr,
+        count: !elementPtr,
+        textureBuffer
+      }
     }
+  | Some dataBag =>
+    dataBag.visible = true;
+    dataBag.isDataSentToGPU = false;
+    dataBag.allGLData.scalable = false;
+    dataBag.allGLData.vertexArray = Gl.Bigarray.sub vertexArray offset::0 len::!vertexPtr;
+    dataBag.allGLData.elementArray = Gl.Bigarray.sub elementArray offset::0 len::!elementPtr;
+    dataBag.allGLData.count = !elementPtr;
+    dataBag.allGLData.textureBuffer = textureBuffer;
+    dataBag
   }
 };
 
-let drawTextImmediate (x: float) (y: float) (s: string) color font => {
+let drawTextImmediate
+    (x: float)
+    (y: float)
+    (s: string)
+    color
+    mutableThing::(mutableThing: option Node.context)=?
+    font => {
   let {
-    Node.allGLData: {
-      vertexArray,
-      elementArray,
-      count,
-      textureBuffer,
-      vertexArrayBuffer,
-      elementArrayBuffer
-    }
-  } =
-    generateTextContext s color font;
+        Node.allGLData: {
+          vertexArray,
+          elementArray,
+          count,
+          textureBuffer,
+          vertexArrayBuffer,
+          elementArrayBuffer
+        }
+      } as data =
+    generateTextContext s color ::?mutableThing font;
   drawGeometrySendData
     vertexBuffer::vertexArrayBuffer
     elementBuffer::elementArrayBuffer
@@ -723,7 +738,8 @@ let drawTextImmediate (x: float) (y: float) (s: string) color font => {
     ::count
     ::textureBuffer
     posVecData::(x, y)
-    scaleVecData::(1., 1.)
+    scaleVecData::(1., 1.);
+  data
 };
 
 let drawCircle x y ::radius color::(r, g, b, a) pm => {
@@ -769,9 +785,7 @@ let drawCircle x y ::radius color::(r, g, b, a) pm => {
     normalize::false
     stride::0
     offset::0;
-  Gl.uniformMatrix4fv ::context location::pMatrixUniform value::camera.projectionMatrix;
-  Gl.uniform2f ::context location::posVec v1::x v2::y;
-  Gl.uniform2f ::context location::scaleVec v1::1. v2::1.;
+  Gl.uniform4f ::context location::posAndScaleVec v1::x v2::y v3::1. v4::1.;
   Gl.uniform1i ::context location::uSampler val::0;
   Gl.bindTexture ::context target::RGLConstants.texture_2d texture::nullTex;
   Gl.drawArrays ::context mode::Constants.triangle_fan first::0 count::360

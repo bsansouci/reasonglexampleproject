@@ -4,6 +4,71 @@ module Node = Draw.Node;
 
 let font7 = Font.loadFont fontSize::7. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0;
 
+type kindT =
+  | Text
+  | Rect;
+
+type viewType = {
+  style: Layout.cssStyle,
+  children: list viewType,
+  kind: kindT,
+  color: (float, float, float, float),
+  text: string
+};
+
+let globalRoot = ref None;
+
+let rec createHierarchy root => {
+  let context =
+    switch root.kind {
+    | Text => Draw.generateTextContext root.text Draw.white font7
+    | Rect => Draw.generateRectContext root.color
+    };
+  Layout.createNode
+    withChildren::(Array.of_list (List.map createHierarchy root.children))
+    andStyle::root.style
+    context
+};
+
+let rec doTheRenderThing (root: viewType) node::(node: option Layout.node)=? () =>
+  switch node {
+  | None => globalRoot := Some (createHierarchy root)
+  | Some node =>
+    if (node.Layout.style != root.style) {
+      node.Layout.style = root.style
+    };
+    List.iteri (fun i c => doTheRenderThing c node::node.Layout.children.(i) ()) root.children
+  /*if (node.context != root.context) {
+      node.context = root.context
+    };*/
+  /*node.children = root.children*/
+  };
+
+let doTheRenderThing root => {
+  let node = !globalRoot;
+  doTheRenderThing root ::?node ()
+};
+
+module View = {
+  let createElement ::style ::color=Draw.white ::children () => {
+    kind: Rect,
+    style,
+    color,
+    text: "",
+    children
+  };
+};
+
+module Text = {
+  let createElement ::style ::color=Draw.white ::text ::children () => {
+    kind: Text,
+    style,
+    color,
+    text,
+    children
+  };
+};
+
 let defaultColor = (0.6, 0.6, 0.9, 1.);
 
 let colors = [|
@@ -13,7 +78,8 @@ let colors = [|
   (0.7, 0.4, 0.3, 1.)
 |];
 
-let tiles = Array.init 1000 (fun i => Draw.generateTextContext "Hello!" Draw.white font7);
+let tiles: array (string, (float, float, float, float)) =
+  Array.init 1000 (fun i => ("Hello!", colors.(i / 5 mod Array.length colors)));
 
 let ballV = ref (4., 4.);
 
@@ -33,130 +99,143 @@ let segmentIntersection (x1, y1) (x2, y2) (bx1, by1) (bx2, by2) => {
   }
 };
 
-let root = {
-  let children: array Layout.node =
-    Array.mapi
-      (
-        fun i (context: Node.context) =>
-          Layout.createNode
-            withChildren::[|
-              Layout.createNode withChildren::[||] andStyle::Layout.defaultStyle context
-            |]
-            andStyle::Layout.defaultStyle
-            (Draw.generateRectContext colors.(i / 5 mod Array.length colors))
+let visible = true;
+
+let tileWidth = (float_of_int @@ Draw.getWindowWidth ()) /. 50.;
+
+let tileHeight = (float_of_int @@ Draw.getWindowHeight ()) /. 60.;
+
+let tileMargin = (float_of_int @@ Draw.getWindowHeight ()) /. 400.;
+
+let style =
+  Layout.{
+    ...defaultStyle,
+    marginLeft: visible ? tileMargin : 0.,
+    marginRight: visible ? tileMargin : 0.,
+    marginTop: tileMargin,
+    marginBottom: tileMargin,
+    width: visible ? tileWidth : 0.,
+    height: visible ? tileHeight : 0.
+  };
+
+let rootstyle =
+  Layout.{
+    ...defaultStyle,
+    paddingTop: 40.,
+    paddingLeft: 40.,
+    paddingRight: 40.,
+    justifyContent: JustifyCenter,
+    flexDirection: Row,
+    flexWrap: CssWrap,
+    marginLeft: 100.,
+    width: float_of_int @@ Draw.getWindowWidth () - 200,
+    height: float_of_int @@ Draw.getWindowHeight ()
+  };
+
+let test =
+  View.createElement
+    style::rootstyle
+    color::defaultColor
+    children::(
+      Array.to_list (
+        Array.mapi
+          (
+            fun i (text, color) =>
+              <View style color> <Text style=Layout.defaultStyle text /> </View>
+          )
+          tiles
       )
-      tiles;
-  Layout.createNode
-    withChildren::children andStyle::Layout.defaultStyle (Draw.generateRectContext defaultColor)
-};
+    )
+    ();
+
+doTheRenderThing test;
+
+let tileWidth = (float_of_int @@ Draw.getWindowWidth ()) /. 50.;
+
+let tileHeight = (float_of_int @@ Draw.getWindowHeight ()) /. 60.;
+
+let tileMargin = (float_of_int @@ Draw.getWindowHeight ()) /. 400.;
+
+rootstyle.width = float_of_int @@ Draw.getWindowWidth () - 200;
+
+rootstyle.height = float_of_int @@ Draw.getWindowHeight ();
 
 module M: Hotreloader.DYNAMIC_MODULE = {
   let render time => {
     /* Remember to clear the screen at each tick */
     Draw.clearScreen ();
-    let tileWidth = (float_of_int @@ Draw.getWindowWidth ()) /. 50.;
-    let tileHeight = (float_of_int @@ Draw.getWindowHeight ()) /. 60.;
-    let tileMargin = (float_of_int @@ Draw.getWindowHeight ()) /. 400.;
-    let rootstyle =
-      Layout.{
-        ...defaultStyle,
-        paddingTop: 40.,
-        paddingLeft: 40.,
-        paddingRight: 40.,
-        justifyContent: JustifyCenter,
-        flexDirection: Row,
-        flexWrap: CssWrap,
-        marginLeft: 100.,
-        width: float_of_int @@ Draw.getWindowWidth () - 200,
-        height: float_of_int @@ Draw.getWindowHeight ()
-      };
-    Array.iteri
-      (
-        fun i child => {
-          /*let visible = root.children.(i).context.visible;*/
-          let visible = true;
-          child.Layout.style =
-            Layout.{
-              ...defaultStyle,
-              marginLeft: visible ? tileMargin : 0.,
-              marginRight: visible ? tileMargin : 0.,
-              marginTop: tileMargin,
-              marginBottom: tileMargin,
-              width: visible ? tileWidth : 0.,
-              height: visible ? tileHeight : 0.
-            }
-        }
-      )
-      root.children;
-    root.Layout.style = rootstyle;
 
     /** This will perform all of the Flexbox calculations and mutate the layouts to have left, top, width, height set. The positions are relative to the parent. */
+    let root =
+      switch !globalRoot {
+      | None => assert false
+      | Some root => root
+      };
     Layout.doLayoutNow root;
 
     /** This will traverse the layout tree and blit each item to the screen one by one. */
-    Draw.traverseAndDraw root 0. 0.;
-
+    Draw.traverseAndDraw root 0. 0.
     /** Move ball */
-    let (ballX, ballY) = !ballPos;
-    let r = tileMargin *. 3.;
+    /*let (ballX, ballY) = !ballPos;
+      let r = tileMargin *. 3.;
 
-    /** Immediate draw. */
-    Draw.drawCircle ballX ballY radius::r color::Draw.white (Draw.Gl.Mat4.create ());
+      /** Immediate draw. */
+      Draw.drawCircle ballX ballY radius::r color::Draw.white (Draw.Gl.Mat4.create ());
 
-    /** */
-    let (ballVX, ballVY) = !ballV;
-    let (nextX, nextY) = (
-      ballVX *. time /. 16.66666666 +. ballX,
-      ballVY *. time /. 16.66666666 +. ballY
-    );
-    if Layout.(nextX -. r < root.layout.left || nextX +. r > root.layout.left +. root.layout.width) {
-      ballV := (-. ballVX, ballVY)
-    } else if (
-      nextY -. r < root.layout.top || nextY +. r > root.layout.top +. root.layout.height
-    ) {
-      ballV := (ballVX, -. ballVY)
-    } else {
-      let collided = ref false;
-      let parentLeft = root.layout.left;
-      let parentTop = root.layout.top;
-      Array.iter
-        (
-          fun {Layout.context: context, layout: {top, left, width, height}} =>
-            if context.visible {
-              let topLeft = (parentLeft +. left, parentTop +. top);
-              let topRight = (parentLeft +. left +. width, parentTop +. top);
-              let bottomRight = (parentLeft +. left +. width, parentTop +. top +. height);
-              let bottomLeft = (parentLeft +. left, parentTop +. top +. height);
-              if (segmentIntersection (ballX, ballY) (nextX, nextY) topRight bottomRight) {
-                collided := true;
-                ballV := (-. ballVX, ballVY);
-                context.visible = false
-              } else if (
-                segmentIntersection (ballX, ballY) (nextX, nextY) topLeft bottomLeft
-              ) {
-                collided := true;
-                ballV := (-. ballVX, ballVY);
-                context.visible = false
-              } else if (
-                segmentIntersection (ballX, ballY) (nextX, nextY) topLeft topRight
-              ) {
-                collided := true;
-                ballV := (ballVX, -. ballVY);
-                context.visible = false
-              } else if (
-                segmentIntersection (ballX, ballY) (nextX, nextY) bottomLeft bottomRight
-              ) {
-                collided := true;
-                ballV := (ballVX, -. ballVY);
-                context.visible = false
+      /** */
+      let (ballVX, ballVY) = !ballV;
+      let (nextX, nextY) = (
+        ballVX *. time /. 16.66666666 +. ballX,
+        ballVY *. time /. 16.66666666 +. ballY
+      );
+      if Layout.(nextX -. r < root.layout.left || nextX +. r > root.layout.left +. root.layout.width) {
+        ballV := (-. ballVX, ballVY)
+      } else if (
+        nextY -. r < root.layout.top || nextY +. r > root.layout.top +. root.layout.height
+      ) {
+        ballV := (ballVX, -. ballVY)
+      } else {
+        let collided = ref false;
+        let parentLeft = root.layout.left;
+        let parentTop = root.layout.top;
+        Array.iter
+          (
+            fun {Layout.context: context, layout: {top, left, width, height}} =>
+              if context.visible {
+                let topLeft = (parentLeft +. left, parentTop +. top);
+                let topRight = (parentLeft +. left +. width, parentTop +. top);
+                let bottomRight = (parentLeft +. left +. width, parentTop +. top +. height);
+                let bottomLeft = (parentLeft +. left, parentTop +. top +. height);
+                if (segmentIntersection (ballX, ballY) (nextX, nextY) topRight bottomRight) {
+                  collided := true;
+                  ballV := (-. ballVX, ballVY);
+                  context.visible = false
+                } else if (
+                  segmentIntersection (ballX, ballY) (nextX, nextY) topLeft bottomLeft
+                ) {
+                  collided := true;
+                  ballV := (-. ballVX, ballVY);
+                  context.visible = false
+                } else if (
+                  segmentIntersection (ballX, ballY) (nextX, nextY) topLeft topRight
+                ) {
+                  collided := true;
+                  ballV := (ballVX, -. ballVY);
+                  context.visible = false
+                } else if (
+                  segmentIntersection (ballX, ballY) (nextX, nextY) bottomLeft bottomRight
+                ) {
+                  collided := true;
+                  ballV := (ballVX, -. ballVY);
+                  context.visible = false
+                }
               }
-            }
-        )
-        root.children;
-      if (not !collided) {
-        ballPos := (nextX, nextY)
-      }
-    }
+          )
+          root.children;
+        if (not !collided) {
+          ballPos := (nextX, nextY)
+        }
+      }*/
   };
 };
 

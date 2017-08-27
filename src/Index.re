@@ -63,6 +63,23 @@ let font12 = Font.loadFont fontSize::12. fontPath::"assets/fonts/OpenSans-Regula
 
 let lastCoupleOfFrames = ref [];
 
+let fpsTextData =
+  Draw.drawTextImmediate
+    12.
+    20.
+    (
+      "fps: " ^
+      string_of_int (
+        int_of_float (
+          List.fold_left (+.) 0. !lastCoupleOfFrames /. (
+            float_of_int @@ List.length !lastCoupleOfFrames
+          ) +. 0.5
+        )
+      )
+    )
+    Draw.black
+    font12;
+
 let render time => {
   /* Remember to clear the clear at each tick */
   Draw.clearScreen ();
@@ -77,27 +94,28 @@ let render time => {
 
   /** Happy FPS counter that smoothes things out. */
   let fps = 1000. /. time;
-  if (List.length !lastCoupleOfFrames > 30) {
-    switch !lastCoupleOfFrames {
-    | [_, ...rest] => lastCoupleOfFrames := rest @ [fps]
-    | _ => assert false
-    }
-  } else {
-    lastCoupleOfFrames := !lastCoupleOfFrames @ [fps]
-  };
+  /*if (List.length !lastCoupleOfFrames > 30) {
+      switch !lastCoupleOfFrames {
+      | [_, ...rest] => lastCoupleOfFrames := rest @ [fps]
+      | _ => assert false
+      }
+    } else {
+      lastCoupleOfFrames := !lastCoupleOfFrames @ [fps]
+    };*/
   Draw.drawTextImmediate
     12.
     20.
     (
       "fps: " ^
       string_of_int (
-        int_of_float (
-          List.fold_left (+.) 0. !lastCoupleOfFrames /. (
-            float_of_int @@ List.length !lastCoupleOfFrames
-          ) +. 0.5
-        )
+        int_of_float
+          (fps +. 0.5)
+          /*List.fold_left (+.) 0. !lastCoupleOfFrames /. (
+              float_of_int @@ List.length !lastCoupleOfFrames
+            ) +. 0.5*/
       )
     )
+    mutableThing::fpsTextData
     Draw.black
     font12;
 
