@@ -98,7 +98,7 @@ let tiles: stateT =
 
 let ballV = ref (4., 4.);
 
-let ballPos = ref (200., 200.);
+let ballPos = ref (110., 200.);
 
 let segmentIntersection (x1, y1) (x2, y2) (bx1, by1) (bx2, by2) => {
   let s1_x = x2 -. x1;
@@ -190,16 +190,15 @@ module M: Hotreloader.DYNAMIC_MODULE = {
     Array.iter
       (
         fun c => {
-          if (not c.Layout.context.visible && c.style.width > 0.)
-            {
-              c.style.width = 0.;
-              c.style.marginLeft = 0.;
-              c.style.marginRight = 0.
-            };
-            /*c.style.width = c.style.width -. 0.6;
-              c.style.marginLeft = 0.;
-              c.style.marginLeft = c.style.marginLeft -. 0.6 > 0. ? c.style.marginLeft -. 0.6 : 0.;
-              c.style.marginRight = c.style.marginRight -. 0.6 > 0. ? c.style.marginRight -. 0.6 : 0.*/
+          if (not c.Layout.context.visible && c.style.width > 0.) {
+            c.style.width = 0.;
+            c.style.marginLeft = 0.;
+            c.style.marginRight = 0.
+          };
+          /*c.style.width = c.style.width -. 0.6;
+            c.style.marginLeft = 0.;
+            c.style.marginLeft = c.style.marginLeft -. 0.6 > 0. ? c.style.marginLeft -. 0.6 : 0.;
+            c.style.marginRight = c.style.marginRight -. 0.6 > 0. ? c.style.marginRight -. 0.6 : 0.*/
           /* @Speed comment this out to get performance back... */
           root.isDirty = true
         }

@@ -512,6 +512,10 @@ external magicalRainbow2 :
   Gl.Bigarray.t int Gl.Bigarray.int16_unsigned_elt =
   "%identity";
 
+let unsafe_set = Bigarray.Array1.unsafe_set;
+
+let unsafe_get = Bigarray.Array1.unsafe_get;
+
 let flushGlobalBatch () =>
   if (batch.elementPtr > 0) {
     drawGeometrySendData
@@ -586,51 +590,50 @@ module Node = {
 let generateRectContext (r, g, b, a) => {
   let vertexArray = Bigarray.Array1.create Bigarray.Float32 Bigarray.C_layout (4 * vertexSize);
   let elementArray = Bigarray.Array1.create Bigarray.Int16_unsigned Bigarray.C_layout 6;
-  let set = Bigarray.Array1.unsafe_set;
   let texX = 0.;
   let texY = 0.;
   let texW = 1.0 /. 2048.;
   let texH = 0.;
   /*let texW = 0.01 /. 2048.;
     let texH = 0.;*/
-  set vertexArray 0 1.;
-  set vertexArray 1 1.;
-  set vertexArray 2 r;
-  set vertexArray 3 g;
-  set vertexArray 4 b;
-  set vertexArray 5 a;
-  set vertexArray 6 (texX +. texW);
-  set vertexArray 7 (texY +. texH);
-  set vertexArray 8 0.;
-  set vertexArray 9 1.;
-  set vertexArray 10 r;
-  set vertexArray 11 g;
-  set vertexArray 12 b;
-  set vertexArray 13 a;
-  set vertexArray 14 texX;
-  set vertexArray 15 (texY +. texH);
-  set vertexArray 16 1.;
-  set vertexArray 17 0.;
-  set vertexArray 18 r;
-  set vertexArray 19 g;
-  set vertexArray 20 b;
-  set vertexArray 21 a;
-  set vertexArray 22 (texX +. texW);
-  set vertexArray 23 texY;
-  set vertexArray 24 0.;
-  set vertexArray 25 0.;
-  set vertexArray 26 r;
-  set vertexArray 27 g;
-  set vertexArray 28 b;
-  set vertexArray 29 a;
-  set vertexArray 30 texX;
-  set vertexArray 31 texY;
-  set elementArray 0 0;
-  set elementArray 1 1;
-  set elementArray 2 2;
-  set elementArray 3 1;
-  set elementArray 4 2;
-  set elementArray 5 3;
+  unsafe_set vertexArray 0 1.;
+  unsafe_set vertexArray 1 1.;
+  unsafe_set vertexArray 2 r;
+  unsafe_set vertexArray 3 g;
+  unsafe_set vertexArray 4 b;
+  unsafe_set vertexArray 5 a;
+  unsafe_set vertexArray 6 (texX +. texW);
+  unsafe_set vertexArray 7 (texY +. texH);
+  unsafe_set vertexArray 8 0.;
+  unsafe_set vertexArray 9 1.;
+  unsafe_set vertexArray 10 r;
+  unsafe_set vertexArray 11 g;
+  unsafe_set vertexArray 12 b;
+  unsafe_set vertexArray 13 a;
+  unsafe_set vertexArray 14 texX;
+  unsafe_set vertexArray 15 (texY +. texH);
+  unsafe_set vertexArray 16 1.;
+  unsafe_set vertexArray 17 0.;
+  unsafe_set vertexArray 18 r;
+  unsafe_set vertexArray 19 g;
+  unsafe_set vertexArray 20 b;
+  unsafe_set vertexArray 21 a;
+  unsafe_set vertexArray 22 (texX +. texW);
+  unsafe_set vertexArray 23 texY;
+  unsafe_set vertexArray 24 0.;
+  unsafe_set vertexArray 25 0.;
+  unsafe_set vertexArray 26 r;
+  unsafe_set vertexArray 27 g;
+  unsafe_set vertexArray 28 b;
+  unsafe_set vertexArray 29 a;
+  unsafe_set vertexArray 30 texX;
+  unsafe_set vertexArray 31 texY;
+  unsafe_set elementArray 0 0;
+  unsafe_set elementArray 1 1;
+  unsafe_set elementArray 2 2;
+  unsafe_set elementArray 3 1;
+  unsafe_set elementArray 4 2;
+  unsafe_set elementArray 5 3;
   Node.{
     visible: true,
     isDataSentToGPU: false,
@@ -671,7 +674,6 @@ let generateTextContext
     };
   let vertexPtr = ref 0;
   let elementPtr = ref 0;
-  let unsafe_set = Bigarray.Array1.unsafe_set;
   let addRectToBatch
       (x: float)
       (y: float)
@@ -988,8 +990,6 @@ let rec traverseAndDraw root left top =>
       } else {
         maybeFlushBatch ::textureBuffer el::ealen vert::valen
       };
-      let set = Bigarray.Array1.unsafe_set;
-      let get = Bigarray.Array1.unsafe_get;
       let va = batch.vertexArray;
       let ea = batch.elementArray;
       let prevVertexPtr = batch.vertexPtr;
@@ -1001,26 +1001,33 @@ let rec traverseAndDraw root left top =>
       for i in 0 to (valen / (vertexSize * 4) - 1) {
         let o = prevVertexPtr + i * vertexSize * 4;
         let offset = o;
-        set va offset (get va offset *. width +. absoluteLeft);
-        set va (offset + 1) (get va (offset + 1) *. height +. absoluteTop);
+        unsafe_set va offset (unsafe_get va offset *. width +. absoluteLeft);
+        unsafe_set va (offset + 1) (unsafe_get va (offset + 1) *. height +. absoluteTop);
+
+        /** */
         let offset = o + vertexSize;
-        set va offset (get va offset +. absoluteLeft);
-        set va (offset + 1) (get va (offset + 1) *. height +. absoluteTop);
+        unsafe_set va offset (unsafe_get va offset +. absoluteLeft);
+        unsafe_set va (offset + 1) (unsafe_get va (offset + 1) *. height +. absoluteTop);
+
+        /** */
         let offset = o + 2 * vertexSize;
-        set va offset (get va offset *. width +. absoluteLeft);
-        set va (offset + 1) (get va (offset + 1) +. absoluteTop);
+        unsafe_set va offset (unsafe_get va offset *. width +. absoluteLeft);
+        unsafe_set va (offset + 1) (unsafe_get va (offset + 1) +. absoluteTop);
+
+        /** */
         let offset = o + 3 * vertexSize;
-        set va offset (get va offset +. absoluteLeft);
-        set va (offset + 1) (get va (offset + 1) +. absoluteTop)
+        unsafe_set va offset (unsafe_get va offset +. absoluteLeft);
+        unsafe_set va (offset + 1) (unsafe_get va (offset + 1) +. absoluteTop)
       };
+      let offset = prevVertexPtr / vertexSize;
       for i in 0 to (ealen / 6 - 1) {
         let o = prevElementPtr + i * 6;
-        set ea o (get ea o + prevVertexPtr / vertexSize);
-        set ea (o + 1) (get ea (o + 1) + prevVertexPtr / vertexSize);
-        set ea (o + 2) (get ea (o + 2) + prevVertexPtr / vertexSize);
-        set ea (o + 3) (get ea (o + 3) + prevVertexPtr / vertexSize);
-        set ea (o + 4) (get ea (o + 4) + prevVertexPtr / vertexSize);
-        set ea (o + 5) (get ea (o + 5) + prevVertexPtr / vertexSize)
+        unsafe_set ea (o + 0) (unsafe_get ea (o + 0) + offset);
+        unsafe_set ea (o + 1) (unsafe_get ea (o + 1) + offset);
+        unsafe_set ea (o + 2) (unsafe_get ea (o + 2) + offset);
+        unsafe_set ea (o + 3) (unsafe_get ea (o + 3) + offset);
+        unsafe_set ea (o + 4) (unsafe_get ea (o + 4) + offset);
+        unsafe_set ea (o + 5) (unsafe_get ea (o + 5) + offset)
       };
       Array.iter (fun child => traverseAndDraw child absoluteLeft absoluteTop) root.children
     }
