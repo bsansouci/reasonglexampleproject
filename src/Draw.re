@@ -190,14 +190,13 @@ let camera = {projectionMatrix: Gl.Mat4.create ()};
  * Those buffers are basically pointers to chunks of memory on the graphics card. They're used to store the
  * vertex and color data.
  */
-let vertexBuffer = Gl.createBuffer context;
+let vertexBufferObject = Gl.createBuffer context;
 
-let elementBuffer = Gl.createBuffer context;
+let elementBufferObject = Gl.createBuffer context;
 
-let colorBuffer = Gl.createBuffer context;
+let colorBufferObject = Gl.createBuffer context;
 
-let textureBuffer = Gl.createBuffer context;
-
+/*let textureBufferObject = Gl.createBuffer context;*/
 
 /** Compiles the shaders and gets the program with the shaders loaded into **/
 let program =
@@ -343,8 +342,10 @@ let resizeWindow () => {
 let vertexSize = 8;
 
 type batchT = {
-  vertexArray: Gl.Bigarray.t float Gl.Bigarray.float32_elt,
-  elementArray: Gl.Bigarray.t int Gl.Bigarray.int16_unsigned_elt,
+  vertexArray: Bigarray.Array1.t float Bigarray.float32_elt Bigarray.c_layout,
+  elementArray: Bigarray.Array1.t int Bigarray.int16_unsigned_elt Bigarray.c_layout,
+  vertexBufferObject: Gl.bufferT,
+  elementBufferObject: Gl.bufferT,
   mutable vertexPtr: int,
   mutable elementPtr: int,
   mutable currTex: Gl.textureT
@@ -353,8 +354,11 @@ type batchT = {
 let circularBufferSize = 10000 * 6;
 
 let batch = {
-  vertexArray: Gl.Bigarray.create Gl.Bigarray.Float32 (circularBufferSize * vertexSize),
-  elementArray: Gl.Bigarray.create Gl.Bigarray.Uint16 circularBufferSize,
+  vertexArray:
+    Bigarray.Array1.create Bigarray.Float32 Bigarray.C_layout (circularBufferSize * vertexSize),
+  elementArray: Bigarray.Array1.create Bigarray.Int16_unsigned Bigarray.C_layout circularBufferSize,
+  vertexBufferObject: Gl.createBuffer context,
+  elementBufferObject: Gl.createBuffer context,
   vertexPtr: 0,
   elementPtr: 0,
   currTex: nullTex
@@ -389,7 +393,7 @@ let drawGeometrySendData
     scaleVecData::((width, height): (float, float)) => {
   Gl.bindBuffer ::context target::Constants.array_buffer buffer::vertexBuffer;
   Gl.bufferData
-    ::context target::Constants.array_buffer data::vertexArray usage::Constants.static_draw;
+    ::context target::Constants.array_buffer data::vertexArray usage::Constants.stream_draw;
   Gl.vertexAttribPointer
     ::context
     attribute::aVertexPosition
@@ -434,7 +438,7 @@ let drawGeometrySendData
     ::context
     target::RGLConstants.element_array_buffer
     data::elementArray
-    usage::RGLConstants.static_draw;
+    usage::RGLConstants.stream_draw;
 
   /** */
   Gl.bindTexture ::context target::RGLConstants.texture_2d texture::textureBuffer;
@@ -444,90 +448,113 @@ let drawGeometrySendData
     ::context mode::Constants.triangles ::count type_::RGLConstants.unsigned_short offset::0
 };
 
-let drawGeometry2
-    count::(count: int)
-    ::vertexBuffer
-    ::elementBuffer
-    textureBuffer::(textureBuffer: Gl.textureT)
-    posVecData::((x, y): (float, float))
-    scaleVecData::((width, height): (float, float)) => {
-  Gl.bindBuffer ::context target::Constants.array_buffer buffer::vertexBuffer;
-  Gl.vertexAttribPointer
-    ::context
-    attribute::aVertexPosition
-    size::2
-    type_::Constants.float_
-    normalize::false
-    stride::(vertexSize * 4)
-    offset::0;
+/*let drawGeometry2
+      count::(count: int)
+      ::vertexBuffer
+      ::elementBuffer
+      textureBuffer::(textureBuffer: Gl.textureT)
+      posVecData::((x, y): (float, float))
+      scaleVecData::((width, height): (float, float)) => {
+    Gl.bindBuffer ::context target::Constants.array_buffer buffer::vertexBuffer;
+    Gl.vertexAttribPointer
+      ::context
+      attribute::aVertexPosition
+      size::2
+      type_::Constants.float_
+      normalize::false
+      stride::(vertexSize * 4)
+      offset::0;
 
-  /** Color */
-  Gl.vertexAttribPointer
-    ::context
-    attribute::aVertexColor
-    size::4
-    type_::Constants.float_
-    normalize::false
-    stride::(vertexSize * 4)
-    offset::(2 * 4);
+    /** Color */
+    Gl.vertexAttribPointer
+      ::context
+      attribute::aVertexColor
+      size::4
+      type_::Constants.float_
+      normalize::false
+      stride::(vertexSize * 4)
+      offset::(2 * 4);
 
-  /** Texture */
-  Gl.vertexAttribPointer
-    ::context
-    attribute::aTextureCoord
-    size::2
-    type_::Constants.float_
-    normalize::false
-    stride::(vertexSize * 4)
-    offset::(6 * 4);
+    /** Texture */
+    Gl.vertexAttribPointer
+      ::context
+      attribute::aTextureCoord
+      size::2
+      type_::Constants.float_
+      normalize::false
+      stride::(vertexSize * 4)
+      offset::(6 * 4);
 
-  /** */
-  Gl.uniform4f ::context location::posAndScaleVec v1::x v2::y v3::width v4::height;
+    /** */
+    /*Gl.uniform4f ::context location::posAndScaleVec v1::x v2::y v3::width v4::height;*/
 
-  /** Tell OpenGL about what the uniform called `uSampler` is pointing at, here it's given 0 which
-      is what texture0 represent.  **/
-  Gl.uniform1i ::context location::uSampler val::0;
+    /** Tell OpenGL about what the uniform called `uSampler` is pointing at, here it's given 0 which
+        is what texture0 represent.  **/
+    Gl.uniform1i ::context location::uSampler val::0;
 
-  /** */
-  Gl.bindBuffer ::context target::RGLConstants.element_array_buffer buffer::elementBuffer;
+    /** */
+    Gl.bindBuffer ::context target::RGLConstants.element_array_buffer buffer::elementBuffer;
 
-  /** */
-  Gl.bindTexture ::context target::RGLConstants.texture_2d texture::textureBuffer;
+    /** */
+    Gl.bindTexture ::context target::RGLConstants.texture_2d texture::textureBuffer;
 
-  /** Final call which actually does the "draw" **/
-  Gl.drawElements
-    ::context mode::Constants.triangles ::count type_::RGLConstants.unsigned_short offset::0
-};
+    /** Final call which actually does the "draw" **/
+    Gl.drawElements
+      ::context mode::Constants.triangles ::count type_::RGLConstants.unsigned_short offset::0
+  };*/
+external magicalRainbow1 :
+  Bigarray.Array1.t float Bigarray.float32_elt Bigarray.c_layout =>
+  Gl.Bigarray.t float Gl.Bigarray.float32_elt =
+  "%identity";
 
-let flushGlobalBatch env =>
+external magicalRainbow2 :
+  Bigarray.Array1.t int Bigarray.int16_unsigned_elt Bigarray.c_layout =>
+  Gl.Bigarray.t int Gl.Bigarray.int16_unsigned_elt =
+  "%identity";
+
+let flushGlobalBatch () =>
   if (batch.elementPtr > 0) {
-    /*drawGeometry
-      vertexArray::(Gl.Bigarray.sub batch.vertexArray offset::0 len::batch.vertexPtr)
-      elementArray::(Gl.Bigarray.sub batch.elementArray offset::0 len::batch.elementPtr)
-      mode::RGLConstants.triangles
+    drawGeometrySendData
+      vertexBuffer::batch.vertexBufferObject
+      elementBuffer::batch.elementBufferObject
+      vertexArray::(magicalRainbow1 @@ Bigarray.Array1.sub batch.vertexArray 0 batch.vertexPtr)
+      elementArray::(magicalRainbow2 @@ Bigarray.Array1.sub batch.elementArray 0 batch.elementPtr)
       count::batch.elementPtr
-      ::textureBuffer
-      env;*/
-    batch.currTex = nullTex;
+      textureBuffer::batch.currTex
+      posVecData::(0., 0.)
+      scaleVecData::(1., 1.);
+    /*print_endline @@
+    "FORCE FLUSHING with " ^
+    string_of_int batch.elementPtr ^ " vs " ^ string_of_int circularBufferSize;*/
     batch.vertexPtr = 0;
-    batch.elementPtr = 0
+    batch.elementPtr = 0;
+    batch.currTex = nullTex
   };
 
-let maybeFlushBatch ::texture ::el ::vert env =>
+let maybeFlushBatch ::textureBuffer ::el ::vert =>
   if (
     batch.elementPtr + el >= circularBufferSize ||
     batch.vertexPtr + vert >= circularBufferSize ||
-    batch.elementPtr > 0 && batch.currTex !== texture
+    batch.elementPtr > 0 && batch.currTex !== textureBuffer
   ) {
-    flushGlobalBatch env
+    /*print_endline @@ "Flushing with " ^ string_of_bool @@ (batch.currTex !== textureBuffer);*/
+    /*print_endline @@
+      "Flshing with " ^ string_of_int batch.elementPtr ^ " vs " ^ string_of_int circularBufferSize;*/
+    flushGlobalBatch ();
+    batch.currTex = textureBuffer
+  } else if (
+    batch.elementPtr === 0 && batch.currTex !== textureBuffer
+  ) {
+    /*batch.currTex = texture*/
+    ()
   };
 
 type vertexDataT = {
   mutable scalable: bool,
   mutable vertexArrayBuffer: Gl.bufferT,
   mutable elementArrayBuffer: Gl.bufferT,
-  mutable vertexArray: Gl.Bigarray.t float Gl.Bigarray.float32_elt,
-  mutable elementArray: Gl.Bigarray.t int Gl.Bigarray.int16_unsigned_elt,
+  mutable vertexArray: Bigarray.Array1.t float Bigarray.float32_elt Bigarray.c_layout,
+  mutable elementArray: Bigarray.Array1.t int Bigarray.int16_unsigned_elt Bigarray.c_layout,
   mutable count: int,
   mutable textureBuffer: Gl.textureT
 };
@@ -551,10 +578,10 @@ module Node = {
     isDataSentToGPU: false,
     allGLData: {
       scalable: false,
-      vertexArrayBuffer: vertexBuffer,
-      elementArrayBuffer: elementBuffer,
-      vertexArray: Gl.Bigarray.create Gl.Bigarray.Float32 0,
-      elementArray: Gl.Bigarray.create Gl.Bigarray.Uint16 0,
+      vertexArrayBuffer: vertexBufferObject,
+      elementArrayBuffer: elementBufferObject,
+      vertexArray: Bigarray.Array1.create Bigarray.Float32 Bigarray.C_layout 0,
+      elementArray: Bigarray.Array1.create Bigarray.Int16_unsigned Bigarray.C_layout 0,
       count: 0,
       textureBuffer: nullTex
     }
@@ -563,13 +590,15 @@ module Node = {
 
 /* @Speed Boot up time can be improved by not calling set many times. */
 let generateRectContext (r, g, b, a) => {
-  let vertexArray = Gl.Bigarray.create Gl.Bigarray.Float32 (4 * vertexSize);
-  let elementArray = Gl.Bigarray.create Gl.Bigarray.Uint16 6;
-  let set = Gl.Bigarray.set;
+  let vertexArray = Bigarray.Array1.create Bigarray.Float32 Bigarray.C_layout (4 * vertexSize);
+  let elementArray = Bigarray.Array1.create Bigarray.Int16_unsigned Bigarray.C_layout 6;
+  let set = Bigarray.Array1.unsafe_set;
   let texX = 0.;
   let texY = 0.;
-  let texW = 1.;
-  let texH = 1.;
+  let texW = 1.0 /. 2048.;
+  let texH = 0.;
+  /*let texW = 0.01 /. 2048.;
+    let texH = 0.;*/
   set vertexArray 0 1.;
   set vertexArray 1 1.;
   set vertexArray 2 r;
@@ -631,22 +660,24 @@ let generateTextContext
   let (vertexArray, elementArray) =
     switch mutableThing {
     | None => (
-        Gl.Bigarray.create Gl.Bigarray.Float32 (4 * String.length s * vertexSize),
-        Gl.Bigarray.create Gl.Bigarray.Uint16 (6 * String.length s)
+        Bigarray.Array1.create
+          Bigarray.Float32 Bigarray.C_layout (4 * String.length s * vertexSize),
+        Bigarray.Array1.create Bigarray.Int16_unsigned Bigarray.C_layout (6 * String.length s)
       )
     | Some {allGLData: {vertexArray, elementArray}} =>
-      if (Gl.Bigarray.dim elementArray >= 6 * String.length s) {
+      if (Bigarray.Array1.dim elementArray >= 6 * String.length s) {
         (vertexArray, elementArray)
       } else {
         (
-          Gl.Bigarray.create Gl.Bigarray.Float32 (4 * String.length s * vertexSize),
-          Gl.Bigarray.create Gl.Bigarray.Uint16 (6 * String.length s)
+          Bigarray.Array1.create
+            Bigarray.Float32 Bigarray.C_layout (4 * String.length s * vertexSize),
+          Bigarray.Array1.create Bigarray.Int16_unsigned Bigarray.C_layout (6 * String.length s)
         )
       }
     };
   let vertexPtr = ref 0;
   let elementPtr = ref 0;
-  let set = Gl.Bigarray.set;
+  let unsafe_set = Bigarray.Array1.unsafe_set;
   let addRectToBatch
       (x: float)
       (y: float)
@@ -659,47 +690,47 @@ let generateTextContext
       (r, g, b, a)
       (textureBuffer: Gl.textureT) => {
     let i = !vertexPtr;
-    set vertexArray (i + 0) (x +. width);
-    set vertexArray (i + 1) (y +. height);
-    set vertexArray (i + 2) r;
-    set vertexArray (i + 3) g;
-    set vertexArray (i + 4) b;
-    set vertexArray (i + 5) a;
-    set vertexArray (i + 6) (texX +. texW);
-    set vertexArray (i + 7) (texY +. texH);
-    set vertexArray (i + 8) x;
-    set vertexArray (i + 9) (y +. height);
-    set vertexArray (i + 10) r;
-    set vertexArray (i + 11) g;
-    set vertexArray (i + 12) b;
-    set vertexArray (i + 13) a;
-    set vertexArray (i + 14) texX;
-    set vertexArray (i + 15) (texY +. texH);
-    set vertexArray (i + 16) (x +. width);
-    set vertexArray (i + 17) y;
-    set vertexArray (i + 18) r;
-    set vertexArray (i + 19) g;
-    set vertexArray (i + 20) b;
-    set vertexArray (i + 21) a;
-    set vertexArray (i + 22) (texX +. texW);
-    set vertexArray (i + 23) texY;
-    set vertexArray (i + 24) x;
-    set vertexArray (i + 25) y;
-    set vertexArray (i + 26) r;
-    set vertexArray (i + 27) g;
-    set vertexArray (i + 28) b;
-    set vertexArray (i + 29) a;
-    set vertexArray (i + 30) texX;
-    set vertexArray (i + 31) texY;
+    unsafe_set vertexArray (i + 0) (x +. width);
+    unsafe_set vertexArray (i + 1) (y +. height);
+    unsafe_set vertexArray (i + 2) r;
+    unsafe_set vertexArray (i + 3) g;
+    unsafe_set vertexArray (i + 4) b;
+    unsafe_set vertexArray (i + 5) a;
+    unsafe_set vertexArray (i + 6) (texX +. texW);
+    unsafe_set vertexArray (i + 7) (texY +. texH);
+    unsafe_set vertexArray (i + 8) x;
+    unsafe_set vertexArray (i + 9) (y +. height);
+    unsafe_set vertexArray (i + 10) r;
+    unsafe_set vertexArray (i + 11) g;
+    unsafe_set vertexArray (i + 12) b;
+    unsafe_set vertexArray (i + 13) a;
+    unsafe_set vertexArray (i + 14) texX;
+    unsafe_set vertexArray (i + 15) (texY +. texH);
+    unsafe_set vertexArray (i + 16) (x +. width);
+    unsafe_set vertexArray (i + 17) y;
+    unsafe_set vertexArray (i + 18) r;
+    unsafe_set vertexArray (i + 19) g;
+    unsafe_set vertexArray (i + 20) b;
+    unsafe_set vertexArray (i + 21) a;
+    unsafe_set vertexArray (i + 22) (texX +. texW);
+    unsafe_set vertexArray (i + 23) texY;
+    unsafe_set vertexArray (i + 24) x;
+    unsafe_set vertexArray (i + 25) y;
+    unsafe_set vertexArray (i + 26) r;
+    unsafe_set vertexArray (i + 27) g;
+    unsafe_set vertexArray (i + 28) b;
+    unsafe_set vertexArray (i + 29) a;
+    unsafe_set vertexArray (i + 30) texX;
+    unsafe_set vertexArray (i + 31) texY;
     let ii = i / vertexSize;
     let j = !elementPtr;
     let elementArrayToMutate = elementArray;
-    set elementArrayToMutate (j + 0) ii;
-    set elementArrayToMutate (j + 1) (ii + 1);
-    set elementArrayToMutate (j + 2) (ii + 2);
-    set elementArrayToMutate (j + 3) (ii + 1);
-    set elementArrayToMutate (j + 4) (ii + 2);
-    set elementArrayToMutate (j + 5) (ii + 3);
+    unsafe_set elementArrayToMutate (j + 0) ii;
+    unsafe_set elementArrayToMutate (j + 1) (ii + 1);
+    unsafe_set elementArrayToMutate (j + 2) (ii + 2);
+    unsafe_set elementArrayToMutate (j + 3) (ii + 1);
+    unsafe_set elementArrayToMutate (j + 4) (ii + 2);
+    unsafe_set elementArrayToMutate (j + 5) (ii + 3);
     vertexPtr := i + 4 * vertexSize;
     elementPtr := j + 6
   };
@@ -748,8 +779,8 @@ let generateTextContext
         scalable: false,
         vertexArrayBuffer: Gl.createBuffer context,
         elementArrayBuffer: Gl.createBuffer context,
-        vertexArray: Gl.Bigarray.sub vertexArray offset::0 len::!vertexPtr,
-        elementArray: Gl.Bigarray.sub elementArray offset::0 len::!elementPtr,
+        vertexArray,
+        elementArray,
         count: !elementPtr,
         textureBuffer
       }
@@ -758,8 +789,8 @@ let generateTextContext
     dataBag.visible = true;
     dataBag.isDataSentToGPU = false;
     dataBag.allGLData.scalable = false;
-    dataBag.allGLData.vertexArray = Gl.Bigarray.sub vertexArray offset::0 len::!vertexPtr;
-    dataBag.allGLData.elementArray = Gl.Bigarray.sub elementArray offset::0 len::!elementPtr;
+    dataBag.allGLData.vertexArray = Bigarray.Array1.sub vertexArray 0 !vertexPtr;
+    dataBag.allGLData.elementArray = Bigarray.Array1.sub elementArray 0 !elementPtr;
     dataBag.allGLData.count = !elementPtr;
     dataBag.allGLData.textureBuffer = textureBuffer;
     dataBag
@@ -787,8 +818,8 @@ let drawTextImmediate
   drawGeometrySendData
     vertexBuffer::vertexArrayBuffer
     elementBuffer::elementArrayBuffer
-    ::vertexArray
-    ::elementArray
+    vertexArray::(magicalRainbow1 vertexArray)
+    elementArray::(magicalRainbow2 elementArray)
     ::count
     ::textureBuffer
     posVecData::(x, y)
@@ -796,7 +827,7 @@ let drawTextImmediate
   data
 };
 
-let drawCircle x y ::radius color::(r, g, b, a) pm => {
+let drawCircleImmediate x y ::radius color::(r, g, b, a) pm => {
 
   /** Instantiate a list of points for the circle and bind to the circleBuffer. **/
   let circle_vertex = ref [];
@@ -805,7 +836,7 @@ let drawCircle x y ::radius color::(r, g, b, a) pm => {
     let degInGrad = float_of_int i *. deg2grad;
     circle_vertex := [cos degInGrad *. radius, sin degInGrad *. radius, ...!circle_vertex]
   };
-  Gl.bindBuffer ::context target::Constants.array_buffer buffer::vertexBuffer;
+  Gl.bindBuffer ::context target::Constants.array_buffer buffer::vertexBufferObject;
   Gl.bufferData
     ::context
     target::Constants.array_buffer
@@ -825,7 +856,7 @@ let drawCircle x y ::radius color::(r, g, b, a) pm => {
   for _ in 0 to 360 {
     circle_colors := [r, g, b, a, ...!circle_colors]
   };
-  Gl.bindBuffer ::context target::Constants.array_buffer buffer::colorBuffer;
+  Gl.bindBuffer ::context target::Constants.array_buffer buffer::colorBufferObject;
   Gl.bufferData
     ::context
     target::Constants.array_buffer
@@ -936,8 +967,8 @@ module Layout = {
 let rec traverseAndDraw root left top =>
   Layout.(
     if root.context.visible {
-      let absoluteLeft = left +. root.layout.left;
-      let absoluteTop = top +. root.layout.top;
+      let absoluteLeft = floor @@ left +. root.layout.left;
+      let absoluteTop = floor @@ top +. root.layout.top;
       let {
         scalable,
         vertexArray,
@@ -948,32 +979,85 @@ let rec traverseAndDraw root left top =>
         elementArrayBuffer
       } =
         root.context.Node.allGLData;
-      let scaleVecData =
+      let (width, height) =
         if scalable {
           (root.layout.width, root.layout.height)
         } else {
           (1.0, 1.0)
         };
-      if (not root.context.Node.isDataSentToGPU) {
-        drawGeometrySendData
-          vertexBuffer::vertexArrayBuffer
-          elementBuffer::elementArrayBuffer
-          ::vertexArray
-          ::elementArray
-          ::count
-          ::textureBuffer
-          posVecData::(floor absoluteLeft, floor absoluteTop)
-          ::scaleVecData;
-        root.context.Node.isDataSentToGPU = true
-      } else {
-        drawGeometry2
-          vertexBuffer::vertexArrayBuffer
-          elementBuffer::elementArrayBuffer
-          ::count
-          ::textureBuffer
-          posVecData::(floor absoluteLeft, floor absoluteTop)
-          ::scaleVecData
+      /*print_endline @@ Printf.sprintf "Width: %f, height: %f" width height;*/
+      /*if (not root.context.Node.isDataSentToGPU) {*/
+      let valen = Bigarray.Array1.dim vertexArray;
+      /*print_endline @@ "valen: " ^ string_of_int valen;*/
+      let ealen = Bigarray.Array1.dim elementArray;
+      /*if (textureBuffer == nullTex) {*/
+      /*maybeFlushBatch texture::batch.currTex el::ealen vert::valen*/
+      /*} else {*/
+      maybeFlushBatch ::textureBuffer el::ealen vert::valen;
+      /*};*/
+      /*let set = Bigarray.Array1.unsafe_set;*/
+      /*let get = Bigarray.Array1.unsafe_get;*/
+      Bigarray.Array1.blit
+        vertexArray (Bigarray.Array1.sub batch.vertexArray batch.vertexPtr valen);
+      let prevVertexPtr = batch.vertexPtr;
+      /*print_endline @@
+        "batch.vertexPtr: " ^ string_of_int batch.vertexPtr ^ " asd " ^ string_of_int valen;*/
+      batch.vertexPtr = batch.vertexPtr + valen;
+      Bigarray.Array1.blit
+        elementArray (Bigarray.Array1.sub batch.elementArray batch.elementPtr ealen);
+      let prevElementPtr = batch.elementPtr;
+      batch.elementPtr = batch.elementPtr + ealen;
+      /*print_endline @@
+        "batch.elementPtr: " ^ string_of_int batch.elementPtr ^ " asd " ^ string_of_int ealen;*/
+      for i in 0 to (valen / (vertexSize * 4) - 1) {
+        let o = prevVertexPtr + i * vertexSize * 4;
+        let offset = o;
+        /*print_endline @@
+          Printf.sprintf "batch.vertexArray.{offset}: %f" batch.vertexArray.{offset};*/
+        batch.vertexArray.{offset} = batch.vertexArray.{offset} *. width +. absoluteLeft;
+        batch.vertexArray.{(offset + 1)} =
+          batch.vertexArray.{(offset + 1)} *. height +. absoluteTop;
+        let offset = o + vertexSize;
+        batch.vertexArray.{offset} = batch.vertexArray.{offset} +. absoluteLeft;
+        batch.vertexArray.{(offset + 1)} =
+          batch.vertexArray.{(offset + 1)} *. height +. absoluteTop;
+        let offset = o + 2 * vertexSize;
+        batch.vertexArray.{offset} = batch.vertexArray.{offset} *. width +. absoluteLeft;
+        batch.vertexArray.{(offset + 1)} = batch.vertexArray.{(offset + 1)} +. absoluteTop;
+        let offset = o + 3 * vertexSize;
+        batch.vertexArray.{offset} = batch.vertexArray.{offset} +. absoluteLeft;
+        batch.vertexArray.{(offset + 1)} = batch.vertexArray.{(offset + 1)} +. absoluteTop
       };
+      for i in 0 to (ealen / 6 - 1) {
+        let o = prevElementPtr + i * 6;
+        batch.elementArray.{o} = batch.elementArray.{o} + prevVertexPtr / vertexSize;
+        /*print_endline @@
+          Printf.sprintf "batch.vertexArray.{offset}: %f" batch.vertexArray.{o};*/
+        batch.elementArray.{(o + 1)} = batch.elementArray.{(o + 1)} + prevVertexPtr / vertexSize;
+        batch.elementArray.{(o + 2)} = batch.elementArray.{(o + 2)} + prevVertexPtr / vertexSize;
+        batch.elementArray.{(o + 3)} = batch.elementArray.{(o + 3)} + prevVertexPtr / vertexSize;
+        batch.elementArray.{(o + 4)} = batch.elementArray.{(o + 4)} + prevVertexPtr / vertexSize;
+        batch.elementArray.{(o + 5)} = batch.elementArray.{(o + 5)} + prevVertexPtr / vertexSize
+      };
+      /*drawGeometrySendData
+        vertexBuffer::vertexArrayBuffer
+        elementBuffer::elementArrayBuffer
+        ::vertexArray
+        ::elementArray
+        ::count
+        ::textureBuffer
+        posVecData::(floor absoluteLeft, floor absoluteTop)
+        ::scaleVecData;*/
+      /*root.context.Node.isDataSentToGPU = true*/
+      /*} else {
+          drawGeometry2
+            vertexBuffer::vertexArrayBuffer
+            elementBuffer::elementArrayBuffer
+            ::count
+            ::textureBuffer
+            posVecData::(floor absoluteLeft, floor absoluteTop)
+            ::scaleVecData
+        };*/
       Array.iter (fun child => traverseAndDraw child absoluteLeft absoluteTop) root.children
     }
   );

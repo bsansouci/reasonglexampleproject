@@ -61,14 +61,14 @@ let loadFont ::fontSize=24. ::fontPath ::id => {
       Draw.Gl.Bigarray.set bigarrayTextData (i * 4 + 2) 255;
       Draw.Gl.Bigarray.set bigarrayTextData (i * 4 + 3) 255
     };*/
-  Draw.Gl.Bigarray.set bigarrayTextData 0 255;
-  Draw.Gl.Bigarray.set bigarrayTextData 1 255;
-  Draw.Gl.Bigarray.set bigarrayTextData 2 255;
-  Draw.Gl.Bigarray.set bigarrayTextData 3 255;
-  Draw.Gl.Bigarray.set bigarrayTextData 4 255;
-  Draw.Gl.Bigarray.set bigarrayTextData 5 255;
-  Draw.Gl.Bigarray.set bigarrayTextData 6 255;
-  Draw.Gl.Bigarray.set bigarrayTextData 7 255;
+  Draw.Gl.Bigarray.unsafe_set bigarrayTextData 0 255;
+  Draw.Gl.Bigarray.unsafe_set bigarrayTextData 1 255;
+  Draw.Gl.Bigarray.unsafe_set bigarrayTextData 2 255;
+  Draw.Gl.Bigarray.unsafe_set bigarrayTextData 3 255;
+  Draw.Gl.Bigarray.unsafe_set bigarrayTextData 4 255;
+  Draw.Gl.Bigarray.unsafe_set bigarrayTextData 5 255;
+  Draw.Gl.Bigarray.unsafe_set bigarrayTextData 6 255;
+  Draw.Gl.Bigarray.unsafe_set bigarrayTextData 7 255;
   let prevX = ref 4;
   let prevY = ref 0;
   let nextY = ref 0;
@@ -118,10 +118,10 @@ let loadFont ::fontSize=24. ::fontPath ::id => {
             let level = Ftlow.read_bitmap face.cont x y;
             let y = bitmapInfo.bitmap_height - y;
             let baIndex = (y + !prevY) * texLength + (x + !prevX);
-            Draw.Gl.Bigarray.set bigarrayTextData (4 * baIndex) 255;
-            Draw.Gl.Bigarray.set bigarrayTextData (4 * baIndex + 1) 255;
-            Draw.Gl.Bigarray.set bigarrayTextData (4 * baIndex + 2) 255;
-            Draw.Gl.Bigarray.set bigarrayTextData (4 * baIndex + 3) level
+            Draw.Gl.Bigarray.unsafe_set bigarrayTextData (4 * baIndex) 255;
+            Draw.Gl.Bigarray.unsafe_set bigarrayTextData (4 * baIndex + 1) 255;
+            Draw.Gl.Bigarray.unsafe_set bigarrayTextData (4 * baIndex + 2) 255;
+            Draw.Gl.Bigarray.unsafe_set bigarrayTextData (4 * baIndex + 3) level
           }
         };
         prevX := !prevX + bitmapInfo.bitmap_width + 2;

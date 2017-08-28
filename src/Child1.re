@@ -53,9 +53,11 @@ let font7 = Font.loadFont fontSize::7. fontPath::"assets/fonts/OpenSans-Regular.
   };
   */
 module View = {
-  let createElement ::style ::color=Draw.white ::children () =>
-    Layout.createNode
-      withChildren::(Array.of_list children) andStyle::style (Draw.generateRectContext color);
+  let createElement ::style ::color=Draw.white ::children () => {
+    let ctx = Draw.generateRectContext color;
+    ctx.allGLData.textureBuffer = font7.textureBuffer;
+    Layout.createNode withChildren::(Array.of_list children) andStyle::style ctx
+  };
 };
 
 module Text = {
@@ -81,7 +83,7 @@ let colors = [|
 |];
 
 let fonts = [|
-  Font.loadFont fontSize::7. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0,
+  font7,
   Font.loadFont fontSize::10. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0,
   Font.loadFont fontSize::14. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0,
   Font.loadFont fontSize::24. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0
@@ -92,17 +94,11 @@ type stateT = array (string, Draw.fontT, (float, float, float, float));
 let tiles: stateT =
   Array.init
     1000
-    (
-      fun i => (
-        String.make (i / 5 mod Array.length fonts) '.',
-        fonts.(i / 5 mod Array.length fonts),
-        colors.(i / 5 mod Array.length colors)
-      )
-    );
+    (fun i => (".", fonts.(i / 5 mod Array.length fonts), colors.(i / 5 mod Array.length colors)));
 
 let ballV = ref (4., 4.);
 
-let ballPos = ref (120., 100.);
+let ballPos = ref (200., 200.);
 
 let segmentIntersection (x1, y1) (x2, y2) (bx1, by1) (bx2, by2) => {
   let s1_x = x2 -. x1;
@@ -193,17 +189,16 @@ module M: Hotreloader.DYNAMIC_MODULE = {
     rootstyle.height = height;
     Array.iter
       (
-        fun c =>
-          if (not c.Layout.context.visible && c.style.width > 0.)
-            {
-              c.style.width = c.style.width -. 0.6;
-              c.style.marginLeft = 0.;
-              c.style.marginLeft = c.style.marginLeft -. 0.6 > 0. ? c.style.marginLeft -. 0.6 : 0.;
-              c.style.marginRight =
-                c.style.marginRight -. 0.6 > 0. ? c.style.marginRight -. 0.6 : 0.
-            }
-            /* @Speed comment this out to get performance back... */
-            /*root.isDirty = true*/
+        fun c => {
+          if (not c.Layout.context.visible && c.style.width > 0.) {
+            c.style.width = c.style.width -. 0.6;
+            c.style.marginLeft = 0.;
+            c.style.marginLeft = c.style.marginLeft -. 0.6 > 0. ? c.style.marginLeft -. 0.6 : 0.;
+            c.style.marginRight = c.style.marginRight -. 0.6 > 0. ? c.style.marginRight -. 0.6 : 0.
+          };
+          /* @Speed comment this out to get performance back... */
+          root.isDirty = true
+        }
       )
       root.children;
 
@@ -212,13 +207,14 @@ module M: Hotreloader.DYNAMIC_MODULE = {
 
     /** This will traverse the layout tree and blit each item to the screen one by one. */
     Draw.traverseAndDraw root 0. 0.;
+    Draw.flushGlobalBatch ();
 
     /** Move ball */
     let (ballX, ballY) = !ballPos;
     let r = tileMargin *. 3.;
 
     /** Immediate draw. */
-    Draw.drawCircle ballX ballY radius::r color::Draw.white (Draw.Gl.Mat4.create ());
+    Draw.drawCircleImmediate ballX ballY radius::r color::Draw.white (Draw.Gl.Mat4.create ());
 
     /** */
     let (ballVX, ballVY) = !ballV;
@@ -278,6 +274,7 @@ module M: Hotreloader.DYNAMIC_MODULE = {
       }
     }
   };
+  Draw.flushGlobalBatch ();
 };
 
 Hotreloader.p := Some ((module M): (module Hotreloader.DYNAMIC_MODULE));
