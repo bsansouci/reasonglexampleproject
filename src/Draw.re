@@ -39,7 +39,6 @@ type glyphInfoT = {
 };
 
 type fontT = {
-  /*face: Ftlow.face,*/
   chars: IntMap.t glyphInfoT,
   kerning: IntPairMap.t (float, float),
   textureBuffer: Gl.textureT,
@@ -63,6 +62,7 @@ let getProgram
   let compiledCorrectly =
     Gl.getShaderParameter ::context shader::vertexShader paramName::Gl.Compile_status == 1;
   if compiledCorrectly {
+    print_endline @@ Gl.getShaderSource ::context vertexShader;
     let fragmentShader = Gl.createShader context Constants.fragment_shader;
     Gl.shaderSource context fragmentShader fragmentShaderSource;
     Gl.compileShader context fragmentShader;
@@ -342,6 +342,24 @@ let resizeWindow () => {
 
 let vertexSize = 8;
 
+type batchT = {
+  vertexArray: Gl.Bigarray.t float Gl.Bigarray.float32_elt,
+  elementArray: Gl.Bigarray.t int Gl.Bigarray.int16_unsigned_elt,
+  mutable vertexPtr: int,
+  mutable elementPtr: int,
+  mutable currTex: Gl.textureT
+};
+
+let circularBufferSize = 10000 * 6;
+
+let batch = {
+  vertexArray: Gl.Bigarray.create Gl.Bigarray.Float32 (circularBufferSize * vertexSize),
+  elementArray: Gl.Bigarray.create Gl.Bigarray.Uint16 circularBufferSize,
+  vertexPtr: 0,
+  elementPtr: 0,
+  currTex: nullTex
+};
+
 /*
  * This array packs all of the values that the shaders need: vertices, colors and texture coordinates.
  * We put them all in one as an optimization, so there are less back and forths between us and the GPU.
@@ -481,6 +499,29 @@ let drawGeometry2
     ::context mode::Constants.triangles ::count type_::RGLConstants.unsigned_short offset::0
 };
 
+let flushGlobalBatch env =>
+  if (batch.elementPtr > 0) {
+    /*drawGeometry
+      vertexArray::(Gl.Bigarray.sub batch.vertexArray offset::0 len::batch.vertexPtr)
+      elementArray::(Gl.Bigarray.sub batch.elementArray offset::0 len::batch.elementPtr)
+      mode::RGLConstants.triangles
+      count::batch.elementPtr
+      ::textureBuffer
+      env;*/
+    batch.currTex = nullTex;
+    batch.vertexPtr = 0;
+    batch.elementPtr = 0
+  };
+
+let maybeFlushBatch ::texture ::el ::vert env =>
+  if (
+    batch.elementPtr + el >= circularBufferSize ||
+    batch.vertexPtr + vert >= circularBufferSize ||
+    batch.elementPtr > 0 && batch.currTex !== texture
+  ) {
+    flushGlobalBatch env
+  };
+
 type vertexDataT = {
   mutable scalable: bool,
   mutable vertexArrayBuffer: Gl.bufferT,
@@ -516,7 +557,6 @@ module Node = {
       elementArray: Gl.Bigarray.create Gl.Bigarray.Uint16 0,
       count: 0,
       textureBuffer: nullTex
-      /*      posMatrix: Gl.Mat4.create ()*/
     }
   };
 };

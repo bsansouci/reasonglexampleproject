@@ -59,29 +59,50 @@ module View = {
 };
 
 module Text = {
-  let createElement ::style ::color=Draw.white ::text ::children () =>
-    Layout.createNode
-      withChildren::(Array.of_list children)
-      andStyle::style
-      (Draw.generateTextContext text color font7);
+  let createElement ::style ::color=Draw.white ::text="" ::font=font7 ::children ::context=? () =>
+    switch context {
+    | None =>
+      Layout.createNode
+        withChildren::(Array.of_list children)
+        andStyle::style
+        (Draw.generateTextContext text color font)
+    | Some context =>
+      Layout.createNode withChildren::(Array.of_list children) andStyle::style context
+    };
 };
 
 let defaultColor = (0.6, 0.6, 0.9, 1.);
 
 let colors = [|
-  (0.2, 0.2, 0.9, 1.),
-  (0.4, 0.7, 0.3, 1.),
-  (0.3, 0.3, 0.1, 1.),
-  (0.7, 0.4, 0.3, 1.)
+  (1., 1., 0.4, 1.),
+  (1., 204. /. 255., 0., 1.),
+  (1., 0.6, 0., 1.),
+  (1., 0., 0., 1.)
 |];
 
-type stateT = array (string, (float, float, float, float));
+let fonts = [|
+  Font.loadFont fontSize::7. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0,
+  Font.loadFont fontSize::10. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0,
+  Font.loadFont fontSize::14. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0,
+  Font.loadFont fontSize::24. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0
+|];
 
-let tiles: stateT = Array.init 1000 (fun i => ("Hello!", colors.(i / 5 mod Array.length colors)));
+type stateT = array (string, Draw.fontT, (float, float, float, float));
+
+let tiles: stateT =
+  Array.init
+    1000
+    (
+      fun i => (
+        String.make (i / 5 mod Array.length fonts) '.',
+        fonts.(i / 5 mod Array.length fonts),
+        colors.(i / 5 mod Array.length colors)
+      )
+    );
 
 let ballV = ref (4., 4.);
 
-let ballPos = ref (300., 300.);
+let ballPos = ref (120., 100.);
 
 let segmentIntersection (x1, y1) (x2, y2) (bx1, by1) (bx2, by2) => {
   let s1_x = x2 -. x1;
@@ -97,37 +118,38 @@ let segmentIntersection (x1, y1) (x2, y2) (bx1, by1) (bx2, by2) => {
   }
 };
 
-let visible = true;
+let width = float_of_int @@ Draw.getWindowWidth ();
 
-let tileWidth = (float_of_int @@ Draw.getWindowWidth ()) /. 50.;
+let height = float_of_int @@ Draw.getWindowHeight ();
 
-let tileHeight = (float_of_int @@ Draw.getWindowHeight ()) /. 60.;
+let tileWidth = width /. 50.;
 
-let tileMargin = (float_of_int @@ Draw.getWindowHeight ()) /. 400.;
+let tileHeight = height /. 60.;
 
-let style =
+let tileMargin = height /. 400.;
+
+/*let style =
   Layout.{
     ...defaultStyle,
-    marginLeft: visible ? tileMargin : 0.,
-    marginRight: visible ? tileMargin : 0.,
+    marginLeft: tileMargin,
+    marginRight: tileMargin,
     marginTop: tileMargin,
     marginBottom: tileMargin,
-    width: visible ? tileWidth : 0.,
-    height: visible ? tileHeight : 0.
-  };
-
+    width: tileWidth,
+    height: tileHeight
+  };*/
 let rootstyle =
   Layout.{
     ...defaultStyle,
     paddingTop: 40.,
     paddingLeft: 40.,
     paddingRight: 40.,
-    justifyContent: JustifyCenter,
+    justifyContent: JustifyFlexStart,
     flexDirection: Row,
     flexWrap: CssWrap,
     marginLeft: 100.,
-    width: float_of_int @@ Draw.getWindowWidth () - 200,
-    height: float_of_int @@ Draw.getWindowHeight ()
+    width: width -. 200.,
+    height
   };
 
 let root =
@@ -138,8 +160,20 @@ let root =
       Array.to_list (
         Array.mapi
           (
-            fun i (text, color) =>
-              <View style color> <Text style=Layout.defaultStyle text /> </View>
+            fun i (text, font, color) =>
+              <View
+                style=Layout.{
+                        ...defaultStyle,
+                        marginLeft: tileMargin,
+                        marginRight: tileMargin,
+                        marginTop: tileMargin,
+                        marginBottom: tileMargin,
+                        width: tileWidth,
+                        height: tileHeight
+                      }
+                color>
+                <Text style=Layout.defaultStyle text font />
+              </View>
           )
           tiles
       )
@@ -157,6 +191,21 @@ module M: Hotreloader.DYNAMIC_MODULE = {
     let tileMargin = height /. 400.;
     rootstyle.width = width -. 200.;
     rootstyle.height = height;
+    Array.iter
+      (
+        fun c =>
+          if (not c.Layout.context.visible && c.style.width > 0.)
+            {
+              c.style.width = c.style.width -. 0.6;
+              c.style.marginLeft = 0.;
+              c.style.marginLeft = c.style.marginLeft -. 0.6 > 0. ? c.style.marginLeft -. 0.6 : 0.;
+              c.style.marginRight =
+                c.style.marginRight -. 0.6 > 0. ? c.style.marginRight -. 0.6 : 0.
+            }
+            /* @Speed comment this out to get performance back... */
+            /*root.isDirty = true*/
+      )
+      root.children;
 
     /** This will perform all of the Flexbox calculations and mutate the layouts to have left, top, width, height set. The positions are relative to the parent. */
     Layout.doLayoutNow root;
@@ -173,10 +222,7 @@ module M: Hotreloader.DYNAMIC_MODULE = {
 
     /** */
     let (ballVX, ballVY) = !ballV;
-    let (nextX, nextY) = (
-      ballVX *. time /. 16.66666666 +. ballX,
-      ballVY *. time /. 16.66666666 +. ballY
-    );
+    let (nextX, nextY) = (ballVX +. ballX, ballVY +. ballY);
     if Layout.(nextX -. r < root.layout.left || nextX +. r > root.layout.left +. root.layout.width) {
       ballV := (-. ballVX, ballVY)
     } else if (
@@ -189,7 +235,9 @@ module M: Hotreloader.DYNAMIC_MODULE = {
       let parentTop = root.layout.top;
       Array.iter
         (
-          fun {Layout.context: context, layout: {top, left, width, height}} =>
+          fun (
+                {Layout.context: context, style, layout: {top, left, width, height} as layout} as curr
+              ) =>
             if context.visible {
               let topLeft = (parentLeft +. left, parentTop +. top);
               let topRight = (parentLeft +. left +. width, parentTop +. top);
@@ -198,24 +246,28 @@ module M: Hotreloader.DYNAMIC_MODULE = {
               if (segmentIntersection (ballX, ballY) (nextX, nextY) topRight bottomRight) {
                 collided := true;
                 ballV := (-. ballVX, ballVY);
+                root.isDirty = true;
                 context.visible = false
               } else if (
                 segmentIntersection (ballX, ballY) (nextX, nextY) topLeft bottomLeft
               ) {
                 collided := true;
                 ballV := (-. ballVX, ballVY);
+                root.isDirty = true;
                 context.visible = false
               } else if (
                 segmentIntersection (ballX, ballY) (nextX, nextY) topLeft topRight
               ) {
                 collided := true;
                 ballV := (ballVX, -. ballVY);
+                root.isDirty = true;
                 context.visible = false
               } else if (
                 segmentIntersection (ballX, ballY) (nextX, nextY) bottomLeft bottomRight
               ) {
                 collided := true;
                 ballV := (ballVX, -. ballVY);
+                root.isDirty = true;
                 context.visible = false
               }
             }
