@@ -588,8 +588,22 @@ let generateTextContext
     color
     mutableThing::(mutableThing: option Node.context)=?
     ({textureBuffer, textureWidth, textureHeight, chars, kerning}: fontT) => {
-  let vertexArray = Gl.Bigarray.create Gl.Bigarray.Float32 (4 * String.length s * vertexSize);
-  let elementArray = Gl.Bigarray.create Gl.Bigarray.Uint16 (6 * String.length s);
+  let (vertexArray, elementArray) =
+    switch mutableThing {
+    | None => (
+        Gl.Bigarray.create Gl.Bigarray.Float32 (4 * String.length s * vertexSize),
+        Gl.Bigarray.create Gl.Bigarray.Uint16 (6 * String.length s)
+      )
+    | Some {allGLData: {vertexArray, elementArray}} =>
+      if (Gl.Bigarray.dim elementArray >= 6 * String.length s) {
+        (vertexArray, elementArray)
+      } else {
+        (
+          Gl.Bigarray.create Gl.Bigarray.Float32 (4 * String.length s * vertexSize),
+          Gl.Bigarray.create Gl.Bigarray.Uint16 (6 * String.length s)
+        )
+      }
+    };
   let vertexPtr = ref 0;
   let elementPtr = ref 0;
   let set = Gl.Bigarray.set;
