@@ -523,9 +523,6 @@ let flushGlobalBatch () =>
       textureBuffer::batch.currTex
       posVecData::(0., 0.)
       scaleVecData::(1., 1.);
-    /*print_endline @@
-    "FORCE FLUSHING with " ^
-    string_of_int batch.elementPtr ^ " vs " ^ string_of_int circularBufferSize;*/
     batch.vertexPtr = 0;
     batch.elementPtr = 0;
     batch.currTex = nullTex
@@ -534,12 +531,9 @@ let flushGlobalBatch () =>
 let maybeFlushBatch ::textureBuffer ::el ::vert =>
   if (
     batch.elementPtr + el >= circularBufferSize ||
-    batch.vertexPtr + vert >= circularBufferSize ||
+    batch.vertexPtr + vert >= circularBufferSize * vertexSize ||
     batch.elementPtr > 0 && batch.currTex !== textureBuffer
   ) {
-    /*print_endline @@ "Flushing with " ^ string_of_bool @@ (batch.currTex !== textureBuffer);*/
-    /*print_endline @@
-      "Flshing with " ^ string_of_int batch.elementPtr ^ " vs " ^ string_of_int circularBufferSize;*/
     flushGlobalBatch ();
     batch.currTex = textureBuffer
   } else if (
@@ -827,13 +821,15 @@ let drawTextImmediate
   data
 };
 
-let drawCircleImmediate x y ::radius color::(r, g, b, a) pm => {
+let drawCircleImmediate x y ::radius color::(r, g, b, a) => {
 
   /** Instantiate a list of points for the circle and bind to the circleBuffer. **/
   let circle_vertex = ref [];
-  for i in 0 to 360 {
+  let numberOfVertices = 100;
+  let coef = 360. /. float_of_int numberOfVertices;
+  for i in 0 to numberOfVertices {
     let deg2grad = 3.14159 /. 180.;
-    let degInGrad = float_of_int i *. deg2grad;
+    let degInGrad = float_of_int i *. deg2grad *. coef;
     circle_vertex := [cos degInGrad *. radius, sin degInGrad *. radius, ...!circle_vertex]
   };
   Gl.bindBuffer ::context target::Constants.array_buffer buffer::vertexBufferObject;
@@ -853,7 +849,7 @@ let drawCircleImmediate x y ::radius color::(r, g, b, a) pm => {
 
   /** Instantiate color array **/
   let circle_colors = ref [];
-  for _ in 0 to 360 {
+  for _ in 0 to numberOfVertices {
     circle_colors := [r, g, b, a, ...!circle_colors]
   };
   Gl.bindBuffer ::context target::Constants.array_buffer buffer::colorBufferObject;
@@ -873,7 +869,7 @@ let drawCircleImmediate x y ::radius color::(r, g, b, a) pm => {
   Gl.uniform4f ::context location::posAndScaleVec v1::x v2::y v3::1. v4::1.;
   Gl.uniform1i ::context location::uSampler val::0;
   Gl.bindTexture ::context target::RGLConstants.texture_2d texture::nullTex;
-  Gl.drawArrays ::context mode::Constants.triangle_fan first::0 count::360
+  Gl.drawArrays ::context mode::Constants.triangle_fan first::0 count::numberOfVertices
 };
 
 /* Commented out because not used. */
@@ -985,79 +981,52 @@ let rec traverseAndDraw root left top =>
         } else {
           (1.0, 1.0)
         };
-      /*print_endline @@ Printf.sprintf "Width: %f, height: %f" width height;*/
-      /*if (not root.context.Node.isDataSentToGPU) {*/
       let valen = Bigarray.Array1.dim vertexArray;
-      /*print_endline @@ "valen: " ^ string_of_int valen;*/
       let ealen = Bigarray.Array1.dim elementArray;
-      /*if (textureBuffer == nullTex) {*/
-      /*maybeFlushBatch texture::batch.currTex el::ealen vert::valen*/
-      /*} else {*/
-      maybeFlushBatch ::textureBuffer el::ealen vert::valen;
-      /*};*/
-      /*let set = Bigarray.Array1.unsafe_set;*/
-      /*let get = Bigarray.Array1.unsafe_get;*/
-      Bigarray.Array1.blit
-        vertexArray (Bigarray.Array1.sub batch.vertexArray batch.vertexPtr valen);
+      if (textureBuffer == nullTex) {
+        maybeFlushBatch textureBuffer::batch.currTex el::ealen vert::valen
+      } else {
+        maybeFlushBatch ::textureBuffer el::ealen vert::valen
+      };
+      let set = Bigarray.Array1.unsafe_set;
+      let get = Bigarray.Array1.unsafe_get;
+      let va = batch.vertexArray;
+      let ea = batch.elementArray;
       let prevVertexPtr = batch.vertexPtr;
-      /*print_endline @@
-        "batch.vertexPtr: " ^ string_of_int batch.vertexPtr ^ " asd " ^ string_of_int valen;*/
-      batch.vertexPtr = batch.vertexPtr + valen;
-      Bigarray.Array1.blit
-        elementArray (Bigarray.Array1.sub batch.elementArray batch.elementPtr ealen);
       let prevElementPtr = batch.elementPtr;
+      Bigarray.Array1.blit vertexArray (Bigarray.Array1.sub va prevVertexPtr valen);
+      batch.vertexPtr = batch.vertexPtr + valen;
+      Bigarray.Array1.blit elementArray (Bigarray.Array1.sub ea prevElementPtr ealen);
       batch.elementPtr = batch.elementPtr + ealen;
-      /*print_endline @@
-        "batch.elementPtr: " ^ string_of_int batch.elementPtr ^ " asd " ^ string_of_int ealen;*/
       for i in 0 to (valen / (vertexSize * 4) - 1) {
         let o = prevVertexPtr + i * vertexSize * 4;
         let offset = o;
-        /*print_endline @@
-          Printf.sprintf "batch.vertexArray.{offset}: %f" batch.vertexArray.{offset};*/
-        batch.vertexArray.{offset} = batch.vertexArray.{offset} *. width +. absoluteLeft;
-        batch.vertexArray.{(offset + 1)} =
-          batch.vertexArray.{(offset + 1)} *. height +. absoluteTop;
+        set va offset (get va offset *. width +. absoluteLeft);
+        set va (offset + 1) (get va (offset + 1) *. height +. absoluteTop);
         let offset = o + vertexSize;
-        batch.vertexArray.{offset} = batch.vertexArray.{offset} +. absoluteLeft;
-        batch.vertexArray.{(offset + 1)} =
-          batch.vertexArray.{(offset + 1)} *. height +. absoluteTop;
+        set va offset (get va offset +. absoluteLeft);
+        set va (offset + 1) (get va (offset + 1) *. height +. absoluteTop);
         let offset = o + 2 * vertexSize;
-        batch.vertexArray.{offset} = batch.vertexArray.{offset} *. width +. absoluteLeft;
-        batch.vertexArray.{(offset + 1)} = batch.vertexArray.{(offset + 1)} +. absoluteTop;
+        set va offset (get va offset *. width +. absoluteLeft);
+        set va (offset + 1) (get va (offset + 1) +. absoluteTop);
         let offset = o + 3 * vertexSize;
-        batch.vertexArray.{offset} = batch.vertexArray.{offset} +. absoluteLeft;
-        batch.vertexArray.{(offset + 1)} = batch.vertexArray.{(offset + 1)} +. absoluteTop
+        set va offset (get va offset +. absoluteLeft);
+        set va (offset + 1) (get va (offset + 1) +. absoluteTop)
       };
       for i in 0 to (ealen / 6 - 1) {
         let o = prevElementPtr + i * 6;
-        batch.elementArray.{o} = batch.elementArray.{o} + prevVertexPtr / vertexSize;
-        /*print_endline @@
-          Printf.sprintf "batch.vertexArray.{offset}: %f" batch.vertexArray.{o};*/
-        batch.elementArray.{(o + 1)} = batch.elementArray.{(o + 1)} + prevVertexPtr / vertexSize;
-        batch.elementArray.{(o + 2)} = batch.elementArray.{(o + 2)} + prevVertexPtr / vertexSize;
-        batch.elementArray.{(o + 3)} = batch.elementArray.{(o + 3)} + prevVertexPtr / vertexSize;
-        batch.elementArray.{(o + 4)} = batch.elementArray.{(o + 4)} + prevVertexPtr / vertexSize;
-        batch.elementArray.{(o + 5)} = batch.elementArray.{(o + 5)} + prevVertexPtr / vertexSize
+        set ea o (get ea o + prevVertexPtr / vertexSize);
+        set ea (o + 1) (get ea (o + 1) + prevVertexPtr / vertexSize);
+        set ea (o + 2) (get ea (o + 2) + prevVertexPtr / vertexSize);
+        set ea (o + 3) (get ea (o + 3) + prevVertexPtr / vertexSize);
+        set ea (o + 4) (get ea (o + 4) + prevVertexPtr / vertexSize);
+        set ea (o + 5) (get ea (o + 5) + prevVertexPtr / vertexSize)
       };
-      /*drawGeometrySendData
-        vertexBuffer::vertexArrayBuffer
-        elementBuffer::elementArrayBuffer
-        ::vertexArray
-        ::elementArray
-        ::count
-        ::textureBuffer
-        posVecData::(floor absoluteLeft, floor absoluteTop)
-        ::scaleVecData;*/
-      /*root.context.Node.isDataSentToGPU = true*/
-      /*} else {
-          drawGeometry2
-            vertexBuffer::vertexArrayBuffer
-            elementBuffer::elementArrayBuffer
-            ::count
-            ::textureBuffer
-            posVecData::(floor absoluteLeft, floor absoluteTop)
-            ::scaleVecData
-        };*/
       Array.iter (fun child => traverseAndDraw child absoluteLeft absoluteTop) root.children
     }
   );
+
+let traverseAndDraw root left top => {
+  traverseAndDraw root left top;
+  flushGlobalBatch ()
+};
