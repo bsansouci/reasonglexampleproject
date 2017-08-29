@@ -105,9 +105,9 @@ let render time => {
   let fpscount =
     int_of_float (
       List.fold_left (fun acc v => v < acc ? v : acc) 60. !lastCoupleOfFrames +.
-      /*/. (
+      /* /. (
           float_of_int @@ List.length !lastCoupleOfFrames
-        )*/
+        ) */
       0.5
     );
   Draw.drawTextImmediate

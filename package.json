@@ -9,9 +9,8 @@
     "postinstall": "./makefreetype.sh"
   },
   "dependencies": {
-    "ReasonglInterface": "bsansouci/reasongl-interface#bsb-support-new",
-    "ReasonglNative": "bsansouci/reasongl-native#bsb-support-new",
-    "ReasonglWeb": "bsansouci/reasongl-web#bsb-support-new"
+    "ReasonglInterface": "bsansouci/reasongl-interface#bsb-support",
+    "ReasonglNative": "bsansouci/reasongl-native#bsb-support-new"
   },
   "repository": {
     "type": "git",
