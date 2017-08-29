@@ -10,6 +10,14 @@ This only builds on native currently because it depends on [camlimages](https://
 
 To install run `npm install`.
 
-To build `npm run build` and to start `npm run start`.
+## Bytecode build
+
+To build to bytecode, run `npm run build` and to start `npm run start`.
+
+## Native build
+Native should be about 10x faster than bytecode at the expense of compilation speed.
+
+To build to native, run `npm run build:native` and to start `npm run start:native`.
+
 
 There's a full version of Relayout checked in the repo.
