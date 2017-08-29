@@ -558,8 +558,6 @@ let maybeFlushBatch ::textureBuffer ::el ::vert =>
 
 type vertexDataT = {
   mutable scalable: bool,
-  mutable vertexArrayBuffer: Gl.bufferT,
-  mutable elementArrayBuffer: Gl.bufferT,
   mutable vertexArray: Bigarray.Array1.t float Bigarray.float32_elt Bigarray.c_layout,
   mutable elementArray: Bigarray.Array1.t int Bigarray.int16_unsigned_elt Bigarray.c_layout,
   mutable count: int,
@@ -585,8 +583,8 @@ module Node = {
     isDataSentToGPU: false,
     allGLData: {
       scalable: false,
-      vertexArrayBuffer: vertexBufferObject,
-      elementArrayBuffer: elementBufferObject,
+      /*vertexArrayBuffer: vertexBufferObject,*/
+      /*elementArrayBuffer: elementBufferObject,*/
       vertexArray: Bigarray.Array1.create Bigarray.Float32 Bigarray.C_layout 0,
       elementArray: Bigarray.Array1.create Bigarray.Int16_unsigned Bigarray.C_layout 0,
       count: 0,
@@ -648,8 +646,8 @@ let generateRectContext (r, g, b, a) => {
     isDataSentToGPU: false,
     allGLData: {
       scalable: true,
-      vertexArrayBuffer: Gl.createBuffer context,
-      elementArrayBuffer: Gl.createBuffer context,
+      /*vertexArrayBuffer: Gl.createBuffer context,*/
+      /*elementArrayBuffer: Gl.createBuffer context,*/
       vertexArray,
       elementArray,
       count: 6,
@@ -686,16 +684,7 @@ external unsafe_update_uint16 :
   "unsafe_update_uint16" [@@noalloc];
 
 let drawRectImmediate (x: float) (y: float) (width: float) (height: float) color => {
-  let {
-        Node.allGLData: {
-          vertexArray,
-          elementArray,
-          count,
-          textureBuffer,
-          vertexArrayBuffer,
-          elementArrayBuffer
-        }
-      } as data =
+  let {Node.allGLData: {vertexArray, elementArray, count, textureBuffer}} as data =
     generateRectContext color;
   let o = 0;
   let offset = o;
@@ -717,8 +706,8 @@ let drawRectImmediate (x: float) (y: float) (width: float) (height: float) color
   unsafe_update_float32 vertexArray offset mul::1. add::0.;
   unsafe_update_float32 vertexArray (offset + 1) mul::1. add::0.;
   drawGeometrySendData
-    vertexBuffer::vertexArrayBuffer
-    elementBuffer::elementArrayBuffer
+    vertexBuffer::batch.vertexBufferObject
+    elementBuffer::batch.elementBufferObject
     vertexArray::(magicalRainbow1 vertexArray)
     elementArray::(magicalRainbow2 elementArray)
     ::count
@@ -852,8 +841,8 @@ let generateTextContext
       isDataSentToGPU: false,
       allGLData: {
         scalable: false,
-        vertexArrayBuffer: Gl.createBuffer context,
-        elementArrayBuffer: Gl.createBuffer context,
+        /*vertexArrayBuffer: Gl.createBuffer context,*/
+        /*elementArrayBuffer: Gl.createBuffer context,*/
         vertexArray,
         elementArray,
         count: !elementPtr,
@@ -879,20 +868,11 @@ let drawTextImmediate
     color
     mutableThing::(mutableThing: option Node.context)=?
     font => {
-  let {
-        Node.allGLData: {
-          vertexArray,
-          elementArray,
-          count,
-          textureBuffer,
-          vertexArrayBuffer,
-          elementArrayBuffer
-        }
-      } as data =
+  let {Node.allGLData: {vertexArray, elementArray, count, textureBuffer}} as data =
     generateTextContext s color ::?mutableThing font;
   drawGeometrySendData
-    vertexBuffer::vertexArrayBuffer
-    elementBuffer::elementArrayBuffer
+    vertexBuffer::batch.vertexBufferObject
+    elementBuffer::batch.elementBufferObject
     vertexArray::(magicalRainbow1 vertexArray)
     elementArray::(magicalRainbow2 elementArray)
     ::count
@@ -1051,15 +1031,7 @@ let rec traverseAndDraw ::indentation=0 root left top =>
       /*let prev = caml_rdtsc ();*/
       let absoluteLeft = floor @@ left +. root.layout.left;
       let absoluteTop = floor @@ top +. root.layout.top;
-      let {
-        scalable,
-        vertexArray,
-        elementArray,
-        count,
-        textureBuffer,
-        vertexArrayBuffer,
-        elementArrayBuffer
-      } =
+      let {scalable, vertexArray, elementArray, count, textureBuffer} =
         root.context.Node.allGLData;
       let (width, height) =
         if scalable {
