@@ -64,7 +64,7 @@ let getProgram
   let compiledCorrectly =
     Gl.getShaderParameter ::context shader::vertexShader paramName::Gl.Compile_status == 1;
   if compiledCorrectly {
-    print_endline @@ Gl.getShaderSource ::context vertexShader;
+    /*print_endline @@ Gl.getShaderSource ::context vertexShader;*/
     let fragmentShader = Gl.createShader context Constants.fragment_shader;
     Gl.shaderSource context fragmentShader fragmentShaderSource;
     Gl.compileShader context fragmentShader;
@@ -334,11 +334,17 @@ let doOrtho () => {
 
 doOrtho ();
 
+let onWindowResize: ref (option (unit => unit)) = ref None;
+
 let resizeWindow () => {
   let width = Gl.Window.getWidth window;
   let height = Gl.Window.getHeight window;
   Gl.viewport ::context x::0 y::0 ::width ::height;
-  doOrtho ()
+  doOrtho ();
+  switch !onWindowResize {
+  | None => ()
+  | Some onWindowResize => onWindowResize ()
+  }
 };
 
 let vertexSize = 8;
@@ -395,7 +401,7 @@ let drawGeometrySendData
     scaleVecData::((width, height): (float, float)) => {
   Gl.bindBuffer ::context target::Constants.array_buffer buffer::vertexBuffer;
   Gl.bufferData
-    ::context target::Constants.array_buffer data::vertexArray usage::Constants.stream_draw;
+    ::context target::Constants.array_buffer data::vertexArray usage::Constants.dynamic_draw;
   Gl.vertexAttribPointer
     ::context
     attribute::aVertexPosition
@@ -440,7 +446,7 @@ let drawGeometrySendData
     ::context
     target::RGLConstants.element_array_buffer
     data::elementArray
-    usage::RGLConstants.stream_draw;
+    usage::RGLConstants.dynamic_draw;
 
   /** */
   Gl.bindTexture ::context target::RGLConstants.texture_2d texture::textureBuffer;
@@ -540,6 +546,7 @@ let maybeFlushBatch ::textureBuffer ::el ::vert =>
     batch.vertexPtr + vert >= circularBufferSize * vertexSize ||
     batch.elementPtr > 0 && batch.currTex !== textureBuffer
   ) {
+    /*print_endline @@ "Flush!";*/
     flushGlobalBatch ();
     batch.currTex = textureBuffer
   } else if (
@@ -826,7 +833,6 @@ let drawTextImmediate
 };
 
 let drawCircleImmediate x y ::radius color::(r, g, b, a) => {
-  let radius = float_of_int radius;
 
   /** Instantiate a list of points for the circle and bind to the circleBuffer. **/
   let circle_vertex = ref [];
@@ -842,7 +848,7 @@ let drawCircleImmediate x y ::radius color::(r, g, b, a) => {
     ::context
     target::Constants.array_buffer
     data::(Gl.Bigarray.of_array Gl.Bigarray.Float32 (Array.of_list !circle_vertex))
-    usage::Constants.stream_draw;
+    usage::Constants.dynamic_draw;
   Gl.vertexAttribPointer
     ::context
     attribute::aVertexPosition
@@ -862,7 +868,7 @@ let drawCircleImmediate x y ::radius color::(r, g, b, a) => {
     ::context
     target::Constants.array_buffer
     data::(Gl.Bigarray.of_array Gl.Bigarray.Float32 (Array.of_list !circle_colors))
-    usage::Constants.stream_draw;
+    usage::Constants.dynamic_draw;
   Gl.vertexAttribPointer
     ::context
     attribute::aVertexColor
@@ -871,8 +877,7 @@ let drawCircleImmediate x y ::radius color::(r, g, b, a) => {
     normalize::false
     stride::0
     offset::0;
-  Gl.uniform4f
-    ::context location::posAndScaleVec v1::(float_of_int x) v2::(float_of_int y) v3::1. v4::1.;
+  Gl.uniform4f ::context location::posAndScaleVec v1::x v2::y v3::1. v4::1.;
   Gl.uniform1i ::context location::uSampler val::0;
   Gl.bindTexture ::context target::RGLConstants.texture_2d texture::nullTex;
   Gl.drawArrays ::context mode::Constants.triangle_fan first::0 count::numberOfVertices
@@ -952,7 +957,8 @@ let noColor = (0., 0., 0., 0.);
 let randomColor () => (Random.float 1., Random.float 1., Random.float 1., 1.);
 
 module Layout = {
-  module Encoding = FixedEncoding;
+  /*module Encoding = FixedEncoding;*/
+  module Encoding = FloatEncoding;
   module Layout = Layout.Create Node Encoding;
   module LayoutPrint = LayoutPrint.Create Node Encoding;
   module LayoutSupport = Layout.LayoutSupport;
@@ -975,18 +981,21 @@ external unsafe_blit :
   "unsafe_blit" [@@noalloc];
 
 external unsafe_update_float32 :
-  Bigarray.Array1.t float Bigarray.float32_elt 'c => int => mul::int => add::int => unit =
+  Bigarray.Array1.t float Bigarray.float32_elt 'c => int => mul::float => add::float => unit =
   "unsafe_update_float32" [@@noalloc];
 
 external unsafe_update_uint16 :
   Bigarray.Array1.t int Bigarray.int16_unsigned_elt 'c => int => int => unit =
   "unsafe_update_uint16" [@@noalloc];
 
-let rec traverseAndDraw root left top =>
+external caml_rdtsc : unit => int = "caml_rdtsc";
+
+let rec traverseAndDraw ::indentation=0 root left top =>
   Layout.(
     if root.context.visible {
-      let absoluteLeft = left + root.layout.left;
-      let absoluteTop = top + root.layout.top;
+      /*let prev = caml_rdtsc ();*/
+      let absoluteLeft = floor @@ left +. root.layout.left;
+      let absoluteTop = floor @@ top +. root.layout.top;
       let {
         scalable,
         vertexArray,
@@ -1001,15 +1010,23 @@ let rec traverseAndDraw root left top =>
         if scalable {
           (root.layout.width, root.layout.height)
         } else {
-          (1, 1)
+          (1., 1.)
         };
       let valen = Bigarray.Array1.dim vertexArray;
       let ealen = Bigarray.Array1.dim elementArray;
+      /*print_endline @@
+        String.make indentation ' ' ^
+        "0 Between prev and now: " ^ string_of_int (caml_rdtsc () - prev);
+        let prev = caml_rdtsc ();*/
       if (textureBuffer == nullTex) {
         maybeFlushBatch textureBuffer::batch.currTex el::ealen vert::valen
       } else {
         maybeFlushBatch ::textureBuffer el::ealen vert::valen
       };
+      /*print_endline @@
+        String.make indentation ' ' ^
+        " --- 1 Between prev and now: " ^ string_of_int (caml_rdtsc () - prev);
+        let prev = caml_rdtsc ();*/
       let va = batch.vertexArray;
       let ea = batch.elementArray;
       let prevVertexPtr = batch.vertexPtr;
@@ -1020,6 +1037,10 @@ let rec traverseAndDraw root left top =>
       unsafe_blit elementArray ea prevElementPtr 2;
       /*Bigarray.Array1.blit elementArray (Bigarray.Array1.sub ea prevElementPtr ealen);*/
       batch.elementPtr = batch.elementPtr + ealen;
+      /*print_endline @@
+        String.make indentation ' ' ^
+        "2 Between prev and now: " ^ string_of_int (caml_rdtsc () - prev);
+        let prev = caml_rdtsc ();*/
       for i in 0 to (valen / (vertexSize * 4) - 1) {
         let o = prevVertexPtr + i * vertexSize * 4;
         let offset = o;
@@ -1028,19 +1049,23 @@ let rec traverseAndDraw root left top =>
 
         /** */
         let offset = o + vertexSize;
-        unsafe_update_float32 va offset mul::1 add::absoluteLeft;
+        unsafe_update_float32 va offset mul::1. add::absoluteLeft;
         unsafe_update_float32 va (offset + 1) mul::height add::absoluteTop;
 
         /** */
         let offset = o + 2 * vertexSize;
         unsafe_update_float32 va offset mul::width add::absoluteLeft;
-        unsafe_update_float32 va (offset + 1) mul::1 add::absoluteTop;
+        unsafe_update_float32 va (offset + 1) mul::1. add::absoluteTop;
 
         /** */
         let offset = o + 3 * vertexSize;
-        unsafe_update_float32 va offset mul::1 add::absoluteLeft;
-        unsafe_update_float32 va (offset + 1) mul::1 add::absoluteTop
+        unsafe_update_float32 va offset mul::1. add::absoluteLeft;
+        unsafe_update_float32 va (offset + 1) mul::1. add::absoluteTop
       };
+      /*print_endline @@
+        String.make indentation ' ' ^
+        "3 Between prev and now: " ^ string_of_int (caml_rdtsc () - prev);
+        let prev = caml_rdtsc ();*/
       let offset = prevVertexPtr / vertexSize;
       for i in 0 to (ealen / 6 - 1) {
         let o = prevElementPtr + i * 6;
@@ -1051,9 +1076,23 @@ let rec traverseAndDraw root left top =>
         unsafe_update_uint16 ea (o + 4) offset;
         unsafe_update_uint16 ea (o + 5) offset
       };
+      /*print_endline @@
+        String.make indentation ' ' ^
+        "4 Between prev and now: " ^ string_of_int (caml_rdtsc () - prev);*/
+      /*let prev = caml_rdtsc ();*/
+      /*print_endline @@ "Between prev and now: " ^ string_of_int (caml_rdtsc () - prev);*/
       for i in 0 to (Array.length root.children - 1) {
-        traverseAndDraw (Array.unsafe_get root.children i) absoluteLeft absoluteTop
-      }
+        traverseAndDraw
+          indentation::(indentation + 2)
+          (Array.unsafe_get root.children i)
+          absoluteLeft
+          absoluteTop
+      };
+      /*print_endline @@
+        String.make indentation ' ' ^
+        "5 Between prev and now: " ^ string_of_int (caml_rdtsc () - prev);*/
+      /*let prev = caml_rdtsc ();*/
+      ()
     }
   );
 

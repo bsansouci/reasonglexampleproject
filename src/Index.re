@@ -94,7 +94,7 @@ let render time => {
 
   /** Happy FPS counter that smoothes things out. */
   let fps = 1000. /. time;
-  if (List.length !lastCoupleOfFrames > 30) {
+  if (List.length !lastCoupleOfFrames > 10) {
     switch !lastCoupleOfFrames {
     | [_, ...rest] => lastCoupleOfFrames := rest @ [fps]
     | _ => assert false
@@ -102,22 +102,16 @@ let render time => {
   } else {
     lastCoupleOfFrames := !lastCoupleOfFrames @ [fps]
   };
+  let fpscount =
+    int_of_float (
+      List.fold_left (fun acc v => v < acc ? v : acc) 60. !lastCoupleOfFrames +.
+      /*/. (
+          float_of_int @@ List.length !lastCoupleOfFrames
+        )*/
+      0.5
+    );
   Draw.drawTextImmediate
-    12.
-    20.
-    (
-      "fps: " ^
-      string_of_int (
-        int_of_float (
-          List.fold_left (+.) 0. !lastCoupleOfFrames /. (
-            float_of_int @@ List.length !lastCoupleOfFrames
-          ) +. 0.5
-        )
-      )
-    )
-    mutableThing::fpsTextData
-    Draw.black
-    font12;
+    12. 20. ("fps: " ^ string_of_int fpscount) mutableThing::fpsTextData Draw.black font12;
 
   /** @Hack For hotreloading. */
   Hotreloader.checkRebuild ()
