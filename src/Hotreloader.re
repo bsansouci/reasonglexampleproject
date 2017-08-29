@@ -2,6 +2,11 @@ module type DYNAMIC_MODULE = {
   let render: float => unit;
   let keyDown: keycode::Draw.Events.keycodeT => repeat::bool => unit;
   let keyUp: keycode::Draw.Events.keycodeT => unit;
+  let mouseMove: x::int => y::int => unit;
+  let mouseDown:
+    button::Draw.Events.buttonStateT => state::Draw.Events.stateT => x::int => y::int => unit;
+  let mouseUp:
+    button::Draw.Events.buttonStateT => state::Draw.Events.stateT => x::int => y::int => unit;
 };
 
 let p = ref None;

@@ -118,24 +118,43 @@ let render time => {
   Hotreloader.checkRebuild ()
 };
 
-let mouseMove ::x ::y => mouse := (float_of_int x, float_of_int y);
+let mouseMove ::x ::y =>
+  switch !Hotreloader.p {
+  | Some s =>
+    module M = (val (s: (module Hotreloader.DYNAMIC_MODULE)));
+    M.mouseMove ::x ::y
+  | None => ()
+  /*mouse := (float_of_int x, float_of_int y)*/
+  };
 
 let mouseDown ::button ::state ::x ::y =>
-  switch button {
-  | Draw.Events.LeftButton =>
-    mouseState.leftButton = {state, x: float_of_int x, y: float_of_int y, isClicked: false}
-  | Draw.Events.RightButton =>
-    mouseState.rightButton = {state, x: float_of_int x, y: float_of_int y, isClicked: false}
-  | _ => ()
+  switch !Hotreloader.p {
+  | Some s =>
+    module M = (val (s: (module Hotreloader.DYNAMIC_MODULE)));
+    M.mouseDown ::button ::state ::x ::y
+  | None => ()
+  /*switch button {
+    | Draw.Events.LeftButton =>
+      mouseState.leftButton = {state, x: float_of_int x, y: float_of_int y, isClicked: false}
+    | Draw.Events.RightButton =>
+      mouseState.rightButton = {state, x: float_of_int x, y: float_of_int y, isClicked: false}
+    | _ => ()
+    }*/
   };
 
 let mouseUp ::button ::state ::x ::y =>
-  switch button {
-  | Draw.Events.LeftButton =>
-    mouseState.leftButton = {state, x: float_of_int x, y: float_of_int y, isClicked: true}
-  | Draw.Events.RightButton =>
-    mouseState.rightButton = {state, x: float_of_int x, y: float_of_int y, isClicked: true}
-  | _ => ()
+  switch !Hotreloader.p {
+  | Some s =>
+    module M = (val (s: (module Hotreloader.DYNAMIC_MODULE)));
+    M.mouseUp ::button ::state ::x ::y
+  | None => ()
+  /*switch button {
+    | Draw.Events.LeftButton =>
+      mouseState.leftButton = {state, x: float_of_int x, y: float_of_int y, isClicked: true}
+    | Draw.Events.RightButton =>
+      mouseState.rightButton = {state, x: float_of_int x, y: float_of_int y, isClicked: true}
+    | _ => ()
+    };*/
   };
 
 let windowResize () => Draw.resizeWindow ();

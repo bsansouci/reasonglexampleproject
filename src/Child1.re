@@ -6,6 +6,8 @@ let font7 = Font.loadFont fontSize::7. fontPath::"assets/fonts/OpenSans-Regular.
 
 let font48 = Font.loadFont fontSize::48. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0;
 
+let font38 = Font.loadFont fontSize::38. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0;
+
 /*type kindT =
     | Text
     | Rect;
@@ -236,9 +238,26 @@ let gameover = ref false;
 
 let loseText = Draw.generateTextContext "YOU LOSE </3" Draw.red font48;
 
-let loseText = Draw.generateTextContext "YOU LOSE </3" Draw.red font48;
-
 let timer = ref 3000.;
+
+let mouse = ref (0., 0.);
+
+type buttonStateT = {
+  state: Draw.Events.stateT,
+  x: float,
+  y: float,
+  isClicked: bool
+};
+
+type mouseStateT = {
+  mutable leftButton: buttonStateT,
+  mutable rightButton: buttonStateT
+};
+
+let mouseState = {
+  leftButton: {state: Draw.Events.MouseUp, x: 0., y: 0., isClicked: false},
+  rightButton: {state: Draw.Events.MouseUp, x: 0., y: 0., isClicked: false}
+};
 
 module M: Hotreloader.DYNAMIC_MODULE = {
   let render time => {
@@ -246,9 +265,10 @@ module M: Hotreloader.DYNAMIC_MODULE = {
     /* Remember to clear the screen at each tick */
     Draw.clearScreen ();
     let totalHidden = ref 0;
-    Array.iteri
+    let i = ref 0;
+    Array.iter
       (
-        fun i c => {
+        fun c => {
           if (not c.Layout.context.visible) {
             totalHidden := !totalHidden + 1;
             if (c.style.width > 0.) {
@@ -258,13 +278,16 @@ module M: Hotreloader.DYNAMIC_MODULE = {
             }
           } else if (
             !gameover &&
-            i <
+            !i <
             int_of_float @@
             (rootstyle.width -. rootstyle.paddingLeft -. rootstyle.paddingRight) /. (
               c.layout.width +. c.style.marginRight +. c.style.marginLeft
             )
           ) {
-            c.style.height = c.style.height +. Random.float 4.0
+            c.style.height = c.style.height +. Random.float 4.0;
+            i := !i + 1
+          } else {
+            i := !i + 1
           };
           /* @Speed comment this out to get performance back... */
           elementsNode.isDirty = true
@@ -298,16 +321,8 @@ module M: Hotreloader.DYNAMIC_MODULE = {
           (width /. 2. -. 50. /. 2.)
           (height /. 2. -. 20. /. 2.)
           (Printf.sprintf "%d" (int_of_float (ceil @@ !timer /. 1000.)))
-          mutableThing::loseText
           (0.3, 0.9, 0.2, 1.)
           font48;
-        /*ignore @@
-          Draw.drawTextImmediate
-            (width /. 2. -. 450. /. 2.)
-            (height /. 2. -. 20. /. 2.)
-
-            (0.8, 0.2, 0.8, 1.)
-            font48;*/
         timer := !timer -. time;
         (ballX, ballY)
       } else {
@@ -354,11 +369,49 @@ module M: Hotreloader.DYNAMIC_MODULE = {
       let randY = Random.float 7.;
       ignore @@
       Draw.drawRectImmediate
-        (width /. 2. -. 485. /. 2. +. randX)
-        (height /. 2. -. 155. /. 2. +. randY)
-        470.
-        90.
-        defaultColor;
+        (width /. 2. -. 485. /. 2.) (height /. 2. -. 155. /. 2.) 470. 100. defaultColor;
+      {
+        let (mx, my) = !mouse;
+        let left = width /. 2. -. 200. /. 2.;
+        let top = height /. 2. +. 50. /. 2.;
+        let color =
+          if (mx > left && mx < left +. 200. && my > top && my < top +. 70.) {
+            if mouseState.leftButton.isClicked {
+              gameover := false;
+              timer := 3000.;
+              ballPos := (width /. 2. -. 10., height -. 50.);
+              ballV := (2., 2.);
+              elementsNode.children =
+                Array.mapi
+                  (
+                    fun i (text, font, color) =>
+                      <View
+                        style=Layout.{
+                                ...defaultStyle,
+                                marginLeft: tileMargin,
+                                marginRight: tileMargin,
+                                marginTop: tileMargin,
+                                marginBottom: tileMargin,
+                                width: tileWidth,
+                                height: tileHeight
+                              }
+                        color>
+                        <Text text font />
+                      </View>
+                  )
+                  tiles;
+              (0.3, 0.5, 1., 1.)
+            } else {
+              (0.1, 0.4, 1., 1.)
+            }
+          } else {
+            (0.1, 0.3, 0.7, 1.)
+          };
+        ignore @@ Draw.drawRectImmediate left top 200. 70. color;
+        ignore @@
+        Draw.drawTextImmediate
+          (width /. 2. -. 170. /. 2.) (height /. 2. +. 150. /. 2.) "restart" Draw.green font38
+      };
       ignore @@
       Draw.drawTextImmediate
         (width /. 2. -. 450. /. 2. +. randX)
@@ -483,6 +536,23 @@ module M: Hotreloader.DYNAMIC_MODULE = {
       | _ => ()
       }
     );
+  let mouseMove ::x ::y => mouse := (float_of_int x, float_of_int y);
+  let mouseUp ::button ::state ::x ::y =>
+    switch button {
+    | Draw.Events.LeftButton =>
+      mouseState.leftButton = {state, x: float_of_int x, y: float_of_int y, isClicked: false}
+    | Draw.Events.RightButton =>
+      mouseState.rightButton = {state, x: float_of_int x, y: float_of_int y, isClicked: false}
+    | _ => ()
+    };
+  let mouseDown ::button ::state ::x ::y =>
+    switch button {
+    | Draw.Events.LeftButton =>
+      mouseState.leftButton = {state, x: float_of_int x, y: float_of_int y, isClicked: true}
+    | Draw.Events.RightButton =>
+      mouseState.rightButton = {state, x: float_of_int x, y: float_of_int y, isClicked: true}
+    | _ => ()
+    };
 };
 
 Hotreloader.p := Some ((module M): (module Hotreloader.DYNAMIC_MODULE));

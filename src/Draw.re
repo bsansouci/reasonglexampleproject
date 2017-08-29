@@ -834,7 +834,7 @@ let generateTextContext
             (atlasX /. textureWidth)
             ((atlasY +. 1.) /. textureHeight)
             (width /. textureWidth)
-            ((height +. 1.) /. textureHeight)
+            (height /. textureHeight)
             color
             textureBuffer;
           prevChar := Some code;
