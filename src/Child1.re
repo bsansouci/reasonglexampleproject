@@ -96,33 +96,33 @@ let tiles: stateT =
     1000
     (fun i => ("H", fonts.(i / 5 mod Array.length fonts), colors.(i / 5 mod Array.length colors)));
 
-let ballV = ref (4., 4.);
+let ballV = ref (4, 4);
 
-let ballPos = ref (110., 200.);
+let ballPos = ref (110, 200);
 
 let segmentIntersection (x1, y1) (x2, y2) (bx1, by1) (bx2, by2) => {
-  let s1_x = x2 -. x1;
-  let s1_y = y2 -. y1;
-  let s2_x = bx2 -. bx1;
-  let s2_y = by2 -. by1;
-  let s = (-. s1_y *. (x1 -. bx1) +. s1_x *. (y1 -. by1)) /. (-. s2_x *. s1_y +. s1_x *. s2_y);
-  let t = (s2_x *. (y1 -. by1) -. s2_y *. (x1 -. bx1)) /. (-. s2_x *. s1_y +. s1_x *. s2_y);
-  if (s >= 0. && s <= 1. && t >= 0. && t <= 1.) {
+  let s1_x = x2 - x1;
+  let s1_y = y2 - y1;
+  let s2_x = bx2 - bx1;
+  let s2_y = by2 - by1;
+  let s = (- s1_y * (x1 - bx1) + s1_x * (y1 - by1)) * 1000 / (- s2_x * s1_y + s1_x * s2_y);
+  let t = (s2_x * (y1 - by1) - s2_y * (x1 - bx1)) * 1000 / (- s2_x * s1_y + s1_x * s2_y);
+  if (s >= 0 && s <= 1000 && t >= 0 && t <= 1000) {
     true
   } else {
     false
   }
 };
 
-let width = float_of_int @@ Draw.getWindowWidth ();
+let width = Draw.getWindowWidth ();
 
-let height = float_of_int @@ Draw.getWindowHeight ();
+let height = Draw.getWindowHeight ();
 
-let tileWidth = width /. 50.;
+let tileWidth = width / 50;
 
-let tileHeight = height /. 60.;
+let tileHeight = height / 60;
 
-let tileMargin = height /. 400.;
+let tileMargin = height / 400;
 
 /*let style =
   Layout.{
@@ -137,14 +137,14 @@ let tileMargin = height /. 400.;
 let rootstyle =
   Layout.{
     ...defaultStyle,
-    paddingTop: 40.,
-    paddingLeft: 40.,
-    paddingRight: 40.,
+    paddingTop: 40,
+    paddingLeft: 40,
+    paddingRight: 40,
     justifyContent: JustifyFlexStart,
     flexDirection: Row,
     flexWrap: CssWrap,
-    marginLeft: 100.,
-    width: width -. 200.,
+    marginLeft: 100,
+    width: width - 200,
     height
   };
 
@@ -180,25 +180,25 @@ module M: Hotreloader.DYNAMIC_MODULE = {
   let render time => {
     /* Remember to clear the screen at each tick */
     Draw.clearScreen ();
-    let width = float_of_int @@ Draw.getWindowWidth ();
-    let height = float_of_int @@ Draw.getWindowHeight ();
-    let tileWidth = width /. 50.;
-    let tileHeight = height /. 60.;
-    let tileMargin = height /. 400.;
-    rootstyle.width = width -. 200.;
+    let width = Draw.getWindowWidth ();
+    let height = Draw.getWindowHeight ();
+    let tileWidth = width / 50;
+    let tileHeight = height / 60;
+    let tileMargin = height / 400;
+    rootstyle.width = width - 200;
     rootstyle.height = height;
     Array.iter
       (
         fun c => {
-          if (not c.Layout.context.visible && c.style.width > 0.) {
-            c.style.width = 0.;
-            c.style.marginLeft = 0.;
-            c.style.marginRight = 0.
+          if (not c.Layout.context.visible && c.style.width > 0) {
+            /*c.style.width = 0;*/
+            /*c.style.marginLeft = 0;*/
+            /*c.style.marginRight = 0*/
+            c.style.width = c.style.width - 1;
+            c.style.marginLeft = 0;
+            c.style.marginLeft = c.style.marginLeft - 1 > 0 ? c.style.marginLeft - 1 : 0;
+            c.style.marginRight = c.style.marginRight - 1 > 0 ? c.style.marginRight - 1 : 0
           };
-          /*c.style.width = c.style.width -. 0.6;
-            c.style.marginLeft = 0.;
-            c.style.marginLeft = c.style.marginLeft -. 0.6 > 0. ? c.style.marginLeft -. 0.6 : 0.;
-            c.style.marginRight = c.style.marginRight -. 0.6 > 0. ? c.style.marginRight -. 0.6 : 0.*/
           /* @Speed comment this out to get performance back... */
           root.isDirty = true
         }
@@ -209,24 +209,24 @@ module M: Hotreloader.DYNAMIC_MODULE = {
     Layout.doLayoutNow root;
 
     /** This will traverse the layout tree and blit each item to the screen one by one. */
-    Draw.traverseAndDraw root 0. 0.;
+    Draw.traverseAndDraw root 0 0;
 
     /** Move ball */
     let (ballX, ballY) = !ballPos;
-    let r = tileMargin *. 3.;
+    let r = tileMargin * 3;
 
     /** Immediate draw. */
     Draw.drawCircleImmediate ballX ballY radius::r color::Draw.white;
 
     /** */
     let (ballVX, ballVY) = !ballV;
-    let (nextX, nextY) = (ballVX +. ballX, ballVY +. ballY);
-    if Layout.(nextX -. r < root.layout.left || nextX +. r > root.layout.left +. root.layout.width) {
-      ballV := (-. ballVX, ballVY)
+    let (nextX, nextY) = (ballVX + ballX, ballVY + ballY);
+    if Layout.(nextX - r < root.layout.left || nextX + r > root.layout.left + root.layout.width) {
+      ballV := (- ballVX, ballVY)
     } else if (
-      nextY -. r < root.layout.top || nextY +. r > root.layout.top +. root.layout.height
+      nextY - r < root.layout.top || nextY + r > root.layout.top + root.layout.height
     ) {
-      ballV := (ballVX, -. ballVY)
+      ballV := (ballVX, - ballVY)
     } else {
       let collided = ref false;
       let parentLeft = root.layout.left;
@@ -237,34 +237,34 @@ module M: Hotreloader.DYNAMIC_MODULE = {
                 {Layout.context: context, style, layout: {top, left, width, height} as layout} as curr
               ) =>
             if context.visible {
-              let topLeft = (parentLeft +. left, parentTop +. top);
-              let topRight = (parentLeft +. left +. width, parentTop +. top);
-              let bottomRight = (parentLeft +. left +. width, parentTop +. top +. height);
-              let bottomLeft = (parentLeft +. left, parentTop +. top +. height);
+              let topLeft = (parentLeft + left, parentTop + top);
+              let topRight = (parentLeft + left + width, parentTop + top);
+              let bottomRight = (parentLeft + left + width, parentTop + top + height);
+              let bottomLeft = (parentLeft + left, parentTop + top + height);
               if (segmentIntersection (ballX, ballY) (nextX, nextY) topRight bottomRight) {
                 collided := true;
-                ballV := (-. ballVX, ballVY);
+                ballV := (- ballVX, ballVY);
                 root.isDirty = true;
                 context.visible = false
               } else if (
                 segmentIntersection (ballX, ballY) (nextX, nextY) topLeft bottomLeft
               ) {
                 collided := true;
-                ballV := (-. ballVX, ballVY);
+                ballV := (- ballVX, ballVY);
                 root.isDirty = true;
                 context.visible = false
               } else if (
                 segmentIntersection (ballX, ballY) (nextX, nextY) topLeft topRight
               ) {
                 collided := true;
-                ballV := (ballVX, -. ballVY);
+                ballV := (ballVX, - ballVY);
                 root.isDirty = true;
                 context.visible = false
               } else if (
                 segmentIntersection (ballX, ballY) (nextX, nextY) bottomLeft bottomRight
               ) {
                 collided := true;
-                ballV := (ballVX, -. ballVY);
+                ballV := (ballVX, - ballVY);
                 root.isDirty = true;
                 context.visible = false
               }

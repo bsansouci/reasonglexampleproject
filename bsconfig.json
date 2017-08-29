@@ -30,6 +30,7 @@
     }
   ],
   "static_libraries": [
+    "lib/bs/fun.o",
     "vendor/freetype-2.8/release/lib/libfreetype.a",
     "lib/bs/libTruetypebindings.o",
   ],

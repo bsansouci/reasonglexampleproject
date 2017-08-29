@@ -3,6 +3,8 @@
   @Todo look into vertex array objects (-> webgl doesn't support those for some reason)
 
  */
+let worldScale = 2;
+
 module Constants = ReasonglInterface.Constants;
 
 module Gl: ReasonglInterface.Gl.t = Reasongl.Gl;
@@ -824,6 +826,7 @@ let drawTextImmediate
 };
 
 let drawCircleImmediate x y ::radius color::(r, g, b, a) => {
+  let radius = float_of_int radius;
 
   /** Instantiate a list of points for the circle and bind to the circleBuffer. **/
   let circle_vertex = ref [];
@@ -868,7 +871,8 @@ let drawCircleImmediate x y ::radius color::(r, g, b, a) => {
     normalize::false
     stride::0
     offset::0;
-  Gl.uniform4f ::context location::posAndScaleVec v1::x v2::y v3::1. v4::1.;
+  Gl.uniform4f
+    ::context location::posAndScaleVec v1::(float_of_int x) v2::(float_of_int y) v3::1. v4::1.;
   Gl.uniform1i ::context location::uSampler val::0;
   Gl.bindTexture ::context target::RGLConstants.texture_2d texture::nullTex;
   Gl.drawArrays ::context mode::Constants.triangle_fan first::0 count::numberOfVertices
@@ -948,7 +952,7 @@ let noColor = (0., 0., 0., 0.);
 let randomColor () => (Random.float 1., Random.float 1., Random.float 1., 1.);
 
 module Layout = {
-  module Encoding = FloatEncoding;
+  module Encoding = FixedEncoding;
   module Layout = Layout.Create Node Encoding;
   module LayoutPrint = LayoutPrint.Create Node Encoding;
   module LayoutSupport = Layout.LayoutSupport;
@@ -962,11 +966,27 @@ module Layout = {
   let doLayoutNow root => Layout.layoutNode root Encoding.cssUndefined Encoding.cssUndefined Ltr;
 };
 
+external unsafe_blit :
+  Bigarray.Array1.t 'a 'b 'c =>
+  Bigarray.Array1.t 'a 'b 'c =>
+  offset::int =>
+  numOfBytes::int =>
+  unit =
+  "unsafe_blit" [@@noalloc];
+
+external unsafe_update_float32 :
+  Bigarray.Array1.t float Bigarray.float32_elt 'c => int => mul::int => add::int => unit =
+  "unsafe_update_float32" [@@noalloc];
+
+external unsafe_update_uint16 :
+  Bigarray.Array1.t int Bigarray.int16_unsigned_elt 'c => int => int => unit =
+  "unsafe_update_uint16" [@@noalloc];
+
 let rec traverseAndDraw root left top =>
   Layout.(
     if root.context.visible {
-      let absoluteLeft = floor @@ left +. root.layout.left;
-      let absoluteTop = floor @@ top +. root.layout.top;
+      let absoluteLeft = left + root.layout.left;
+      let absoluteTop = top + root.layout.top;
       let {
         scalable,
         vertexArray,
@@ -981,7 +1001,7 @@ let rec traverseAndDraw root left top =>
         if scalable {
           (root.layout.width, root.layout.height)
         } else {
-          (1.0, 1.0)
+          (1, 1)
         };
       let valen = Bigarray.Array1.dim vertexArray;
       let ealen = Bigarray.Array1.dim elementArray;
@@ -994,45 +1014,50 @@ let rec traverseAndDraw root left top =>
       let ea = batch.elementArray;
       let prevVertexPtr = batch.vertexPtr;
       let prevElementPtr = batch.elementPtr;
-      Bigarray.Array1.blit vertexArray (Bigarray.Array1.sub va prevVertexPtr valen);
+      unsafe_blit vertexArray va prevVertexPtr 4;
+      /*Bigarray.Array1.blit vertexArray (Bigarray.Array1.sub va prevVertexPtr valen);*/
       batch.vertexPtr = batch.vertexPtr + valen;
-      Bigarray.Array1.blit elementArray (Bigarray.Array1.sub ea prevElementPtr ealen);
+      unsafe_blit elementArray ea prevElementPtr 2;
+      /*Bigarray.Array1.blit elementArray (Bigarray.Array1.sub ea prevElementPtr ealen);*/
       batch.elementPtr = batch.elementPtr + ealen;
       for i in 0 to (valen / (vertexSize * 4) - 1) {
         let o = prevVertexPtr + i * vertexSize * 4;
         let offset = o;
-        unsafe_set va offset (unsafe_get va offset *. width +. absoluteLeft);
-        unsafe_set va (offset + 1) (unsafe_get va (offset + 1) *. height +. absoluteTop);
+        unsafe_update_float32 va offset mul::width add::absoluteLeft;
+        unsafe_update_float32 va (offset + 1) mul::height add::absoluteTop;
 
         /** */
         let offset = o + vertexSize;
-        unsafe_set va offset (unsafe_get va offset +. absoluteLeft);
-        unsafe_set va (offset + 1) (unsafe_get va (offset + 1) *. height +. absoluteTop);
+        unsafe_update_float32 va offset mul::1 add::absoluteLeft;
+        unsafe_update_float32 va (offset + 1) mul::height add::absoluteTop;
 
         /** */
         let offset = o + 2 * vertexSize;
-        unsafe_set va offset (unsafe_get va offset *. width +. absoluteLeft);
-        unsafe_set va (offset + 1) (unsafe_get va (offset + 1) +. absoluteTop);
+        unsafe_update_float32 va offset mul::width add::absoluteLeft;
+        unsafe_update_float32 va (offset + 1) mul::1 add::absoluteTop;
 
         /** */
         let offset = o + 3 * vertexSize;
-        unsafe_set va offset (unsafe_get va offset +. absoluteLeft);
-        unsafe_set va (offset + 1) (unsafe_get va (offset + 1) +. absoluteTop)
+        unsafe_update_float32 va offset mul::1 add::absoluteLeft;
+        unsafe_update_float32 va (offset + 1) mul::1 add::absoluteTop
       };
       let offset = prevVertexPtr / vertexSize;
       for i in 0 to (ealen / 6 - 1) {
         let o = prevElementPtr + i * 6;
-        unsafe_set ea (o + 0) (unsafe_get ea (o + 0) + offset);
-        unsafe_set ea (o + 1) (unsafe_get ea (o + 1) + offset);
-        unsafe_set ea (o + 2) (unsafe_get ea (o + 2) + offset);
-        unsafe_set ea (o + 3) (unsafe_get ea (o + 3) + offset);
-        unsafe_set ea (o + 4) (unsafe_get ea (o + 4) + offset);
-        unsafe_set ea (o + 5) (unsafe_get ea (o + 5) + offset)
+        unsafe_update_uint16 ea (o + 0) offset;
+        unsafe_update_uint16 ea (o + 1) offset;
+        unsafe_update_uint16 ea (o + 2) offset;
+        unsafe_update_uint16 ea (o + 3) offset;
+        unsafe_update_uint16 ea (o + 4) offset;
+        unsafe_update_uint16 ea (o + 5) offset
       };
-      Array.iter (fun child => traverseAndDraw child absoluteLeft absoluteTop) root.children
+      for i in 0 to (Array.length root.children - 1) {
+        traverseAndDraw (Array.unsafe_get root.children i) absoluteLeft absoluteTop
+      }
     }
   );
 
+/*Array.iter (fun child => traverseAndDraw child absoluteLeft absoluteTop) root.children*/
 let traverseAndDraw root left top => {
   traverseAndDraw root left top;
   flushGlobalBatch ()
