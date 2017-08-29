@@ -106,10 +106,11 @@ let render time => {
     int_of_float (
       List.fold_left (fun acc v => v < acc ? v : acc) 60. !lastCoupleOfFrames +.
       /* /. (
-          float_of_int @@ List.length !lastCoupleOfFrames
-        ) */
+           float_of_int @@ List.length !lastCoupleOfFrames
+         ) */
       0.5
     );
+  ignore @@
   Draw.drawTextImmediate
     12. 20. ("fps: " ^ string_of_int fpscount) mutableThing::fpsTextData Draw.black font12;
 
@@ -139,135 +140,149 @@ let mouseUp ::button ::state ::x ::y =>
 
 let windowResize () => Draw.resizeWindow ();
 
-let keyDown ::keycode ::repeat => {
-  open Draw.Events;
-  appState.easterEgg = true;
-  let letter =
+let keyDown ::keycode ::repeat =>
+  switch !Hotreloader.p {
+  | Some s =>
+    module M = (val (s: (module Hotreloader.DYNAMIC_MODULE)));
+    M.keyDown ::keycode ::repeat
+  | None =>
+    open Draw.Events;
+    appState.easterEgg = true;
+    let letter =
+      switch keycode {
+      | A => "a"
+      | B => "b"
+      | C => "c"
+      | D => "d"
+      | E => "e"
+      | F => "f"
+      | G => "g"
+      | H => "h"
+      | I => "i"
+      | J => "j"
+      | K => "k"
+      | L => "l"
+      | M => "m"
+      | N => "n"
+      | O => "o"
+      | P => "p"
+      | Q => "q"
+      | R => "r"
+      | S => "s"
+      | T => "t"
+      | U => "u"
+      | V => "v"
+      | W => "w"
+      | X => "x"
+      | Y => "y"
+      | Z => "z"
+      /* @Incomplete How on earth do we support different keyboard layouts? This is my layout on a
+         QWERTY US macbook air.
+         */
+      | Tab => "  " /* Tab is 2 space. What ya gonna do about it HUH. */
+      | Quote when keyboardState.shiftIsDown == 0 => "'"
+      | Quote when keyboardState.shiftIsDown > 0 => "\""
+      | Comma when keyboardState.shiftIsDown == 0 => ","
+      | Comma when keyboardState.shiftIsDown > 0 => "<"
+      | Minus when keyboardState.shiftIsDown == 0 => "-"
+      | Minus when keyboardState.shiftIsDown > 0 => "_"
+      | Equals when keyboardState.shiftIsDown == 0 => "="
+      | Equals when keyboardState.shiftIsDown > 0 => "+"
+      | Slash when keyboardState.shiftIsDown == 0 => "/"
+      | Slash when keyboardState.shiftIsDown > 0 => "?"
+      | Num_0 when keyboardState.shiftIsDown == 0 => "0"
+      | Num_0 when keyboardState.shiftIsDown > 0 => ")"
+      | Num_1 when keyboardState.shiftIsDown == 0 => "1"
+      | Num_1 when keyboardState.shiftIsDown > 0 => "!"
+      | Num_2 when keyboardState.shiftIsDown == 0 => "2"
+      | Num_2 when keyboardState.shiftIsDown > 0 => "@"
+      | Num_3 when keyboardState.shiftIsDown == 0 => "3"
+      | Num_3 when keyboardState.shiftIsDown > 0 => "#"
+      | Num_4 when keyboardState.shiftIsDown == 0 => "4"
+      | Num_4 when keyboardState.shiftIsDown > 0 => "$"
+      | Num_5 when keyboardState.shiftIsDown == 0 => "5"
+      | Num_5 when keyboardState.shiftIsDown > 0 => "%"
+      | Num_6 when keyboardState.shiftIsDown == 0 => "6"
+      | Num_6 when keyboardState.shiftIsDown > 0 => "^"
+      | Num_7 when keyboardState.shiftIsDown == 0 => "7"
+      | Num_7 when keyboardState.shiftIsDown > 0 => "&"
+      | Num_8 when keyboardState.shiftIsDown == 0 => "8"
+      | Num_8 when keyboardState.shiftIsDown > 0 => "*"
+      | Num_9 when keyboardState.shiftIsDown == 0 => "9"
+      | Num_9 when keyboardState.shiftIsDown > 0 => "("
+      | Semicolon when keyboardState.shiftIsDown == 0 => ";"
+      | Semicolon when keyboardState.shiftIsDown > 0 => ":"
+      | Period when keyboardState.shiftIsDown == 0 => "."
+      | Period when keyboardState.shiftIsDown > 0 => ">"
+      | OpenBracket when keyboardState.shiftIsDown == 0 => "["
+      | OpenBracket when keyboardState.shiftIsDown > 0 => "{"
+      | CloseBracket when keyboardState.shiftIsDown == 0 => "]"
+      | CloseBracket when keyboardState.shiftIsDown > 0 => "}"
+      | Backslash when keyboardState.shiftIsDown == 0 => "\\"
+      | Backslash when keyboardState.shiftIsDown > 0 => "|"
+      | Backtick when keyboardState.shiftIsDown == 0 => "`"
+      | Backtick when keyboardState.shiftIsDown > 0 => "~"
+      | Space => " "
+      | _ => ""
+      };
     switch keycode {
-    | A => "a"
-    | B => "b"
-    | C => "c"
-    | D => "d"
-    | E => "e"
-    | F => "f"
-    | G => "g"
-    | H => "h"
-    | I => "i"
-    | J => "j"
-    | K => "k"
-    | L => "l"
-    | M => "m"
-    | N => "n"
-    | O => "o"
-    | P => "p"
-    | Q => "q"
-    | R => "r"
-    | S => "s"
-    | T => "t"
-    | U => "u"
-    | V => "v"
-    | W => "w"
-    | X => "x"
-    | Y => "y"
-    | Z => "z"
-    /* @Incomplete How on earth do we support different keyboard layouts? This is my layout on a
-       QWERTY US macbook air.
-       */
-    | Tab => "  " /* Tab is 2 space. What ya gonna do about it HUH. */
-    | Quote when keyboardState.shiftIsDown == 0 => "'"
-    | Quote when keyboardState.shiftIsDown > 0 => "\""
-    | Comma when keyboardState.shiftIsDown == 0 => ","
-    | Comma when keyboardState.shiftIsDown > 0 => "<"
-    | Minus when keyboardState.shiftIsDown == 0 => "-"
-    | Minus when keyboardState.shiftIsDown > 0 => "_"
-    | Equals when keyboardState.shiftIsDown == 0 => "="
-    | Equals when keyboardState.shiftIsDown > 0 => "+"
-    | Slash when keyboardState.shiftIsDown == 0 => "/"
-    | Slash when keyboardState.shiftIsDown > 0 => "?"
-    | Num_0 when keyboardState.shiftIsDown == 0 => "0"
-    | Num_0 when keyboardState.shiftIsDown > 0 => ")"
-    | Num_1 when keyboardState.shiftIsDown == 0 => "1"
-    | Num_1 when keyboardState.shiftIsDown > 0 => "!"
-    | Num_2 when keyboardState.shiftIsDown == 0 => "2"
-    | Num_2 when keyboardState.shiftIsDown > 0 => "@"
-    | Num_3 when keyboardState.shiftIsDown == 0 => "3"
-    | Num_3 when keyboardState.shiftIsDown > 0 => "#"
-    | Num_4 when keyboardState.shiftIsDown == 0 => "4"
-    | Num_4 when keyboardState.shiftIsDown > 0 => "$"
-    | Num_5 when keyboardState.shiftIsDown == 0 => "5"
-    | Num_5 when keyboardState.shiftIsDown > 0 => "%"
-    | Num_6 when keyboardState.shiftIsDown == 0 => "6"
-    | Num_6 when keyboardState.shiftIsDown > 0 => "^"
-    | Num_7 when keyboardState.shiftIsDown == 0 => "7"
-    | Num_7 when keyboardState.shiftIsDown > 0 => "&"
-    | Num_8 when keyboardState.shiftIsDown == 0 => "8"
-    | Num_8 when keyboardState.shiftIsDown > 0 => "*"
-    | Num_9 when keyboardState.shiftIsDown == 0 => "9"
-    | Num_9 when keyboardState.shiftIsDown > 0 => "("
-    | Semicolon when keyboardState.shiftIsDown == 0 => ";"
-    | Semicolon when keyboardState.shiftIsDown > 0 => ":"
-    | Period when keyboardState.shiftIsDown == 0 => "."
-    | Period when keyboardState.shiftIsDown > 0 => ">"
-    | OpenBracket when keyboardState.shiftIsDown == 0 => "["
-    | OpenBracket when keyboardState.shiftIsDown > 0 => "{"
-    | CloseBracket when keyboardState.shiftIsDown == 0 => "]"
-    | CloseBracket when keyboardState.shiftIsDown > 0 => "}"
-    | Backslash when keyboardState.shiftIsDown == 0 => "\\"
-    | Backslash when keyboardState.shiftIsDown > 0 => "|"
-    | Backtick when keyboardState.shiftIsDown == 0 => "`"
-    | Backtick when keyboardState.shiftIsDown > 0 => "~"
-    | Space => " "
-    | _ => ""
-    };
-  switch keycode {
-  | Backspace =>
-    if (String.length appState.inputText > 0) {
-      if (keyboardState.altIsDown > 0) {
-        let rec iter i =>
-          if (i == 0) {
-            0
-          } else if (appState.inputText.[i] == ' ') {
-            i
+    | Backspace =>
+      if (String.length appState.inputText > 0) {
+        if (keyboardState.altIsDown > 0) {
+          let rec iter i =>
+            if (i == 0) {
+              0
+            } else if (appState.inputText.[i] == ' ') {
+              i
+            } else {
+              iter (i - 1)
+            };
+          let cutoffPoint = iter (String.length appState.inputText - 1);
+          if (cutoffPoint <= 0) {
+            appState.inputText = ""
           } else {
-            iter (i - 1)
-          };
-        let cutoffPoint = iter (String.length appState.inputText - 1);
-        if (cutoffPoint <= 0) {
-          appState.inputText = ""
+            appState.inputText = String.sub appState.inputText 0 cutoffPoint
+          }
         } else {
-          appState.inputText = String.sub appState.inputText 0 cutoffPoint
+          appState.inputText =
+            String.sub appState.inputText 0 (String.length appState.inputText - 1)
         }
-      } else {
-        appState.inputText = String.sub appState.inputText 0 (String.length appState.inputText - 1)
       }
-    }
-  | LeftShift
-  | RightShift => keyboardState.shiftIsDown = keyboardState.shiftIsDown + 1
-  | LeftAlt
-  | RightAlt => keyboardState.altIsDown = keyboardState.altIsDown + 1
-  | _ => ()
-  };
-  let letter =
-    if (keyboardState.shiftIsDown > 0) {
-      String.capitalize letter
-    } else {
-      letter
+    | LeftShift
+    | RightShift => keyboardState.shiftIsDown = keyboardState.shiftIsDown + 1
+    | LeftAlt
+    | RightAlt => keyboardState.altIsDown = keyboardState.altIsDown + 1
+    | _ => ()
     };
-  if (String.length letter > 0) {
-    appState.inputText = appState.inputText ^ letter
-  }
-};
+    let letter =
+      if (keyboardState.shiftIsDown > 0) {
+        String.capitalize letter
+      } else {
+        letter
+      };
+    if (String.length letter > 0) {
+      appState.inputText = appState.inputText ^ letter
+    }
+  };
 
 let keyUp ::keycode =>
-  Draw.Events.(
-    switch keycode {
-    | LeftShift
-    | RightShift => keyboardState.shiftIsDown = keyboardState.shiftIsDown - 1
-    | LeftAlt
-    | RightAlt => keyboardState.altIsDown = keyboardState.altIsDown - 1
-    | _ => ()
-    }
-  );
+  switch !Hotreloader.p {
+  | Some s =>
+    module M = (val (s: (module Hotreloader.DYNAMIC_MODULE)));
+    M.keyUp ::keycode
+  | None =>
+    Draw.Events.(
+      switch keycode {
+      | LeftShift
+      | RightShift => keyboardState.shiftIsDown = keyboardState.shiftIsDown - 1
+      | LeftAlt
+      | RightAlt => keyboardState.altIsDown = keyboardState.altIsDown - 1
+      | Right => Child1.rightReleased ()
+      | Left => Child1.leftReleased ()
+      | _ => ()
+      }
+    )
+  };
 
 
 /** Start the render loop. **/

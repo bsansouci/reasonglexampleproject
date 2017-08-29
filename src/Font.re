@@ -124,8 +124,8 @@ let loadFont ::fontSize=24. ::fontPath ::id => {
             Draw.Gl.Bigarray.unsafe_set bigarrayTextData (4 * baIndex + 3) level
           }
         };
-        prevX := !prevX + bitmapInfo.bitmap_width + 2;
-        nextY := max !nextY (!prevY + bitmapInfo.bitmap_height) + 2
+        prevX := !prevX + bitmapInfo.bitmap_width + 10;
+        nextY := max !nextY (!prevY + bitmapInfo.bitmap_height) + 10
       }
     )
     allCharactersEncoded;

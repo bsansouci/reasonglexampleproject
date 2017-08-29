@@ -4,6 +4,8 @@ module Node = Draw.Node;
 
 let font7 = Font.loadFont fontSize::7. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0;
 
+let font48 = Font.loadFont fontSize::48. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0;
+
 /*type kindT =
     | Text
     | Rect;
@@ -53,13 +55,20 @@ let font7 = Font.loadFont fontSize::7. fontPath::"assets/fonts/OpenSans-Regular.
   };
   */
 module View = {
-  let createElement ::style ::color=Draw.white ::children () =>
+  let createElement ::style=Layout.defaultStyle ::color=Draw.white ::children () =>
     Layout.createNode
       withChildren::(Array.of_list children) andStyle::style (Draw.generateRectContext color);
 };
 
 module Text = {
-  let createElement ::style ::color=Draw.white ::text="" ::font=font7 ::children ::context=? () =>
+  let createElement
+      ::style=Layout.defaultStyle
+      ::color=Draw.white
+      ::text=""
+      ::font=font7
+      ::children
+      ::context=?
+      () =>
     switch context {
     | None =>
       Layout.createNode
@@ -81,24 +90,30 @@ let colors = [|
 |];
 
 let fonts = [|
-  Font.loadFont fontSize::7. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0,
-  Font.loadFont fontSize::7. fontPath::"assets/fonts/Anonymous_Pro.ttf" id::0,
-  Font.loadFont fontSize::7. fontPath::"assets/fonts/DroidSansMono.ttf" id::0
+  /*Font.loadFont fontSize::9. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0,*/
+  Font.loadFont fontSize::9. fontPath::"assets/fonts/Anonymous_Pro.ttf" id::0
+  /*Font.loadFont fontSize::9. fontPath::"assets/fonts/DroidSansMono.ttf" id::0,*/
   /*Font.loadFont fontSize::24. fontPath::"assets/fonts/Anonymous_Pro.ttf" id::0,*/
   /*Font.loadFont fontSize::28. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0,*/
   /*Font.loadFont fontSize::32. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0*/
 |];
 
+let width = float_of_int @@ Draw.getWindowWidth ();
+
+let height = float_of_int @@ Draw.getWindowHeight ();
+
+let totalTiles = 1000;
+
 type stateT = array (string, Draw.fontT, (float, float, float, float));
 
 let tiles: stateT =
   Array.init
-    1000
+    totalTiles
     (fun i => ("H", fonts.(i / 5 mod Array.length fonts), colors.(i / 5 mod Array.length colors)));
 
-let ballV = ref (4., 4.);
+let ballV = ref (2., 2.);
 
-let ballPos = ref (110., 200.);
+let ballPos = ref (width /. 2. -. 10., height -. 50.);
 
 let segmentIntersection (x1, y1) (x2, y2) (bx1, by1) (bx2, by2) => {
   let s1_x = x2 -. x1;
@@ -113,10 +128,6 @@ let segmentIntersection (x1, y1) (x2, y2) (bx1, by1) (bx2, by2) => {
     false
   }
 };
-
-let width = float_of_int @@ Draw.getWindowWidth ();
-
-let height = float_of_int @@ Draw.getWindowHeight ();
 
 let tileWidth = width /. 50.;
 
@@ -138,7 +149,7 @@ let rootstyle =
     height
   };
 
-let root =
+let elementsNode =
   View.createElement
     style::rootstyle
     color::defaultColor
@@ -158,7 +169,7 @@ let root =
                         height: tileHeight
                       }
                 color>
-                <Text style=Layout.defaultStyle text font />
+                <Text text font />
               </View>
           )
           tiles
@@ -166,12 +177,42 @@ let root =
     )
     ();
 
-let lastFrameTime = ref 0.;
+let paddleWidth = 60.;
+
+let paddleSpeed = 9.;
+
+let paddle =
+  <View
+    color=Draw.red
+    style=Layout.{
+            ...defaultStyle,
+            positionType: Absolute,
+            width: paddleWidth,
+            height: 9.,
+            top: height -. 15.,
+            left: width /. 2. -. paddleWidth /. 2.
+          }
+  />;
+
+let root = <View> elementsNode paddle </View>;
+
+/*let lastFrameTime = ref 0.;*/
+let leftIsPressed = ref false;
+
+let rightIsPressed = ref false;
+
+let rightPressed () => rightIsPressed := true;
+
+let leftPressed () => leftIsPressed := true;
+
+let rightReleased () => rightIsPressed := false;
+
+let leftReleased () => leftIsPressed := false;
 
 /*let alarm =
   Gc.create_alarm (
     fun () =>
-      if (!lastFrameTime -. 0.001 > 1000. /. 60.) {
+      if (!lastFrameTime -. 0.001 > totalTiles. /. 60.) {
         print_endline @@ "------------------------------\nGC: " ^ string_of_float !lastFrameTime
       }
   );*/
@@ -185,28 +226,51 @@ Draw.onWindowResize :=
       let width = float_of_int @@ Draw.getWindowWidth ();
       let height = float_of_int @@ Draw.getWindowHeight ();
       rootstyle.Layout.width = width -. 200.;
-      rootstyle.Layout.height = height
+      rootstyle.Layout.height = height;
+      paddle.style.top = height -. 15.;
+      paddle.style.left = width /. 2. -. paddleWidth /. 2.
     }
   );
 
+let gameover = ref false;
+
+let loseText = Draw.generateTextContext "YOU LOSE </3" Draw.red font48;
+
+let loseText = Draw.generateTextContext "YOU LOSE </3" Draw.red font48;
+
+let timer = ref 3000.;
+
 module M: Hotreloader.DYNAMIC_MODULE = {
   let render time => {
-    lastFrameTime := time;
+    /*lastFrameTime := time;*/
     /* Remember to clear the screen at each tick */
     Draw.clearScreen ();
-    Array.iter
+    let totalHidden = ref 0;
+    Array.iteri
       (
-        fun c => {
-          if (not c.Layout.context.visible && c.style.width > 0.) {
-            c.style.width = c.style.width -. 0.6;
-            c.style.marginLeft = c.style.marginLeft -. 1. > 0. ? c.style.marginLeft -. 1. : 0.;
-            c.style.marginRight = c.style.marginRight -. 1. > 0. ? c.style.marginRight -. 1. : 0.
+        fun i c => {
+          if (not c.Layout.context.visible) {
+            totalHidden := !totalHidden + 1;
+            if (c.style.width > 0.) {
+              c.style.width = c.style.width -. 0.6;
+              c.style.marginLeft = c.style.marginLeft -. 1. > 0. ? c.style.marginLeft -. 1. : 0.;
+              c.style.marginRight = c.style.marginRight -. 1. > 0. ? c.style.marginRight -. 1. : 0.
+            }
+          } else if (
+            !gameover &&
+            i <
+            int_of_float @@
+            (rootstyle.width -. rootstyle.paddingLeft -. rootstyle.paddingRight) /. (
+              c.layout.width +. c.style.marginRight +. c.style.marginLeft
+            )
+          ) {
+            c.style.height = c.style.height +. Random.float 4.0
           };
           /* @Speed comment this out to get performance back... */
-          root.isDirty = true
+          elementsNode.isDirty = true
         }
       )
-      root.children;
+      elementsNode.children;
 
     /** This will perform all of the Flexbox calculations and mutate the layouts to have left, top, width, height set. The positions are relative to the parent. */
     Layout.doLayoutNow root;
@@ -225,16 +289,134 @@ module M: Hotreloader.DYNAMIC_MODULE = {
     let (ballVX, ballVY) = !ballV;
     let nextX = ballVX +. ballX;
     let nextY = ballVY +. ballY;
-    if Layout.(nextX -. r < root.layout.left || nextX +. r > root.layout.left +. root.layout.width) {
+    let (nextX, nextY) =
+      if (!timer > 0.) {
+        Draw.drawRectImmediate
+          (width /. 2. -. 75. /. 2.) (height /. 2. -. 155. /. 2.) 65. 90. defaultColor;
+        ignore @@
+        Draw.drawTextImmediate
+          (width /. 2. -. 50. /. 2.)
+          (height /. 2. -. 20. /. 2.)
+          (Printf.sprintf "%d" (int_of_float (ceil @@ !timer /. 1000.)))
+          mutableThing::loseText
+          (0.3, 0.9, 0.2, 1.)
+          font48;
+        /*ignore @@
+          Draw.drawTextImmediate
+            (width /. 2. -. 450. /. 2.)
+            (height /. 2. -. 20. /. 2.)
+
+            (0.8, 0.2, 0.8, 1.)
+            font48;*/
+        timer := !timer -. time;
+        (ballX, ballY)
+      } else {
+        (ballVX +. ballX, ballVY +. ballY)
+      };
+    let prevPaddleX = paddle.style.left;
+    if (!leftIsPressed && not !rightIsPressed) {
+      paddle.style.left = paddle.layout.left -. paddleSpeed;
+      root.isDirty = true
+    } else if (
+      !rightIsPressed && not !leftIsPressed
+    ) {
+      paddle.style.left = paddle.layout.left +. paddleSpeed;
+      root.isDirty = true
+    };
+    let (nextX, nextY) =
+      if (!totalHidden === totalTiles) {
+        ignore @@
+        Draw.drawTextImmediate
+          (width /. 2. -. 400. /. 2.)
+          (height /. 2. -. 20. /. 2.)
+          "YOU WIN <3"
+          (0.8, 0.2, 0.8, 1.)
+          font48;
+        (ballX, ballY)
+      } else {
+        (nextX, nextY)
+      };
+    if
+      Layout.(
+        nextX -. r < elementsNode.layout.left ||
+        nextX +. r > elementsNode.layout.left +. elementsNode.layout.width
+      ) {
       ballV := (-. ballVX, ballVY)
     } else if (
-      nextY -. r < root.layout.top || nextY +. r > root.layout.top +. root.layout.height
+      nextY -. r < elementsNode.layout.top
     ) {
       ballV := (ballVX, -. ballVY)
+    } else if (
+      nextY +. r > elementsNode.layout.top +. elementsNode.layout.height
+    ) {
+      gameover := true;
+      let randX = Random.float 7.;
+      let randY = Random.float 7.;
+      ignore @@
+      Draw.drawRectImmediate
+        (width /. 2. -. 485. /. 2. +. randX)
+        (height /. 2. -. 155. /. 2. +. randY)
+        470.
+        90.
+        defaultColor;
+      ignore @@
+      Draw.drawTextImmediate
+        (width /. 2. -. 450. /. 2. +. randX)
+        (height /. 2. -. 20. /. 2. +. randY)
+        "YOU LOSE </3"
+        Draw.red
+        font48;
+      ()
     } else {
       let collided = ref false;
-      let parentLeft = root.layout.left;
-      let parentTop = root.layout.top;
+      {
+
+        /** */
+        let {Layout.context: context, style, layout: {top, left, width, height}} = paddle;
+        if context.visible {
+          let topLeft = (left, top);
+          let topRight = (left +. width, top);
+          let bottomRight = (left +. width, top +. height);
+          let bottomLeft = (left, top +. height);
+          if (segmentIntersection (ballX -. r, ballY) (nextX, nextY) topRight bottomRight) {
+            collided := true;
+            if (paddle.style.left -. prevPaddleX > 0.) {
+              ballV := (-. ballVX, -. ballVY)
+            } else {
+              ballV := (-. ballVX, ballVY)
+            }
+          } else if (
+            segmentIntersection (ballX +. r, ballY) (nextX, nextY) topLeft bottomLeft
+          ) {
+            collided := true;
+            if (paddle.style.left -. prevPaddleX < 0.) {
+              ballV := (-. ballVX, -. ballVY)
+            } else {
+              ballV := (-. ballVX, ballVY)
+            }
+          } else if (
+            segmentIntersection (ballX, ballY -. r) (nextX, nextY) topLeft topRight
+          ) {
+            collided := true;
+            if (paddle.style.left -. prevPaddleX < 0.) {
+              ballV := (ballVX -. Random.float 0.05, -. ballVY -. Random.float 1.0)
+            } else {
+              ballV := (ballVX, -. ballVY)
+            }
+          } else if (
+            segmentIntersection (ballX, ballY +. r) (nextX, nextY) bottomLeft bottomRight
+          ) {
+            collided := true;
+            ballV := (ballVX, -. ballVY)
+          }
+        }
+      };
+      /*elementsNode.isDirty = true;
+        context.visible = false*/
+
+      /** */
+      let parentLeft = elementsNode.layout.left;
+      let parentTop = elementsNode.layout.top;
       Array.iter
         (
           fun curr => {
@@ -247,34 +429,34 @@ module M: Hotreloader.DYNAMIC_MODULE = {
               if (segmentIntersection (ballX, ballY) (nextX, nextY) topRight bottomRight) {
                 collided := true;
                 ballV := (-. ballVX, ballVY);
-                root.isDirty = true;
+                elementsNode.isDirty = true;
                 context.visible = false
               } else if (
                 segmentIntersection (ballX, ballY) (nextX, nextY) topLeft bottomLeft
               ) {
                 collided := true;
                 ballV := (-. ballVX, ballVY);
-                root.isDirty = true;
+                elementsNode.isDirty = true;
                 context.visible = false
               } else if (
                 segmentIntersection (ballX, ballY) (nextX, nextY) topLeft topRight
               ) {
                 collided := true;
                 ballV := (ballVX, -. ballVY);
-                root.isDirty = true;
+                elementsNode.isDirty = true;
                 context.visible = false
               } else if (
                 segmentIntersection (ballX, ballY) (nextX, nextY) bottomLeft bottomRight
               ) {
                 collided := true;
                 ballV := (ballVX, -. ballVY);
-                root.isDirty = true;
+                elementsNode.isDirty = true;
                 context.visible = false
               }
             }
           }
         )
-        root.children;
+        elementsNode.children;
       if (not !collided) {
         ballPos := (nextX, nextY)
       }
@@ -285,6 +467,22 @@ module M: Hotreloader.DYNAMIC_MODULE = {
     /*print_endline @@ "------------------------------------------------------------";*/
     /*Gc.print_stat stdout*/
   };
+  let keyDown ::keycode ::repeat =>
+    Draw.Events.(
+      switch keycode {
+      | Right => rightPressed ()
+      | Left => leftPressed ()
+      | _ => ()
+      }
+    );
+  let keyUp ::keycode =>
+    Draw.Events.(
+      switch keycode {
+      | Right => rightReleased ()
+      | Left => leftReleased ()
+      | _ => ()
+      }
+    );
 };
 
 Hotreloader.p := Some ((module M): (module Hotreloader.DYNAMIC_MODULE));

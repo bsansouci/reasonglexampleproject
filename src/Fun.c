@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 
 #include <caml/alloc.h>
 #include <caml/custom.h>
@@ -16,7 +17,7 @@ void unsafe_blit(value arr1, value arr2, value offset, value numOfBytes) {
 
 void unsafe_update_float32(value arr, value index, value mul, value add) {
   float *data = Caml_ba_data_val(arr);
-  data[Int_val(index)] = data[Int_val(index)] * Double_val(mul) + Double_val(add);
+  data[Int_val(index)] = floor(data[Int_val(index)] * Double_val(mul) + Double_val(add));
 }
 
 void unsafe_update_uint16(value arr, value index, value val) {

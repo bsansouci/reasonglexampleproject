@@ -1,4 +1,8 @@
-module type DYNAMIC_MODULE = {let render: float => unit;};
+module type DYNAMIC_MODULE = {
+  let render: float => unit;
+  let keyDown: keycode::Draw.Events.keycodeT => repeat::bool => unit;
+  let keyUp: keycode::Draw.Events.keycodeT => unit;
+};
 
 let p = ref None;
 

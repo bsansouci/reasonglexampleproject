@@ -658,6 +658,76 @@ let generateRectContext (r, g, b, a) => {
   }
 };
 
+/* "What is going on here" you may ask.
+   Well we kinda sorta profiled the app and noticed that ba_caml_XYZ was called a lot.
+   This is an attempt at reducing the cost of those calls. We implemented our own C blit (which is
+   just memcpy) and a little helper which will update a field from the Bigarray in one shot.
+   It'll just do arr[i] = arr[i] * mul + add; which turns out to be cheaper than doing a get and a
+   set because Bigarray has to acquire the global lock for some reason. Here we don't care because
+   we're not doing any threading (thank god).
+
+
+            Ben - August 28th 2017
+      */
+external unsafe_blit :
+  Bigarray.Array1.t 'a 'b 'c =>
+  Bigarray.Array1.t 'a 'b 'c =>
+  offset::int =>
+  numOfBytes::int =>
+  unit =
+  "unsafe_blit" [@@noalloc];
+
+external unsafe_update_float32 :
+  Bigarray.Array1.t float Bigarray.float32_elt 'c => int => mul::float => add::float => unit =
+  "unsafe_update_float32" [@@noalloc];
+
+external unsafe_update_uint16 :
+  Bigarray.Array1.t int Bigarray.int16_unsigned_elt 'c => int => int => unit =
+  "unsafe_update_uint16" [@@noalloc];
+
+let drawRectImmediate (x: float) (y: float) (width: float) (height: float) color => {
+  let {
+        Node.allGLData: {
+          vertexArray,
+          elementArray,
+          count,
+          textureBuffer,
+          vertexArrayBuffer,
+          elementArrayBuffer
+        }
+      } as data =
+    generateRectContext color;
+  let o = 0;
+  let offset = o;
+  unsafe_update_float32 vertexArray offset mul::width add::0.;
+  unsafe_update_float32 vertexArray (offset + 1) mul::height add::0.;
+
+  /** */
+  let offset = o + vertexSize;
+  unsafe_update_float32 vertexArray offset mul::1. add::0.;
+  unsafe_update_float32 vertexArray (offset + 1) mul::height add::0.;
+
+  /** */
+  let offset = o + 2 * vertexSize;
+  unsafe_update_float32 vertexArray offset mul::width add::0.;
+  unsafe_update_float32 vertexArray (offset + 1) mul::1. add::0.;
+
+  /** */
+  let offset = o + 3 * vertexSize;
+  unsafe_update_float32 vertexArray offset mul::1. add::0.;
+  unsafe_update_float32 vertexArray (offset + 1) mul::1. add::0.;
+  drawGeometrySendData
+    vertexBuffer::vertexArrayBuffer
+    elementBuffer::elementArrayBuffer
+    vertexArray::(magicalRainbow1 vertexArray)
+    elementArray::(magicalRainbow2 elementArray)
+    ::count
+    ::textureBuffer
+    posVecData::(x, y)
+    scaleVecData::(1., 1.);
+  data
+};
+
 let generateTextContext
     (s: string)
     color
@@ -764,7 +834,7 @@ let generateTextContext
             (atlasX /. textureWidth)
             ((atlasY +. 1.) /. textureHeight)
             (width /. textureWidth)
-            (height /. textureHeight)
+            ((height +. 1.) /. textureHeight)
             color
             textureBuffer;
           prevChar := Some code;
@@ -971,33 +1041,6 @@ module Layout = {
   let defaultStyle = LayoutSupport.defaultStyle;
   let doLayoutNow root => Layout.layoutNode root Encoding.cssUndefined Encoding.cssUndefined Ltr;
 };
-
-/* "What is going on here" you may ask.
-   Well we kinda sorta profiled the app and noticed that ba_caml_XYZ was called a lot.
-   This is an attempt at reducing the cost of those calls. We implemented our own C blit (which is
-   just memcpy) and a little helper which will update a field from the Bigarray in one shot.
-   It'll just do arr[i] = arr[i] * mul + add; which turns out to be cheaper than doing a get and a
-   set because Bigarray has to acquire the global lock for some reason. Here we don't care because
-   we're not doing any threading (thank god).
-
-
-            Ben - August 28th 2017
-      */
-external unsafe_blit :
-  Bigarray.Array1.t 'a 'b 'c =>
-  Bigarray.Array1.t 'a 'b 'c =>
-  offset::int =>
-  numOfBytes::int =>
-  unit =
-  "unsafe_blit" [@@noalloc];
-
-external unsafe_update_float32 :
-  Bigarray.Array1.t float Bigarray.float32_elt 'c => int => mul::float => add::float => unit =
-  "unsafe_update_float32" [@@noalloc];
-
-external unsafe_update_uint16 :
-  Bigarray.Array1.t int Bigarray.int16_unsigned_elt 'c => int => int => unit =
-  "unsafe_update_uint16" [@@noalloc];
 
 /* Helper to get number of CPU cycles. I was told it's profiling 101... */
 external caml_rdtsc : unit => int = "caml_rdtsc";
