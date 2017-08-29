@@ -972,6 +972,17 @@ module Layout = {
   let doLayoutNow root => Layout.layoutNode root Encoding.cssUndefined Encoding.cssUndefined Ltr;
 };
 
+/* "What is going on here" you may ask.
+   Well we kinda sorta profiled the app and noticed that ba_caml_XYZ was called a lot.
+   This is an attempt at reducing the cost of those calls. We implemented our own C blit (which is
+   just memcpy) and a little helper which will update a field from the Bigarray in one shot.
+   It'll just do arr[i] = arr[i] * mul + add; which turns out to be cheaper than doing a get and a
+   set because Bigarray has to acquire the global lock for some reason. Here we don't care because
+   we're not doing any threading (thank god).
+
+
+            Ben - August 28th 2017
+      */
 external unsafe_blit :
   Bigarray.Array1.t 'a 'b 'c =>
   Bigarray.Array1.t 'a 'b 'c =>
@@ -988,6 +999,7 @@ external unsafe_update_uint16 :
   Bigarray.Array1.t int Bigarray.int16_unsigned_elt 'c => int => int => unit =
   "unsafe_update_uint16" [@@noalloc];
 
+/* Helper to get number of CPU cycles. I was told it's profiling 101... */
 external caml_rdtsc : unit => int = "caml_rdtsc";
 
 let rec traverseAndDraw ::indentation=0 root left top =>
@@ -1031,9 +1043,13 @@ let rec traverseAndDraw ::indentation=0 root left top =>
       let ea = batch.elementArray;
       let prevVertexPtr = batch.vertexPtr;
       let prevElementPtr = batch.elementPtr;
+
+      /** */
       unsafe_blit vertexArray va prevVertexPtr 4;
       /*Bigarray.Array1.blit vertexArray (Bigarray.Array1.sub va prevVertexPtr valen);*/
       batch.vertexPtr = batch.vertexPtr + valen;
+
+      /** */
       unsafe_blit elementArray ea prevElementPtr 2;
       /*Bigarray.Array1.blit elementArray (Bigarray.Array1.sub ea prevElementPtr ealen);*/
       batch.elementPtr = batch.elementPtr + ealen;
@@ -1041,6 +1057,8 @@ let rec traverseAndDraw ::indentation=0 root left top =>
         String.make indentation ' ' ^
         "2 Between prev and now: " ^ string_of_int (caml_rdtsc () - prev);
         let prev = caml_rdtsc ();*/
+
+      /** */
       for i in 0 to (valen / (vertexSize * 4) - 1) {
         let o = prevVertexPtr + i * vertexSize * 4;
         let offset = o;
@@ -1066,6 +1084,8 @@ let rec traverseAndDraw ::indentation=0 root left top =>
         String.make indentation ' ' ^
         "3 Between prev and now: " ^ string_of_int (caml_rdtsc () - prev);
         let prev = caml_rdtsc ();*/
+
+      /** */
       let offset = prevVertexPtr / vertexSize;
       for i in 0 to (ealen / 6 - 1) {
         let o = prevElementPtr + i * 6;
@@ -1081,6 +1101,8 @@ let rec traverseAndDraw ::indentation=0 root left top =>
         "4 Between prev and now: " ^ string_of_int (caml_rdtsc () - prev);*/
       /*let prev = caml_rdtsc ();*/
       /*print_endline @@ "Between prev and now: " ^ string_of_int (caml_rdtsc () - prev);*/
+
+      /** */
       for i in 0 to (Array.length root.children - 1) {
         traverseAndDraw
           indentation::(indentation + 2)

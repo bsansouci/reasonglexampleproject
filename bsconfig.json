@@ -18,6 +18,7 @@
       }
     }]
   }],
+  "warnings": "-40",
   "bs-dependencies": ["ReasonglInterface", "ReasonglNative"],
   "entries": [{
       "kind": "bytecode",
