@@ -106,16 +106,10 @@ let height = float_of_int @@ Draw.getWindowHeight ();
 
 let totalTiles = 1000;
 
-type stateT = array (string, Draw.fontT, (float, float, float, float));
-
-let tiles: stateT =
+let tiles =
   Array.init
     totalTiles
     (fun i => ("H", fonts.(i / 5 mod Array.length fonts), colors.(i / 5 mod Array.length colors)));
-
-let ballV = ref (2., 2.);
-
-let ballPos = ref (width /. 2. -. 10., height -. 50.);
 
 let segmentIntersection (x1, y1) (x2, y2) (bx1, by1) (bx2, by2) => {
   let s1_x = x2 -. x1;
@@ -199,18 +193,17 @@ let paddle =
 let root = <View> elementsNode paddle </View>;
 
 /*let lastFrameTime = ref 0.;*/
-let leftIsPressed = ref false;
+/*let leftIsPressed = ref false;
 
-let rightIsPressed = ref false;
+  let rightIsPressed = ref false;
 
-let rightPressed () => rightIsPressed := true;
+  let rightPressed () => rightIsPressed := true;
 
-let leftPressed () => leftIsPressed := true;
+  let leftPressed () => leftIsPressed := true;
 
-let rightReleased () => rightIsPressed := false;
+  let rightReleased () => rightIsPressed := false;
 
-let leftReleased () => leftIsPressed := false;
-
+  let leftReleased () => leftIsPressed := false;*/
 /*let alarm =
   Gc.create_alarm (
     fun () =>
@@ -234,36 +227,51 @@ Draw.onWindowResize :=
     }
   );
 
-let gameover = ref false;
-
 let loseText = Draw.generateTextContext "YOU LOSE </3" Draw.red font48;
 
-let timer = ref 3000.;
+type buttonStateT = {state: Draw.Events.stateT, x: float, y: float, isClicked: bool};
 
-let mouse = ref (0., 0.);
-
-type buttonStateT = {
-  state: Draw.Events.stateT,
-  x: float,
-  y: float,
-  isClicked: bool
-};
+type vec2 = {mutable x: float, mutable y: float};
 
 type mouseStateT = {
+  mutable pos: vec2,
   mutable leftButton: buttonStateT,
   mutable rightButton: buttonStateT
 };
 
-let mouseState = {
-  leftButton: {state: Draw.Events.MouseUp, x: 0., y: 0., isClicked: false},
-  rightButton: {state: Draw.Events.MouseUp, x: 0., y: 0., isClicked: false}
+type keyboardStateT = {mutable leftIsDown: bool, mutable rightIsDown: bool};
+
+type appStateT = {
+  mutable gameover: bool,
+  mutable timer: float,
+  mutable tiles: array (string, Draw.fontT, (float, float, float, float)),
+  mutable ballV: vec2,
+  mutable ballPos: vec2,
+  mutable keyboard: keyboardStateT,
+  mutable mouseState: mouseStateT
 };
 
 module M: Hotreloader.DYNAMIC_MODULE = {
+  let appState = {
+    gameover: false,
+    timer: 3000.,
+    tiles,
+    ballV: {x: 2., y: 2.},
+    ballPos: {x: width /. 2. -. 10., y: height -. 50.},
+    keyboard: {leftIsDown: false, rightIsDown: false},
+    mouseState: {
+      pos: {x: 0., y: 0.},
+      leftButton: {state: Draw.Events.MouseUp, x: 0., y: 0., isClicked: false},
+      rightButton: {state: Draw.Events.MouseUp, x: 0., y: 0., isClicked: false}
+    }
+  };
   let render time => {
     /*lastFrameTime := time;*/
-    /* Remember to clear the screen at each tick */
+
+    /** Remember to clear the screen at each tick */
     Draw.clearScreen ();
+
+    /** */
     let totalHidden = ref 0;
     let i = ref 0;
     Array.iter
@@ -277,7 +285,7 @@ module M: Hotreloader.DYNAMIC_MODULE = {
               c.style.marginRight = c.style.marginRight -. 1. > 0. ? c.style.marginRight -. 1. : 0.
             }
           } else if (
-            !gameover &&
+            appState.gameover &&
             !i <
             int_of_float @@
             (rootstyle.width -. rootstyle.paddingLeft -. rootstyle.paddingRight) /. (
@@ -302,38 +310,39 @@ module M: Hotreloader.DYNAMIC_MODULE = {
     Draw.traverseAndDraw root 0. 0.;
 
     /** Move ball */
-    let (ballX, ballY) = !ballPos;
+    let {x: ballX, y: ballY} = appState.ballPos;
     let r = tileMargin *. 3.;
 
     /** Immediate draw. */
     Draw.drawCircleImmediate ballX ballY radius::r color::Draw.white;
 
     /** */
-    let (ballVX, ballVY) = !ballV;
+    let {x: ballVX, y: ballVY} = appState.ballV;
     let nextX = ballVX +. ballX;
     let nextY = ballVY +. ballY;
     let (nextX, nextY) =
-      if (!timer > 0.) {
+      if (appState.timer > 0.) {
+        /** timer countdown */
         Draw.drawRectImmediate
           (width /. 2. -. 75. /. 2.) (height /. 2. -. 155. /. 2.) 65. 90. defaultColor;
         ignore @@
         Draw.drawTextImmediate
           (width /. 2. -. 50. /. 2.)
           (height /. 2. -. 20. /. 2.)
-          (Printf.sprintf "%d" (int_of_float (ceil @@ !timer /. 1000.)))
+          (Printf.sprintf "%d" (int_of_float (ceil @@ appState.timer /. 1000.)))
           (0.3, 0.9, 0.2, 1.)
           font48;
-        timer := !timer -. time;
+        appState.timer = appState.timer -. time;
         (ballX, ballY)
       } else {
         (ballVX +. ballX, ballVY +. ballY)
       };
     let prevPaddleX = paddle.style.left;
-    if (!leftIsPressed && not !rightIsPressed) {
+    if (appState.keyboard.leftIsDown && not appState.keyboard.rightIsDown) {
       paddle.style.left = paddle.layout.left -. paddleSpeed;
       root.isDirty = true
     } else if (
-      !rightIsPressed && not !leftIsPressed
+      appState.keyboard.rightIsDown && not appState.keyboard.leftIsDown
     ) {
       paddle.style.left = paddle.layout.left +. paddleSpeed;
       root.isDirty = true
@@ -356,31 +365,36 @@ module M: Hotreloader.DYNAMIC_MODULE = {
         nextX -. r < elementsNode.layout.left ||
         nextX +. r > elementsNode.layout.left +. elementsNode.layout.width
       ) {
-      ballV := (-. ballVX, ballVY)
+      appState.ballV.x = -. ballVX;
+      appState.ballV.y = ballVY
     } else if (
       nextY -. r < elementsNode.layout.top
     ) {
-      ballV := (ballVX, -. ballVY)
+      appState.ballV.x = ballVX;
+      appState.ballV.y = -. ballVY
     } else if (
       nextY +. r > elementsNode.layout.top +. elementsNode.layout.height
     ) {
-      gameover := true;
+      appState.gameover = true;
       let randX = Random.float 7.;
       let randY = Random.float 7.;
       ignore @@
       Draw.drawRectImmediate
         (width /. 2. -. 485. /. 2.) (height /. 2. -. 155. /. 2.) 470. 100. defaultColor;
       {
-        let (mx, my) = !mouse;
+        let {x: mx, y: my} = appState.mouseState.pos;
         let left = width /. 2. -. 200. /. 2.;
         let top = height /. 2. +. 50. /. 2.;
         let color =
           if (mx > left && mx < left +. 200. && my > top && my < top +. 70.) {
-            if mouseState.leftButton.isClicked {
-              gameover := false;
-              timer := 3000.;
-              ballPos := (width /. 2. -. 10., height -. 50.);
-              ballV := (2., 2.);
+            /* If the user clicks on the Restart button we reset the state of the game */
+            if appState.mouseState.leftButton.isClicked {
+              appState.gameover = false;
+              appState.timer = 3000.;
+              appState.ballPos.x = width /. 2. -. 10.;
+              appState.ballPos.y = height -. 50.;
+              appState.ballV.x = 2.;
+              appState.ballV.y = 2.;
               elementsNode.children =
                 Array.mapi
                   (
@@ -418,8 +432,7 @@ module M: Hotreloader.DYNAMIC_MODULE = {
         (height /. 2. -. 20. /. 2. +. randY)
         "YOU LOSE </3"
         Draw.red
-        font48;
-      ()
+        font48
     } else {
       let collided = ref false;
       {
@@ -434,38 +447,43 @@ module M: Hotreloader.DYNAMIC_MODULE = {
           if (segmentIntersection (ballX -. r, ballY) (nextX, nextY) topRight bottomRight) {
             collided := true;
             if (paddle.style.left -. prevPaddleX > 0.) {
-              ballV := (-. ballVX, -. ballVY)
+              appState.ballV.x = -. ballVX;
+              appState.ballV.y = -. ballVY
             } else {
-              ballV := (-. ballVX, ballVY)
+              appState.ballV.x = -. ballVX;
+              appState.ballV.y = ballVY
             }
           } else if (
             segmentIntersection (ballX +. r, ballY) (nextX, nextY) topLeft bottomLeft
           ) {
             collided := true;
             if (paddle.style.left -. prevPaddleX < 0.) {
-              ballV := (-. ballVX, -. ballVY)
+              appState.ballV.x = -. ballVX;
+              appState.ballV.y = -. ballVY
             } else {
-              ballV := (-. ballVX, ballVY)
+              appState.ballV.x = -. ballVX;
+              appState.ballV.y = ballVY
             }
           } else if (
             segmentIntersection (ballX, ballY -. r) (nextX, nextY) topLeft topRight
           ) {
             collided := true;
             if (paddle.style.left -. prevPaddleX < 0.) {
-              ballV := (ballVX -. Random.float 0.05, -. ballVY -. Random.float 1.0)
+              appState.ballV.x = ballVX -. Random.float 0.05;
+              appState.ballV.y = -. ballVY -. Random.float 1.0
             } else {
-              ballV := (ballVX, -. ballVY)
+              appState.ballV.x = ballVX;
+              appState.ballV.y = -. ballVY
             }
           } else if (
             segmentIntersection (ballX, ballY +. r) (nextX, nextY) bottomLeft bottomRight
           ) {
             collided := true;
-            ballV := (ballVX, -. ballVY)
+            appState.ballV.x = ballVX;
+            appState.ballV.y = -. ballVY
           }
         }
       };
-      /*elementsNode.isDirty = true;
-        context.visible = false*/
 
       /** */
       let parentLeft = elementsNode.layout.left;
@@ -481,28 +499,32 @@ module M: Hotreloader.DYNAMIC_MODULE = {
               let bottomLeft = (parentLeft +. left, parentTop +. top +. height);
               if (segmentIntersection (ballX, ballY) (nextX, nextY) topRight bottomRight) {
                 collided := true;
-                ballV := (-. ballVX, ballVY);
+                appState.ballV.x = -. ballVX;
+                appState.ballV.y = ballVY;
                 elementsNode.isDirty = true;
                 context.visible = false
               } else if (
                 segmentIntersection (ballX, ballY) (nextX, nextY) topLeft bottomLeft
               ) {
                 collided := true;
-                ballV := (-. ballVX, ballVY);
+                appState.ballV.x = -. ballVX;
+                appState.ballV.y = ballVY;
                 elementsNode.isDirty = true;
                 context.visible = false
               } else if (
                 segmentIntersection (ballX, ballY) (nextX, nextY) topLeft topRight
               ) {
                 collided := true;
-                ballV := (ballVX, -. ballVY);
+                appState.ballV.x = ballVX;
+                appState.ballV.y = -. ballVY;
                 elementsNode.isDirty = true;
                 context.visible = false
               } else if (
                 segmentIntersection (ballX, ballY) (nextX, nextY) bottomLeft bottomRight
               ) {
                 collided := true;
-                ballV := (ballVX, -. ballVY);
+                appState.ballV.x = ballVX;
+                appState.ballV.y = -. ballVY;
                 elementsNode.isDirty = true;
                 context.visible = false
               }
@@ -511,7 +533,8 @@ module M: Hotreloader.DYNAMIC_MODULE = {
         )
         elementsNode.children;
       if (not !collided) {
-        ballPos := (nextX, nextY)
+        appState.ballPos.x = nextX;
+        appState.ballPos.y = nextY
       }
     }
     /*if (time -. 0.001 > 1000. /. 60.) {
@@ -523,34 +546,57 @@ module M: Hotreloader.DYNAMIC_MODULE = {
   let keyDown ::keycode ::repeat =>
     Draw.Events.(
       switch keycode {
-      | Right => rightPressed ()
-      | Left => leftPressed ()
+      | Right => appState.keyboard.rightIsDown = true
+      | Left => appState.keyboard.leftIsDown = true
       | _ => ()
       }
     );
   let keyUp ::keycode =>
     Draw.Events.(
       switch keycode {
-      | Right => rightReleased ()
-      | Left => leftReleased ()
+      | Right => appState.keyboard.rightIsDown = false
+      | Left => appState.keyboard.leftIsDown = false
       | _ => ()
       }
     );
-  let mouseMove ::x ::y => mouse := (float_of_int x, float_of_int y);
+  let mouseMove ::x ::y => {
+    appState.mouseState.pos.x = float_of_int x;
+    appState.mouseState.pos.y = float_of_int y
+  };
   let mouseUp ::button ::state ::x ::y =>
     switch button {
     | Draw.Events.LeftButton =>
-      mouseState.leftButton = {state, x: float_of_int x, y: float_of_int y, isClicked: false}
+      appState.mouseState.leftButton = {
+        state,
+        x: float_of_int x,
+        y: float_of_int y,
+        isClicked: false
+      }
     | Draw.Events.RightButton =>
-      mouseState.rightButton = {state, x: float_of_int x, y: float_of_int y, isClicked: false}
+      appState.mouseState.rightButton = {
+        state,
+        x: float_of_int x,
+        y: float_of_int y,
+        isClicked: false
+      }
     | _ => ()
     };
   let mouseDown ::button ::state ::x ::y =>
     switch button {
     | Draw.Events.LeftButton =>
-      mouseState.leftButton = {state, x: float_of_int x, y: float_of_int y, isClicked: true}
+      appState.mouseState.leftButton = {
+        state,
+        x: float_of_int x,
+        y: float_of_int y,
+        isClicked: true
+      }
     | Draw.Events.RightButton =>
-      mouseState.rightButton = {state, x: float_of_int x, y: float_of_int y, isClicked: true}
+      appState.mouseState.rightButton = {
+        state,
+        x: float_of_int x,
+        y: float_of_int y,
+        isClicked: true
+      }
     | _ => ()
     };
 };
