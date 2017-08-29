@@ -277,8 +277,6 @@ let keyUp ::keycode =>
       | RightShift => keyboardState.shiftIsDown = keyboardState.shiftIsDown - 1
       | LeftAlt
       | RightAlt => keyboardState.altIsDown = keyboardState.altIsDown - 1
-      | Right => Child1.rightReleased ()
-      | Left => Child1.leftReleased ()
       | _ => ()
       }
     )
