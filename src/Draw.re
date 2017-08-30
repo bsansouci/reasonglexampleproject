@@ -598,15 +598,21 @@ module Node = {
 };
 
 /* @Speed Boot up time can be improved by not calling set many times. */
-let generateRectContext (r, g, b, a) => {
-  let vertexArray = Bigarray.Array1.create Bigarray.Float32 Bigarray.C_layout (4 * vertexSize);
-  let elementArray = Bigarray.Array1.create Bigarray.Int16_unsigned Bigarray.C_layout 6;
+let generateRectContext outContext::(outContext: option Node.context)=? (r, g, b, a) => {
+  let (vertexArray, elementArray) =
+    switch outContext {
+    | None => (
+        Bigarray.Array1.create Bigarray.Float32 Bigarray.C_layout (4 * vertexSize),
+        Bigarray.Array1.create Bigarray.Int16_unsigned Bigarray.C_layout 6
+      )
+    | Some outContext =>
+      assert (outContext.Node.allGLData.count === 6);
+      (outContext.Node.allGLData.vertexArray, outContext.Node.allGLData.elementArray)
+    };
   let texX = 0.;
   let texY = 0.;
   let texW = 1.0 /. 2048.;
   let texH = 0.;
-  /*let texW = 0.01 /. 2048.;
-    let texH = 0.;*/
   unsafe_set vertexArray 0 1.;
   unsafe_set vertexArray 1 1.;
   unsafe_set vertexArray 2 r;
@@ -645,19 +651,18 @@ let generateRectContext (r, g, b, a) => {
   unsafe_set elementArray 3 1;
   unsafe_set elementArray 4 2;
   unsafe_set elementArray 5 3;
-  Node.{
-    visible: true,
-    isDataSentToGPU: false,
-    textInfo: {width: 0.},
-    allGLData: {
-      scalable: true,
-      /*vertexArrayBuffer: Gl.createBuffer context,*/
-      /*elementArrayBuffer: Gl.createBuffer context,*/
-      vertexArray,
-      elementArray,
-      count: 6,
-      textureBuffer: nullTex
+  switch outContext {
+  | None =>
+    Node.{
+      visible: true,
+      isDataSentToGPU: false,
+      textInfo: {width: 0.},
+      allGLData: {scalable: true, vertexArray, elementArray, count: 6, textureBuffer: nullTex}
     }
+  | Some mutableThing =>
+    mutableThing.visible = true;
+    mutableThing.isDataSentToGPU = false;
+    mutableThing
   }
 };
 
@@ -725,10 +730,10 @@ let drawRectImmediate (x: float) (y: float) (width: float) (height: float) color
 let generateTextContext
     (s: string)
     color
-    mutableThing::(mutableThing: option Node.context)=?
+    outContext::(outContext: option Node.context)=?
     ({textureBuffer, textureWidth, textureHeight, chars, kerning, maxHeight}: fontT) => {
   let (vertexArray, elementArray) =
-    switch mutableThing {
+    switch outContext {
     | None => (
         Bigarray.Array1.create
           Bigarray.Float32 Bigarray.C_layout (4 * String.length s * vertexSize),
@@ -805,6 +810,8 @@ let generateTextContext
   };
   let offset = ref 0.;
   let prevChar = ref None;
+  /* Made up ratio to make text look nicer within things. */
+  let randomTweak = maxHeight /. 10.;
   String.iter
     (
       fun c => {
@@ -822,7 +829,7 @@ let generateTextContext
             };
           addRectToBatch
             (!offset +. bearingX +. kerningOffsetX)
-            (-. bearingY -. kerningOffsetY +. maxHeight)
+            (-. bearingY -. kerningOffsetY +. maxHeight -. randomTweak)
             width
             height
             (atlasX /. textureWidth)
@@ -839,19 +846,13 @@ let generateTextContext
       }
     )
     s;
-  switch mutableThing {
+  switch outContext {
   | None =>
     Node.{
       visible: true,
       isDataSentToGPU: false,
       textInfo: {width: !offset},
-      allGLData: {
-        scalable: false,
-        vertexArray,
-        elementArray,
-        count: !elementPtr,
-        textureBuffer
-      }
+      allGLData: {scalable: false, vertexArray, elementArray, count: !elementPtr, textureBuffer}
     }
   | Some dataBag =>
     dataBag.visible = true;
@@ -871,10 +872,10 @@ let drawTextImmediate
     (y: float)
     (s: string)
     color
-    mutableThing::(mutableThing: option Node.context)=?
+    outContext::(outContext: option Node.context)=?
     font => {
   let {Node.allGLData: {vertexArray, elementArray, count, textureBuffer}} as data =
-    generateTextContext s color ::?mutableThing font;
+    generateTextContext s color ::?outContext font;
   drawGeometrySendData
     vertexBuffer::batch.vertexBufferObject
     elementBuffer::batch.elementBufferObject

@@ -80,8 +80,8 @@ module Text = {
         withChildren::(Array.of_list children)
         andStyle::style
         andMeasure::(
-          fun node unitOfM measureMode unitOfM measureMode => {
-            Layout.width: context.textInfo.width,
+          fun node width measureModeWidth height measureModeHeight => {
+            Layout.width: width < 0.0001 ? 0. : context.textInfo.width,
             height: font.maxHeight
           }
         )
@@ -101,7 +101,7 @@ let colors = [|
 |];
 
 let fonts = [|
-  Font.loadFont fontSize::12. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0
+  Font.loadFont fontSize::7. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0
   /*Font.loadFont fontSize::9. fontPath::"assets/fonts/Anonymous_Pro.ttf" id::0*/
   /*Font.loadFont fontSize::9. fontPath::"assets/fonts/DroidSansMono.ttf" id::0,*/
   /*Font.loadFont fontSize::24. fontPath::"assets/fonts/Anonymous_Pro.ttf" id::0,*/
@@ -113,18 +113,12 @@ let width = float_of_int @@ Draw.getWindowWidth ();
 
 let height = float_of_int @@ Draw.getWindowHeight ();
 
-let totalTiles = 100;
+let totalTiles = 1000;
 
 let tiles =
   Array.init
     totalTiles
-    (
-      fun i => (
-        "Hello world",
-        fonts.(i / 5 mod Array.length fonts),
-        colors.(i / 5 mod Array.length colors)
-      )
-    );
+    (fun i => ("H", fonts.(i / 5 mod Array.length fonts), colors.(i / 5 mod Array.length colors)));
 
 let segmentIntersection (x1, y1) (x2, y2) (bx1, by1) (bx2, by2) => {
   let s1_x = x2 -. x1;
@@ -140,9 +134,9 @@ let segmentIntersection (x1, y1) (x2, y2) (bx1, by1) (bx2, by2) => {
   }
 };
 
-let tileWidth = width /. 10.;
+let tileWidth = width /. 40.;
 
-let tileHeight = height /. 30.;
+let tileHeight = height /. 80.;
 
 let tileMargin = height /. 400.;
 
@@ -160,35 +154,31 @@ let rootstyle =
     height
   };
 
+let makeChildren () =>
+  Array.mapi
+    (
+      fun i (text, font, color) =>
+        <View
+          style=Layout.{
+                  ...defaultStyle,
+                  marginLeft: tileMargin,
+                  marginRight: tileMargin,
+                  marginTop: tileMargin,
+                  marginBottom: tileMargin,
+                  width: tileWidth,
+                  height: tileHeight,
+                  justifyContent: JustifyCenter,
+                  alignItems: AlignCenter
+                }
+          color>
+          <Text text font color=Draw.black />
+        </View>
+    )
+    tiles;
+
 let elementsNode =
   View.createElement
-    style::rootstyle
-    color::defaultColor
-    children::(
-      Array.to_list (
-        Array.mapi
-          (
-            fun i (text, font, color) =>
-              <View
-                style=Layout.{
-                        ...defaultStyle,
-                        marginLeft: tileMargin,
-                        marginRight: tileMargin,
-                        marginTop: tileMargin,
-                        marginBottom: tileMargin,
-                        width: tileWidth,
-                        height: tileHeight,
-                        justifyContent: JustifyCenter,
-                        alignItems: AlignCenter
-                      }
-                color>
-                <Text text font color=Draw.black />
-              </View>
-          )
-          tiles
-      )
-    )
-    ();
+    style::rootstyle color::defaultColor children::(Array.to_list (makeChildren ())) ();
 
 let paddleWidth = 60.;
 
@@ -207,20 +197,71 @@ let paddle =
           }
   />;
 
-let root = <View> elementsNode paddle </View>;
+let timerNode =
+  <View
+    color=defaultColor
+    style=Layout.{
+            ...defaultStyle,
+            positionType: Absolute,
+            width: 65.,
+            height: 90.,
+            justifyContent: JustifyCenter,
+            alignItems: AlignCenter
+          }>
+    <Text text="3" color=(0.3, 0.9, 0.2, 1.) font=font48 />
+  </View>;
+
+let loseNode =
+  <View
+    color=defaultColor
+    style=Layout.{
+            ...defaultStyle,
+            positionType: Absolute,
+            justifyContent: JustifySpaceBetween,
+            alignItems: AlignCenter,
+            paddingTop: 24.,
+            paddingLeft: 24.,
+            paddingRight: 24.,
+            paddingBottom: 12.
+          }>
+    <Text text="YOU LOSE </3" color=Draw.red font=font48 />
+    <View
+      style=Layout.{
+              ...defaultStyle,
+              justifyContent: JustifyCenter,
+              alignItems: AlignCenter,
+              paddingLeft: 12.,
+              paddingRight: 12.,
+              paddingBottom: 12.,
+              marginTop: 24.
+            }>
+      <Text text="restart" color=Draw.green font=font38 />
+    </View>
+  </View>;
+
+loseNode.context.visible = false;
+
+let winNode =
+  <View
+    color=defaultColor
+    style=Layout.{
+            ...defaultStyle,
+            positionType: Absolute,
+            justifyContent: JustifySpaceBetween,
+            alignItems: AlignCenter,
+            paddingTop: 24.,
+            paddingLeft: 24.,
+            paddingRight: 24.,
+            paddingBottom: 12.
+          }>
+    <Text text="YOU WIN <3" color=(0.8, 0.2, 0.8, 1.) font=font48 />
+  </View>;
+
+winNode.context.visible = false;
+
+let root = <View> elementsNode paddle timerNode loseNode winNode </View>;
 
 /*let lastFrameTime = ref 0.;*/
-/*let leftIsPressed = ref false;
-
-  let rightIsPressed = ref false;
-
-  let rightPressed () => rightIsPressed := true;
-
-  let leftPressed () => leftIsPressed := true;
-
-  let rightReleased () => rightIsPressed := false;
-
-  let leftReleased () => leftIsPressed := false;*/
 /*let alarm =
   Gc.create_alarm (
     fun () =>
@@ -240,15 +281,26 @@ Draw.onWindowResize :=
       rootstyle.Layout.width = width -. 200.;
       rootstyle.Layout.height = height;
       paddle.style.top = height -. 15.;
-      paddle.style.left = width /. 2. -. paddleWidth /. 2.
+      paddle.style.left = width /. 2. -. paddleWidth /. 2.;
+      loseNode.style.left = width /. 2. -. loseNode.layout.width /. 2.;
+      loseNode.style.top = height /. 2. -. loseNode.layout.height /. 2.;
+      winNode.style.left = width /. 2. -. winNode.layout.width /. 2.;
+      winNode.style.top = height /. 2. -. winNode.layout.height /. 2.
     }
   );
 
-let loseText = Draw.generateTextContext "YOU LOSE </3" Draw.red font48;
+/*let loseText = Draw.generateTextContext "YOU LOSE </3" Draw.red font48;*/
+type buttonStateT = {
+  state: Draw.Events.stateT,
+  x: float,
+  y: float,
+  isClicked: bool
+};
 
-type buttonStateT = {state: Draw.Events.stateT, x: float, y: float, isClicked: bool};
-
-type vec2 = {mutable x: float, mutable y: float};
+type vec2 = {
+  mutable x: float,
+  mutable y: float
+};
 
 type mouseStateT = {
   mutable pos: vec2,
@@ -256,7 +308,10 @@ type mouseStateT = {
   mutable rightButton: buttonStateT
 };
 
-type keyboardStateT = {mutable leftIsDown: bool, mutable rightIsDown: bool};
+type keyboardStateT = {
+  mutable leftIsDown: bool,
+  mutable rightIsDown: bool
+};
 
 type appStateT = {
   mutable gameover: bool,
@@ -299,7 +354,14 @@ module M: Hotreloader.DYNAMIC_MODULE = {
             if (c.style.width > 0.) {
               c.style.width = c.style.width -. 0.6;
               c.style.marginLeft = c.style.marginLeft -. 1. > 0. ? c.style.marginLeft -. 1. : 0.;
-              c.style.marginRight = c.style.marginRight -. 1. > 0. ? c.style.marginRight -. 1. : 0.
+              c.style.marginRight =
+                c.style.marginRight -. 1. > 0. ? c.style.marginRight -. 1. : 0.;
+
+              /** @Hack @Incomplete This messes with hot reloading for _some_ reason. */
+              switch c.children {
+              | [|textNode|] => textNode.style.width = 0.
+              | _ => assert false
+              }
             }
           } else if (
             appState.gameover &&
@@ -320,13 +382,73 @@ module M: Hotreloader.DYNAMIC_MODULE = {
       )
       elementsNode.children;
 
+    /** Timer */
+    if (appState.timer > 0.) {
+      /** timer countdown */
+      timerNode.style.left = width /. 2. -. 75. /. 2.;
+      timerNode.style.top = height /. 2. -. 155. /. 2.;
+      let text = Printf.sprintf "%d" (int_of_float (ceil @@ appState.timer /. 1000.));
+      switch timerNode.children {
+      | [|textNode|] => textNode.context = Draw.generateTextContext text (0.3, 0.9, 0.2, 1.) font48
+      | _ => assert false
+      };
+      root.isDirty = true
+    } else if
+      timerNode.context.visible {
+      timerNode.context.visible = false
+    };
+
+    /** Losing state */
+    if appState.gameover {
+      loseNode.style.left = width /. 2. -. loseNode.layout.width /. 2.;
+      loseNode.style.top = height /. 2. -. loseNode.layout.height /. 2.;
+      loseNode.context.visible = true;
+
+      /** Static UI tree has benefits, like allowing pattern matching on it! */
+      switch loseNode.children {
+      | [|message, restartButton|] =>
+        let randX = Random.float 7. -. 3.;
+        let randY = Random.float 7. -. 3.;
+        message.style.left = randX;
+        message.style.top = randY;
+        let {x: mx, y: my} = appState.mouseState.pos;
+        let left = width /. 2. -. restartButton.layout.width /. 2.;
+        let top = height /. 2. +. restartButton.layout.height /. 2.;
+        let color =
+          if (
+            mx > left &&
+            mx < left +. restartButton.layout.width &&
+            my > top && my < top +. restartButton.layout.height
+          ) {
+            /* If the user clicks on the Restart button we reset the state of the game */
+            if appState.mouseState.leftButton.isClicked {
+              appState.gameover = false;
+              appState.timer = 3000.;
+              appState.ballPos.x = width /. 2. -. 10.;
+              appState.ballPos.y = height -. 50.;
+              appState.ballV.x = 2.;
+              appState.ballV.y = 2.;
+              loseNode.context.visible = false;
+              timerNode.context.visible = true;
+              elementsNode.children = makeChildren ();
+              winNode.context.visible = false;
+              (0.3, 0.5, 1., 1.)
+            } else {
+              (0.1, 0.4, 1., 1.)
+            }
+          } else {
+            (0.1, 0.3, 0.7, 1.)
+          };
+        restartButton.style.left = left;
+        restartButton.style.top = top;
+        restartButton.context = Draw.generateRectContext outContext::restartButton.context color
+      | _ => assert false
+      };
+      root.isDirty = true
+    };
+
     /** This will perform all of the Flexbox calculations and mutate the layouts to have left, top, width, height set. The positions are relative to the parent. */
     Layout.doLayoutNow root;
-    /*print_endline @@
-      Printf.sprintf
-        "%f v %f"
-        elementsNode.children.(0).layout.top
-        elementsNode.children.(0).children.(0).layout.top;*/
 
     /** This will traverse the layout tree and blit each item to the screen one by one. */
     Draw.traverseAndDraw root 0. 0.;
@@ -338,22 +460,10 @@ module M: Hotreloader.DYNAMIC_MODULE = {
     /** Immediate draw. */
     Draw.drawCircleImmediate ballX ballY radius::r color::Draw.white;
 
-    /** */
+    /** Event handling and manipulation */
     let {x: ballVX, y: ballVY} = appState.ballV;
-    let nextX = ballVX +. ballX;
-    let nextY = ballVY +. ballY;
     let (nextX, nextY) =
       if (appState.timer > 0.) {
-        /** timer countdown */
-        Draw.drawRectImmediate
-          (width /. 2. -. 75. /. 2.) (height /. 2. -. 155. /. 2.) 65. 90. defaultColor;
-        ignore @@
-        Draw.drawTextImmediate
-          (width /. 2. -. 50. /. 2.)
-          (height /. 2. -. 20. /. 2.)
-          (Printf.sprintf "%d" (int_of_float (ceil @@ appState.timer /. 1000.)))
-          (0.3, 0.9, 0.2, 1.)
-          font48;
         appState.timer = appState.timer -. time;
         (ballX, ballY)
       } else {
@@ -371,13 +481,9 @@ module M: Hotreloader.DYNAMIC_MODULE = {
     };
     let (nextX, nextY) =
       if (!totalHidden === totalTiles) {
-        ignore @@
-        Draw.drawTextImmediate
-          (width /. 2. -. 400. /. 2.)
-          (height /. 2. -. 20. /. 2.)
-          "YOU WIN <3"
-          (0.8, 0.2, 0.8, 1.)
-          font48;
+        winNode.context.visible = true;
+        winNode.style.left = width /. 2. -. winNode.layout.width /. 2.;
+        winNode.style.top = height /. 2. -. winNode.layout.height /. 2.;
         (ballX, ballY)
       } else {
         (nextX, nextY)
@@ -397,64 +503,7 @@ module M: Hotreloader.DYNAMIC_MODULE = {
     } else if (
       nextY +. r > elementsNode.layout.top +. elementsNode.layout.height
     ) {
-      appState.gameover = true;
-      let randX = Random.float 7.;
-      let randY = Random.float 7.;
-      ignore @@
-      Draw.drawRectImmediate
-        (width /. 2. -. 485. /. 2.) (height /. 2. -. 155. /. 2.) 470. 100. defaultColor;
-      {
-        let {x: mx, y: my} = appState.mouseState.pos;
-        let left = width /. 2. -. 200. /. 2.;
-        let top = height /. 2. +. 50. /. 2.;
-        let color =
-          if (mx > left && mx < left +. 200. && my > top && my < top +. 70.) {
-            /* If the user clicks on the Restart button we reset the state of the game */
-            if appState.mouseState.leftButton.isClicked {
-              appState.gameover = false;
-              appState.timer = 3000.;
-              appState.ballPos.x = width /. 2. -. 10.;
-              appState.ballPos.y = height -. 50.;
-              appState.ballV.x = 2.;
-              appState.ballV.y = 2.;
-              elementsNode.children =
-                Array.mapi
-                  (
-                    fun i (text, font, color) =>
-                      <View
-                        style=Layout.{
-                                ...defaultStyle,
-                                marginLeft: tileMargin,
-                                marginRight: tileMargin,
-                                marginTop: tileMargin,
-                                marginBottom: tileMargin,
-                                width: tileWidth,
-                                height: tileHeight
-                              }
-                        color>
-                        <Text text font />
-                      </View>
-                  )
-                  tiles;
-              (0.3, 0.5, 1., 1.)
-            } else {
-              (0.1, 0.4, 1., 1.)
-            }
-          } else {
-            (0.1, 0.3, 0.7, 1.)
-          };
-        ignore @@ Draw.drawRectImmediate left top 200. 70. color;
-        ignore @@
-        Draw.drawTextImmediate
-          (width /. 2. -. 170. /. 2.) (height /. 2. +. 150. /. 2.) "restart" Draw.green font38
-      };
-      ignore @@
-      Draw.drawTextImmediate
-        (width /. 2. -. 450. /. 2. +. randX)
-        (height /. 2. -. 20. /. 2. +. randY)
-        "YOU LOSE </3"
-        Draw.red
-        font48
+      appState.gameover = true
     } else {
       let collided = ref false;
       {

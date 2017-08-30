@@ -56,7 +56,7 @@ let render time => {
     int_of_float (List.fold_left (fun acc v => v < acc ? v : acc) 60. !lastCoupleOfFrames +. 0.5);
   ignore @@
   Draw.drawTextImmediate
-    12. 20. ("fps: " ^ string_of_int fpscount) mutableThing::fpsTextData Draw.black font12;
+    12. 20. ("fps: " ^ string_of_int fpscount) outContext::fpsTextData Draw.black font12;
 
   /** @Hack For hotreloading. */
   Hotreloader.checkRebuild ()
