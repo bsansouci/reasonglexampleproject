@@ -45,7 +45,9 @@ type fontT = {
   kerning: IntPairMap.t (float, float),
   textureBuffer: Gl.textureT,
   textureWidth: float,
-  textureHeight: float
+  textureHeight: float,
+  maxHeight: float,
+  maxWidth: float
 };
 
 
@@ -564,6 +566,8 @@ type vertexDataT = {
   mutable textureBuffer: Gl.textureT
 };
 
+type textInfoT = {mutable width: float};
+
 /* Each node contains all possible values, it's probably faster than
    conditional on type. */
 module Node = {
@@ -572,7 +576,8 @@ module Node = {
        static tree that gets its nodes mutated and fully composited each frame. */
     mutable visible: bool,
     mutable isDataSentToGPU: bool,
-    mutable allGLData: vertexDataT
+    mutable allGLData: vertexDataT,
+    mutable textInfo: textInfoT
   };
   /* @Hack we're using nullTex which is a value that we're assuming has
        been loaded already. This is very bad but it'll work for now.
@@ -581,10 +586,9 @@ module Node = {
   let nullContext = {
     visible: true,
     isDataSentToGPU: false,
+    textInfo: {width: 0.},
     allGLData: {
       scalable: false,
-      /*vertexArrayBuffer: vertexBufferObject,*/
-      /*elementArrayBuffer: elementBufferObject,*/
       vertexArray: Bigarray.Array1.create Bigarray.Float32 Bigarray.C_layout 0,
       elementArray: Bigarray.Array1.create Bigarray.Int16_unsigned Bigarray.C_layout 0,
       count: 0,
@@ -644,6 +648,7 @@ let generateRectContext (r, g, b, a) => {
   Node.{
     visible: true,
     isDataSentToGPU: false,
+    textInfo: {width: 0.},
     allGLData: {
       scalable: true,
       /*vertexArrayBuffer: Gl.createBuffer context,*/
@@ -721,7 +726,7 @@ let generateTextContext
     (s: string)
     color
     mutableThing::(mutableThing: option Node.context)=?
-    ({textureBuffer, textureWidth, textureHeight, chars, kerning}: fontT) => {
+    ({textureBuffer, textureWidth, textureHeight, chars, kerning, maxHeight}: fontT) => {
   let (vertexArray, elementArray) =
     switch mutableThing {
     | None => (
@@ -817,7 +822,7 @@ let generateTextContext
             };
           addRectToBatch
             (!offset +. bearingX +. kerningOffsetX)
-            (-. bearingY -. kerningOffsetY)
+            (-. bearingY -. kerningOffsetY +. maxHeight)
             width
             height
             (atlasX /. textureWidth)
@@ -839,10 +844,9 @@ let generateTextContext
     Node.{
       visible: true,
       isDataSentToGPU: false,
+      textInfo: {width: !offset},
       allGLData: {
         scalable: false,
-        /*vertexArrayBuffer: Gl.createBuffer context,*/
-        /*elementArrayBuffer: Gl.createBuffer context,*/
         vertexArray,
         elementArray,
         count: !elementPtr,
@@ -852,6 +856,7 @@ let generateTextContext
   | Some dataBag =>
     dataBag.visible = true;
     dataBag.isDataSentToGPU = false;
+    dataBag.textInfo.width = !offset;
     dataBag.allGLData.scalable = false;
     dataBag.allGLData.vertexArray = Bigarray.Array1.sub vertexArray 0 !vertexPtr;
     dataBag.allGLData.elementArray = Bigarray.Array1.sub elementArray 0 !elementPtr;

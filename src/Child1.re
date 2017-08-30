@@ -73,10 +73,19 @@ module Text = {
       () =>
     switch context {
     | None =>
+      let context = Draw.generateTextContext text color font;
+      /*print_endline @@
+        Printf.sprintf "width: %f, height: %f" context.textInfo.width font.maxHeight;*/
       Layout.createNode
         withChildren::(Array.of_list children)
         andStyle::style
-        (Draw.generateTextContext text color font)
+        andMeasure::(
+          fun node unitOfM measureMode unitOfM measureMode => {
+            Layout.width: context.textInfo.width,
+            height: font.maxHeight
+          }
+        )
+        context
     | Some context =>
       Layout.createNode withChildren::(Array.of_list children) andStyle::style context
     };
@@ -92,8 +101,8 @@ let colors = [|
 |];
 
 let fonts = [|
-  /*Font.loadFont fontSize::9. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0,*/
-  Font.loadFont fontSize::9. fontPath::"assets/fonts/Anonymous_Pro.ttf" id::0
+  Font.loadFont fontSize::12. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0
+  /*Font.loadFont fontSize::9. fontPath::"assets/fonts/Anonymous_Pro.ttf" id::0*/
   /*Font.loadFont fontSize::9. fontPath::"assets/fonts/DroidSansMono.ttf" id::0,*/
   /*Font.loadFont fontSize::24. fontPath::"assets/fonts/Anonymous_Pro.ttf" id::0,*/
   /*Font.loadFont fontSize::28. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0,*/
@@ -104,12 +113,18 @@ let width = float_of_int @@ Draw.getWindowWidth ();
 
 let height = float_of_int @@ Draw.getWindowHeight ();
 
-let totalTiles = 1000;
+let totalTiles = 100;
 
 let tiles =
   Array.init
     totalTiles
-    (fun i => ("H", fonts.(i / 5 mod Array.length fonts), colors.(i / 5 mod Array.length colors)));
+    (
+      fun i => (
+        "Hello world",
+        fonts.(i / 5 mod Array.length fonts),
+        colors.(i / 5 mod Array.length colors)
+      )
+    );
 
 let segmentIntersection (x1, y1) (x2, y2) (bx1, by1) (bx2, by2) => {
   let s1_x = x2 -. x1;
@@ -125,9 +140,9 @@ let segmentIntersection (x1, y1) (x2, y2) (bx1, by1) (bx2, by2) => {
   }
 };
 
-let tileWidth = width /. 50.;
+let tileWidth = width /. 10.;
 
-let tileHeight = height /. 60.;
+let tileHeight = height /. 30.;
 
 let tileMargin = height /. 400.;
 
@@ -162,10 +177,12 @@ let elementsNode =
                         marginTop: tileMargin,
                         marginBottom: tileMargin,
                         width: tileWidth,
-                        height: tileHeight
+                        height: tileHeight,
+                        justifyContent: JustifyCenter,
+                        alignItems: AlignCenter
                       }
                 color>
-                <Text text font />
+                <Text text font color=Draw.black />
               </View>
           )
           tiles
@@ -305,6 +322,11 @@ module M: Hotreloader.DYNAMIC_MODULE = {
 
     /** This will perform all of the Flexbox calculations and mutate the layouts to have left, top, width, height set. The positions are relative to the parent. */
     Layout.doLayoutNow root;
+    /*print_endline @@
+      Printf.sprintf
+        "%f v %f"
+        elementsNode.children.(0).layout.top
+        elementsNode.children.(0).children.(0).layout.top;*/
 
     /** This will traverse the layout tree and blit each item to the screen one by one. */
     Draw.traverseAndDraw root 0. 0.;
