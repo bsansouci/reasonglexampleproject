@@ -22,6 +22,7 @@
 #include <caml/fail.h>
 
 #include <ft2build.h>
+#include <freetype/ftglyph.h>
 #include FT_FREETYPE_H
 
 value init_FreeType()
@@ -431,58 +432,84 @@ value get_Size_Metrics( face )
   CAMLreturn(res);
 }
 
-value get_Outline_Contents(value face) {
-/* *****************************************************************
-
-   Concrete definitions of TT_Outline might vary from version to
-   version.
-
-   This definition assumes freetype 2.0.1
-
-     ( anyway, this function is wrong...)
-
- ***************************************************************** */
+CAMLprim value glyph_Get_CBox(value face) {
   CAMLparam1(face);
-  CAMLlocal5(points, tags, contours, res, tmp);
-  int i;
-
-  FT_Outline* outline = &((*(FT_Face *)face)->glyph->outline);
-
-  int n_contours = outline->n_contours;
-  int n_points   = outline->n_points;
-
-  points   = alloc_tuple(n_points);
-  tags     = alloc_tuple(n_points);
-  contours = alloc_tuple(n_contours);
-
-  for( i=0; i<n_points; i++ ) {
-    FT_Vector* raw_points = outline->points;
-    char* raw_flags  = outline->tags;
-    tmp = alloc_tuple(2);
-    /* caution: 26.6 fixed into 31 bit */
-    Store_field(tmp, 0, Val_int(raw_points[i].x));
-    Store_field(tmp, 1, Val_int(raw_points[i].y));
-    Store_field(points, i, tmp);
-    if ( raw_flags[i] & FT_Curve_Tag_On ) {
-      Store_field(tags, i, Val_int(0)); /* On point */
-    } else if ( raw_flags[i] & FT_Curve_Tag_Cubic ) {
-      Store_field(tags, i, Val_int(2)); /* Off point, cubic */
-    } else {
-      Store_field(tags, i, Val_int(1)); /* Off point, conic */
-    }
-  }
-
-  for( i=0; i<n_contours; i++ ) {
-    short* raw_contours = outline->contours;
-    Store_field(contours, i, Val_int(raw_contours[i]));
-  }
-
-  res = alloc_tuple(5);
-  Store_field(res, 0, Val_int(n_contours));
-  Store_field(res, 1, Val_int(n_points));
-  Store_field(res, 2, points);
-  Store_field(res, 3, tags);
-  Store_field(res, 4, contours);
-
-  CAMLreturn(res);
+  CAMLlocal1(ret);
+  
+  FT_Glyph glyph;
+  FT_Get_Glyph((*(FT_Face *)face)->glyph, &glyph);
+  
+  FT_BBox bbox;
+  FT_Glyph_Get_CBox(glyph, FT_GLYPH_BBOX_SUBPIXELS, &bbox);
+  
+  // type bbox = {
+  //   xmin : int; (* 26.6 *)
+  //   ymin : int; (* 26.6 *)
+  //   xmax : int; (* 26.6 *)
+  //   ymax : int;  (* 26.6 *)
+  // }
+  ret = caml_alloc_small(4, 0);
+  Field(ret, 0) = Val_int(bbox.xMin);
+  Field(ret, 1) = Val_int(bbox.yMin);
+  Field(ret, 2) = Val_int(bbox.xMax);
+  Field(ret, 3) = Val_int(bbox.yMax);
+  
+  CAMLreturn(ret);
 }
+
+// value get_Outline_Contents(value face) {
+// /* *****************************************************************
+
+//    Concrete definitions of TT_Outline might vary from version to
+//    version.
+
+//    This definition assumes freetype 2.0.1
+
+//      ( anyway, this function is wrong...)
+
+//  ***************************************************************** */
+//   CAMLparam1(face);
+//   CAMLlocal5(points, tags, contours, res, tmp);
+//   int i;
+
+//   FT_Outline* outline = &((*(FT_Face *)face)->glyph->outline);
+
+//   int n_contours = outline->n_contours;
+//   int n_points   = outline->n_points;
+
+//   points   = alloc_tuple(n_points);
+//   tags     = alloc_tuple(n_points);
+//   contours = alloc_tuple(n_contours);
+
+//   for( i=0; i<n_points; i++ ) {
+//     FT_Vector* raw_points = outline->points;
+//     char* raw_flags  = outline->tags;
+//     tmp = alloc_tuple(2);
+//      caution: 26.6 fixed into 31 bit 
+//     Store_field(tmp, 0, Val_int(raw_points[i].x));
+//     Store_field(tmp, 1, Val_int(raw_points[i].y));
+//     Store_field(points, i, tmp);
+//     if ( raw_flags[i] & FT_Curve_Tag_On ) {
+//       Store_field(tags, i, Val_int(0)); /* On point */
+//     } else if ( raw_flags[i] & FT_Curve_Tag_Cubic ) {
+//       Store_field(tags, i, Val_int(2)); /* Off point, cubic */
+//     } else {
+//       Store_field(tags, i, Val_int(1)); /* Off point, conic */
+//     }
+//   }
+
+//   for( i=0; i<n_contours; i++ ) {
+//     short* raw_contours = outline->contours;
+//     Store_field(contours, i, Val_int(raw_contours[i]));
+//   }
+
+//   res = alloc_tuple(5);
+//   Store_field(res, 0, Val_int(n_contours));
+//   Store_field(res, 1, Val_int(n_points));
+//   Store_field(res, 2, points);
+//   Store_field(res, 3, tags);
+//   Store_field(res, 4, contours);
+
+//   CAMLreturn(res);
+// }
+

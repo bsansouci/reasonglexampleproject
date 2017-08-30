@@ -123,6 +123,7 @@ module C = struct
     face -> outline_contents = "get_Outline_Contents"
     
   external get_kerning : face -> int -> int -> int * int = "get_Kerning"
+  external glyph_get_bbox : face -> bbox = "glyph_Get_CBox"
 end
 
 include C
