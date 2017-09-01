@@ -56,15 +56,19 @@ let font38 = Font.loadFont fontSize::38. fontPath::"assets/fonts/OpenSans-Regula
     doTheRenderThing root ::?node ()
   };
   */
+/* We need to have default style be a function because each node have mutable style. If we just
+   used DefaultStyle we'd be mutating the same shared one! */
+let makeDefaultStyle () => Layout.{...defaultStyle, positionType: Relative};
+
 module View = {
-  let createElement ::style=Layout.defaultStyle ::color=Draw.white ::children () =>
+  let createElement ::style=(makeDefaultStyle ()) ::color=Draw.white ::children () =>
     Layout.createNode
       withChildren::(Array.of_list children) andStyle::style (Draw.generateRectContext color);
 };
 
 module Text = {
   let createElement
-      ::style=Layout.defaultStyle
+      ::style=(makeDefaultStyle ())
       ::color=Draw.white
       ::text=""
       ::font=font7
@@ -81,8 +85,8 @@ module Text = {
         andStyle::style
         andMeasure::(
           fun node width measureModeWidth height measureModeHeight => {
-            Layout.width: width < 0.0001 ? 0. : context.textInfo.width,
-            height: font.maxHeight
+            Layout.width: context.textInfo.width /. Draw.pixelScale,
+            height: font.maxHeight /. Draw.pixelScale
           }
         )
         context
@@ -290,17 +294,9 @@ Draw.onWindowResize :=
   );
 
 /*let loseText = Draw.generateTextContext "YOU LOSE </3" Draw.red font48;*/
-type buttonStateT = {
-  state: Draw.Events.stateT,
-  x: float,
-  y: float,
-  isClicked: bool
-};
+type buttonStateT = {state: Draw.Events.stateT, x: float, y: float, isClicked: bool};
 
-type vec2 = {
-  mutable x: float,
-  mutable y: float
-};
+type vec2 = {mutable x: float, mutable y: float};
 
 type mouseStateT = {
   mutable pos: vec2,
@@ -308,10 +304,7 @@ type mouseStateT = {
   mutable rightButton: buttonStateT
 };
 
-type keyboardStateT = {
-  mutable leftIsDown: bool,
-  mutable rightIsDown: bool
-};
+type keyboardStateT = {mutable leftIsDown: bool, mutable rightIsDown: bool};
 
 type appStateT = {
   mutable gameover: bool,
@@ -354,14 +347,11 @@ module M: Hotreloader.DYNAMIC_MODULE = {
             if (c.style.width > 0.) {
               c.style.width = c.style.width -. 0.6;
               c.style.marginLeft = c.style.marginLeft -. 1. > 0. ? c.style.marginLeft -. 1. : 0.;
-              c.style.marginRight =
-                c.style.marginRight -. 1. > 0. ? c.style.marginRight -. 1. : 0.;
-
-              /** @Hack @Incomplete This messes with hot reloading for _some_ reason. */
-              switch c.children {
-              | [|textNode|] => textNode.style.width = 0.
-              | _ => assert false
-              }
+              c.style.marginRight = c.style.marginRight -. 1. > 0. ? c.style.marginRight -. 1. : 0.
+            };
+            switch c.children {
+            | [|textNode|] => textNode.style.width = 0.
+            | _ => assert false
             }
           } else if (
             appState.gameover &&
@@ -403,6 +393,7 @@ module M: Hotreloader.DYNAMIC_MODULE = {
       loseNode.style.left = width /. 2. -. loseNode.layout.width /. 2.;
       loseNode.style.top = height /. 2. -. loseNode.layout.height /. 2.;
       loseNode.context.visible = true;
+      loseNode.isDirty = true;
 
       /** Static UI tree has benefits, like allowing pattern matching on it! */
       switch loseNode.children {
@@ -411,9 +402,10 @@ module M: Hotreloader.DYNAMIC_MODULE = {
         let randY = Random.float 7. -. 3.;
         message.style.left = randX;
         message.style.top = randY;
+        message.isDirty = true;
         let {x: mx, y: my} = appState.mouseState.pos;
-        let left = width /. 2. -. restartButton.layout.width /. 2.;
-        let top = height /. 2. +. restartButton.layout.height /. 2.;
+        let left = loseNode.style.left +. restartButton.layout.left;
+        let top = loseNode.style.top +. restartButton.layout.top;
         let color =
           if (
             mx > left &&
@@ -439,9 +431,8 @@ module M: Hotreloader.DYNAMIC_MODULE = {
           } else {
             (0.1, 0.3, 0.7, 1.)
           };
-        restartButton.style.left = left;
-        restartButton.style.top = top;
-        restartButton.context = Draw.generateRectContext outContext::restartButton.context color
+        restartButton.context = Draw.generateRectContext outContext::restartButton.context color;
+        restartButton.isDirty = true
       | _ => assert false
       };
       root.isDirty = true
@@ -469,7 +460,6 @@ module M: Hotreloader.DYNAMIC_MODULE = {
       } else {
         (ballVX +. ballX, ballVY +. ballY)
       };
-    let prevPaddleX = paddle.style.left;
     if (appState.keyboard.leftIsDown && not appState.keyboard.rightIsDown) {
       paddle.style.left = paddle.layout.left -. paddleSpeed;
       root.isDirty = true
@@ -517,35 +507,20 @@ module M: Hotreloader.DYNAMIC_MODULE = {
           let bottomLeft = (left, top +. height);
           if (segmentIntersection (ballX -. r, ballY) (nextX, nextY) topRight bottomRight) {
             collided := true;
-            if (paddle.style.left -. prevPaddleX > 0.) {
-              appState.ballV.x = -. ballVX;
-              appState.ballV.y = -. ballVY
-            } else {
-              appState.ballV.x = -. ballVX;
-              appState.ballV.y = ballVY
-            }
+            appState.ballV.x = -. ballVX;
+            appState.ballV.y = ballVY
           } else if (
             segmentIntersection (ballX +. r, ballY) (nextX, nextY) topLeft bottomLeft
           ) {
             collided := true;
-            if (paddle.style.left -. prevPaddleX < 0.) {
-              appState.ballV.x = -. ballVX;
-              appState.ballV.y = -. ballVY
-            } else {
-              appState.ballV.x = -. ballVX;
-              appState.ballV.y = ballVY
-            }
+            appState.ballV.x = -. ballVX;
+            appState.ballV.y = ballVY
           } else if (
             segmentIntersection (ballX, ballY -. r) (nextX, nextY) topLeft topRight
           ) {
             collided := true;
-            if (paddle.style.left -. prevPaddleX < 0.) {
-              appState.ballV.x = ballVX -. Random.float 0.05;
-              appState.ballV.y = -. ballVY -. Random.float 1.0
-            } else {
-              appState.ballV.x = ballVX;
-              appState.ballV.y = -. ballVY
-            }
+            appState.ballV.x = ballVX;
+            appState.ballV.y = -. ballVY -. Random.float 0.5
           } else if (
             segmentIntersection (ballX, ballY +. r) (nextX, nextY) bottomLeft bottomRight
           ) {
@@ -568,14 +543,14 @@ module M: Hotreloader.DYNAMIC_MODULE = {
               let topRight = (parentLeft +. left +. width, parentTop +. top);
               let bottomRight = (parentLeft +. left +. width, parentTop +. top +. height);
               let bottomLeft = (parentLeft +. left, parentTop +. top +. height);
-              if (segmentIntersection (ballX, ballY) (nextX, nextY) topRight bottomRight) {
+              if (segmentIntersection (ballX -. r, ballY) (nextX, nextY) topRight bottomRight) {
                 collided := true;
                 appState.ballV.x = -. ballVX;
                 appState.ballV.y = ballVY;
                 elementsNode.isDirty = true;
                 context.visible = false
               } else if (
-                segmentIntersection (ballX, ballY) (nextX, nextY) topLeft bottomLeft
+                segmentIntersection (ballX +. r, ballY) (nextX, nextY) topLeft bottomLeft
               ) {
                 collided := true;
                 appState.ballV.x = -. ballVX;
@@ -583,7 +558,7 @@ module M: Hotreloader.DYNAMIC_MODULE = {
                 elementsNode.isDirty = true;
                 context.visible = false
               } else if (
-                segmentIntersection (ballX, ballY) (nextX, nextY) topLeft topRight
+                segmentIntersection (ballX, ballY -. r) (nextX, nextY) topLeft topRight
               ) {
                 collided := true;
                 appState.ballV.x = ballVX;
@@ -591,7 +566,7 @@ module M: Hotreloader.DYNAMIC_MODULE = {
                 elementsNode.isDirty = true;
                 context.visible = false
               } else if (
-                segmentIntersection (ballX, ballY) (nextX, nextY) bottomLeft bottomRight
+                segmentIntersection (ballX, ballY +. r) (nextX, nextY) bottomLeft bottomRight
               ) {
                 collided := true;
                 appState.ballV.x = ballVX;

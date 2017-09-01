@@ -171,11 +171,18 @@ let windowHeight = 600;
 
 Gl.Window.setWindowSize ::window width::windowWidth height::windowHeight;
 
+let pixelScale = float_of_int (Gl.Window.getPixelWidth window) /. float_of_int windowWidth;
+
 
 /** Initialize the Gl context **/
 let context = Gl.Window.getContext window;
 
-Gl.viewport ::context x::0 y::0 width::windowWidth height::windowHeight;
+Gl.viewport
+  ::context
+  x::0
+  y::0
+  width::(Gl.Window.getPixelWidth window)
+  height::(Gl.Window.getPixelHeight window);
 
 let getWindowWidth () => Gl.Window.getWidth window;
 
@@ -292,19 +299,19 @@ Gl.texParameteri
 /** Enable blend and tell OpenGL how to blend. */
 Gl.enable ::context RGLConstants.blend;
 
-let alpha_test = 0x0BC0;
+let alpha_test = 3008;
 
 Gl.disable ::context alpha_test;
 
-let dither = 0x0BD0;
+let dither = 3024;
 
 Gl.disable ::context dither;
 
-let stencil_test = 0x0B90;
+let stencil_test = 2960;
 
 Gl.disable ::context stencil_test;
 
-let fog = 0x0B60;
+let fog = 2912;
 
 Gl.disable ::context fog;
 
@@ -326,8 +333,8 @@ let doOrtho () => {
   Gl.Mat4.ortho
     out::camera.projectionMatrix
     left::0.
-    right::(float_of_int (Gl.Window.getWidth window))
-    bottom::(float_of_int (Gl.Window.getHeight window))
+    right::(float_of_int (Gl.Window.getPixelWidth window))
+    bottom::(float_of_int (Gl.Window.getPixelHeight window))
     top::0.
     near::(-. maxZBuffer)
     far::(minZBuffer +. 1.);
@@ -339,8 +346,8 @@ doOrtho ();
 let onWindowResize: ref (option (unit => unit)) = ref None;
 
 let resizeWindow () => {
-  let width = Gl.Window.getWidth window;
-  let height = Gl.Window.getHeight window;
+  let width = Gl.Window.getPixelWidth window;
+  let height = Gl.Window.getPixelHeight window;
   Gl.viewport ::context x::0 y::0 ::width ::height;
   doOrtho ();
   switch !onWindowResize {
@@ -512,15 +519,11 @@ let drawGeometrySendData
     Gl.drawElements
       ::context mode::Constants.triangles ::count type_::RGLConstants.unsigned_short offset::0
   };*/
-external magicalRainbow1 :
-  Bigarray.Array1.t float Bigarray.float32_elt Bigarray.c_layout =>
-  Gl.Bigarray.t float Gl.Bigarray.float32_elt =
-  "%identity";
+external magicalRainbow1 : Bigarray.Array1.t float Bigarray.float32_elt Bigarray.c_layout =>
+                           Gl.Bigarray.t float Gl.Bigarray.float32_elt = "%identity";
 
-external magicalRainbow2 :
-  Bigarray.Array1.t int Bigarray.int16_unsigned_elt Bigarray.c_layout =>
-  Gl.Bigarray.t int Gl.Bigarray.int16_unsigned_elt =
-  "%identity";
+external magicalRainbow2 : Bigarray.Array1.t int Bigarray.int16_unsigned_elt Bigarray.c_layout =>
+                           Gl.Bigarray.t int Gl.Bigarray.int16_unsigned_elt = "%identity";
 
 let unsafe_set = Bigarray.Array1.unsafe_set;
 
@@ -677,21 +680,22 @@ let generateRectContext outContext::(outContext: option Node.context)=? (r, g, b
 
             Ben - August 28th 2017
       */
-external unsafe_blit :
-  Bigarray.Array1.t 'a 'b 'c =>
-  Bigarray.Array1.t 'a 'b 'c =>
-  offset::int =>
-  numOfBytes::int =>
-  unit =
-  "unsafe_blit" [@@noalloc];
+external unsafe_blit : Bigarray.Array1.t 'a 'b 'c =>
+                       Bigarray.Array1.t 'a 'b 'c =>
+                       offset::int =>
+                       numOfBytes::int =>
+                       unit = "unsafe_blit" [@@noalloc];
 
-external unsafe_update_float32 :
-  Bigarray.Array1.t float Bigarray.float32_elt 'c => int => mul::float => add::float => unit =
-  "unsafe_update_float32" [@@noalloc];
+external unsafe_update_float32 : Bigarray.Array1.t float Bigarray.float32_elt 'c =>
+                                 int =>
+                                 mul::float =>
+                                 add::float =>
+                                 unit = "unsafe_update_float32" [@@noalloc];
 
-external unsafe_update_uint16 :
-  Bigarray.Array1.t int Bigarray.int16_unsigned_elt 'c => int => int => unit =
-  "unsafe_update_uint16" [@@noalloc];
+external unsafe_update_uint16 : Bigarray.Array1.t int Bigarray.int16_unsigned_elt 'c =>
+                                int =>
+                                int =>
+                                unit = "unsafe_update_uint16" [@@noalloc];
 
 let drawRectImmediate (x: float) (y: float) (width: float) (height: float) color => {
   let {Node.allGLData: {vertexArray, elementArray, count, textureBuffer}} as data =
@@ -883,7 +887,7 @@ let drawTextImmediate
     elementArray::(magicalRainbow2 elementArray)
     ::count
     ::textureBuffer
-    posVecData::(x, y)
+    posVecData::(x *. pixelScale, y *. pixelScale)
     scaleVecData::(1., 1.);
   data
 };
@@ -933,7 +937,13 @@ let drawCircleImmediate x y ::radius color::(r, g, b, a) => {
     normalize::false
     stride::0
     offset::0;
-  Gl.uniform4f ::context location::posAndScaleVec v1::x v2::y v3::1. v4::1.;
+  Gl.uniform4f
+    ::context
+    location::posAndScaleVec
+    v1::(x *. pixelScale)
+    v2::(y *. pixelScale)
+    v3::pixelScale
+    v4::pixelScale;
   Gl.uniform1i ::context location::uSampler val::0;
   Gl.bindTexture ::context target::RGLConstants.texture_2d texture::nullTex;
   Gl.drawArrays ::context mode::Constants.triangle_fan first::0 count::numberOfVertices
@@ -1036,12 +1046,14 @@ let rec traverseAndDraw ::indentation=0 root left top =>
     if root.context.visible {
       /*let prev = caml_rdtsc ();*/
       let absoluteLeft = floor @@ left +. root.layout.left;
+      let scaledLeft = floor (pixelScale *. (left +. root.layout.left));
       let absoluteTop = floor @@ top +. root.layout.top;
+      let scaledTop = floor (pixelScale *. (top +. root.layout.top));
       let {scalable, vertexArray, elementArray, count, textureBuffer} =
         root.context.Node.allGLData;
       let (width, height) =
         if scalable {
-          (root.layout.width, root.layout.height)
+          (root.layout.width *. pixelScale, root.layout.height *. pixelScale)
         } else {
           (1., 1.)
         };
@@ -1083,23 +1095,23 @@ let rec traverseAndDraw ::indentation=0 root left top =>
       for i in 0 to (valen / (vertexSize * 4) - 1) {
         let o = prevVertexPtr + i * vertexSize * 4;
         let offset = o;
-        unsafe_update_float32 va offset mul::width add::absoluteLeft;
-        unsafe_update_float32 va (offset + 1) mul::height add::absoluteTop;
+        unsafe_update_float32 va offset mul::width add::scaledLeft;
+        unsafe_update_float32 va (offset + 1) mul::height add::scaledTop;
 
         /** */
         let offset = o + vertexSize;
-        unsafe_update_float32 va offset mul::1. add::absoluteLeft;
-        unsafe_update_float32 va (offset + 1) mul::height add::absoluteTop;
+        unsafe_update_float32 va offset mul::1. add::scaledLeft;
+        unsafe_update_float32 va (offset + 1) mul::height add::scaledTop;
 
         /** */
         let offset = o + 2 * vertexSize;
-        unsafe_update_float32 va offset mul::width add::absoluteLeft;
-        unsafe_update_float32 va (offset + 1) mul::1. add::absoluteTop;
+        unsafe_update_float32 va offset mul::width add::scaledLeft;
+        unsafe_update_float32 va (offset + 1) mul::1. add::scaledTop;
 
         /** */
         let offset = o + 3 * vertexSize;
-        unsafe_update_float32 va offset mul::1. add::absoluteLeft;
-        unsafe_update_float32 va (offset + 1) mul::1. add::absoluteTop
+        unsafe_update_float32 va offset mul::1. add::scaledLeft;
+        unsafe_update_float32 va (offset + 1) mul::1. add::scaledTop
       };
       /*print_endline @@
         String.make indentation ' ' ^

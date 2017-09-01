@@ -31,7 +31,7 @@ let set_char_size face char_w char_h res_h res_v =>
 let set_charmap face charmap => Ftlow.set_charmap face.cont charmap;
 
 /* no idea what this is */
-let csize = 100;
+let csize = int_of_float @@ Draw.pixelScale *. 72.;
 
 let debug = false;
 
