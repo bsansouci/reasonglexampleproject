@@ -377,10 +377,10 @@ value read_Bitmap( vface, vx, vy ) /* This "y" is in Y upwards convention */
 value get_Kerning(value face, value left_glyph, value right_glyph) {
   CAMLparam3(face, left_glyph, right_glyph);
   CAMLlocal1(ret);
-  
+
   FT_Vector delta;
   FT_Get_Kerning(*(FT_Face *)face, Int_val(left_glyph), Int_val(right_glyph), FT_KERNING_DEFAULT, &delta);
-  
+
   ret = caml_alloc_small(2, 0);
   Field(ret, 0) = Val_int(delta.x);
   Field(ret, 1) = Val_int(delta.y);
@@ -435,13 +435,13 @@ value get_Size_Metrics( face )
 CAMLprim value glyph_Get_CBox(value face) {
   CAMLparam1(face);
   CAMLlocal1(ret);
-  
+
   FT_Glyph glyph;
   FT_Get_Glyph((*(FT_Face *)face)->glyph, &glyph);
-  
+
   FT_BBox bbox;
   FT_Glyph_Get_CBox(glyph, FT_GLYPH_BBOX_SUBPIXELS, &bbox);
-  
+
   // type bbox = {
   //   xmin : int; (* 26.6 *)
   //   ymin : int; (* 26.6 *)
@@ -453,7 +453,7 @@ CAMLprim value glyph_Get_CBox(value face) {
   Field(ret, 1) = Val_int(bbox.yMin);
   Field(ret, 2) = Val_int(bbox.xMax);
   Field(ret, 3) = Val_int(bbox.yMax);
-  
+
   CAMLreturn(ret);
 }
 
@@ -485,7 +485,7 @@ CAMLprim value glyph_Get_CBox(value face) {
 //     FT_Vector* raw_points = outline->points;
 //     char* raw_flags  = outline->tags;
 //     tmp = alloc_tuple(2);
-//      caution: 26.6 fixed into 31 bit 
+//      caution: 26.6 fixed into 31 bit
 //     Store_field(tmp, 0, Val_int(raw_points[i].x));
 //     Store_field(tmp, 1, Val_int(raw_points[i].y));
 //     Store_field(points, i, tmp);

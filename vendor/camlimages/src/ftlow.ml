@@ -119,9 +119,9 @@ module C = struct
   external read_bitmap : face -> int -> int -> int = "read_Bitmap"
   external get_glyph_metrics : face -> glyph_metrics = "get_Glyph_Metrics"
   external get_size_metrics : face -> size_metrics = "get_Size_Metrics"
-  external get_outline_contents :
-    face -> outline_contents = "get_Outline_Contents"
-    
+  (* external get_outline_contents :
+    face -> outline_contents = "get_Outline_Contents" *)
+
   external get_kerning : face -> int -> int -> int * int = "get_Kerning"
   external glyph_get_bbox : face -> bbox = "glyph_Get_CBox"
 end
