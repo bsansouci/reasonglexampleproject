@@ -293,7 +293,6 @@ Draw.onWindowResize :=
     }
   );
 
-/*let loseText = Draw.generateTextContext "YOU LOSE </3" Draw.red font48;*/
 type buttonStateT = {state: Draw.Events.stateT, x: float, y: float, isClicked: bool};
 
 type vec2 = {mutable x: float, mutable y: float};
