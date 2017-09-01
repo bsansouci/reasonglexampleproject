@@ -11,7 +11,7 @@
     "postinstall": "./makefreetype.sh"
   },
   "dependencies": {
-    "ReasonglInterface": "bsansouci/reasongl-interface#bsb-support",
+    "ReasonglInterface": "bsansouci/reasongl-interface#bsb-support-new",
     "ReasonglNative": "bsansouci/reasongl-native#bsb-support-new"
   },
   "repository": {
