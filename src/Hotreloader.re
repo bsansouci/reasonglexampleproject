@@ -1,4 +1,7 @@
 module type DYNAMIC_MODULE = {
+  type stateT;
+  let appState: stateT;
+  let setAppState: stateT => unit;
   let render: float => unit;
   let keyDown: keycode::Draw.Events.keycodeT => repeat::bool => unit;
   let keyUp: keycode::Draw.Events.keycodeT => unit;
@@ -81,6 +84,9 @@ let checkRebuild () => {
     /*Unix.system "./node_modules/.bin/bsb";*/
     load_plug @@ Printf.sprintf "lib/bs/%s/src/Child1.%s" folder extension;
     last_st_mtime := st_mtime;
-    print_endline "----------------------"
+    print_endline "----------------------";
+    true
+  } else {
+    false
   }
 };

@@ -30,6 +30,8 @@ let fpsTextData =
     Draw.black
     font12;
 
+external magicalPoneys : 'a => 'b = "%identity";
+
 let render time => {
   /* Remember to clear the clear at each tick */
   Draw.clearScreen ();
@@ -38,7 +40,8 @@ let render time => {
   switch !Hotreloader.p {
   | Some s =>
     module M = (val (s: (module Hotreloader.DYNAMIC_MODULE)));
-    M.render time
+    M.render time;
+    ()
   | None => ()
   };
 
@@ -58,8 +61,24 @@ let render time => {
   Draw.drawTextImmediate
     12. 20. ("fps: " ^ string_of_int fpscount) outContext::fpsTextData Draw.black font12;
 
-  /** @Hack For hotreloading. */
-  Hotreloader.checkRebuild ()
+  /** @Hack For hotreloading. We get the previous module's state and set it on the new module
+      loaded. Also relies on mutation! But shrug. */
+  switch !Hotreloader.p {
+  | Some s =>
+    module M = (val (s: (module Hotreloader.DYNAMIC_MODULE)));
+    let state = M.appState;
+    if (Hotreloader.checkRebuild ()) {
+      switch !Hotreloader.p {
+      | Some s =>
+        module M2 = (val (s: (module Hotreloader.DYNAMIC_MODULE)));
+        /* We know the types align, but the type checker's dubious. So we pet it a little. */
+        M2.setAppState (magicalPoneys M.appState);
+        ()
+      | None => ()
+      }
+    }
+  | None => ignore @@ Hotreloader.checkRebuild ()
+  }
 };
 
 let mouseMove ::x ::y =>

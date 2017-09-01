@@ -306,17 +306,16 @@ type mouseStateT = {
 
 type keyboardStateT = {mutable leftIsDown: bool, mutable rightIsDown: bool};
 
-type appStateT = {
-  mutable gameover: bool,
-  mutable timer: float,
-  mutable tiles: array (string, Draw.fontT, (float, float, float, float)),
-  mutable ballV: vec2,
-  mutable ballPos: vec2,
-  mutable keyboard: keyboardStateT,
-  mutable mouseState: mouseStateT
-};
-
 module M: Hotreloader.DYNAMIC_MODULE = {
+  type stateT = {
+    mutable gameover: bool,
+    mutable timer: float,
+    mutable tiles: array (string, Draw.fontT, (float, float, float, float)),
+    mutable ballV: vec2,
+    mutable ballPos: vec2,
+    mutable keyboard: keyboardStateT,
+    mutable mouseState: mouseStateT
+  };
   let appState = {
     gameover: false,
     timer: 3000.,
@@ -329,6 +328,18 @@ module M: Hotreloader.DYNAMIC_MODULE = {
       leftButton: {state: Draw.Events.MouseUp, x: 0., y: 0., isClicked: false},
       rightButton: {state: Draw.Events.MouseUp, x: 0., y: 0., isClicked: false}
     }
+  };
+  /* @Hack for hot reloading. */
+  let setAppState newAppState => {
+    appState.gameover = newAppState.gameover;
+    appState.timer = newAppState.timer;
+    appState.tiles = newAppState.tiles;
+    appState.ballV = newAppState.ballV;
+    appState.ballPos = newAppState.ballPos;
+    appState.keyboard = newAppState.keyboard;
+    appState.mouseState.pos = newAppState.mouseState.pos;
+    appState.mouseState.leftButton = newAppState.mouseState.leftButton;
+    appState.mouseState.rightButton = newAppState.mouseState.rightButton
   };
   let render time => {
     /*lastFrameTime := time;*/
