@@ -1,4 +1,4 @@
-type fontT = Js.t {. unitsPerEm : int};
+type fontT = Js.t {. unitsPerEm : int, ascender : int, descender : int};
 
 external load : string => ('a => fontT => unit) => unit = "load" [@@bs.module "opentype.js"];
 
@@ -12,14 +12,13 @@ external getData : dataT => array int = "data" [@@bs.get];
 
 let getContext: unit => contextT = [%bs.raw
   {| function() {
-  if (!this.canvas) {
-    this.canvas = document.createElement('canvas');
-    this.canvas.width = 2048;
-    this.canvas.height = 2048;
-  }
+    let canvas = document.createElement('canvas');
+    // document.body.appendChild(canvas);
+    canvas.width = 2048;
+    canvas.height = 2048;
 
-  let context = this.canvas.getContext('2d');
-  context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+  let context = canvas.getContext('2d');
+  context.clearRect(0, 0, canvas.width, canvas.height);
   return context;
 }
 |}
@@ -51,14 +50,16 @@ external drawGlyph : glyphT => contextT => int => int => int => unit = "draw" [@
 
 external charToGlyph : fontT => string => glyphT = "" [@@bs.send];
 
-/*type pathT;
+external getKerningValue : fontT => string => string => int = "" [@@bs.send];
 
-  external getPath : glyphT => int => int => float => pathT = "getPath" [@@bs.send];
+type pathT;
 
-  external drawPath : pathT => contextT => unit = "draw" [@@bs.send];
+external getPath : glyphT => int => int => int => pathT = "getPath" [@@bs.send];
 
-  external getPathBoundingBox : pathT => boundingBoxT = "getBoundingBox" [@@bs.send];
-  */
+external drawPath : pathT => contextT => unit = "draw" [@@bs.send];
+
+external getPathBoundingBox : pathT => boundingBoxT = "getBoundingBox" [@@bs.send];
+
 let allCharacters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!@#$%^&*()_+1234567890-={}|:\"<>?[]\\;',./ ";
 
 /*let allCharacters = "AB";*/
@@ -88,28 +89,59 @@ let loadFont ::fontSize ::fontPath id::(_: int) => {
     fontPath
     (
       fun err font =>
-        {
+        if (Js.Null.test err) {
           let fontSize = int_of_float fontSize;
           let scale = font##unitsPerEm;
+          let ascender = font##ascender * fontSize / scale;
+          let descender = font##descender * fontSize / scale;
           let context = getContext ();
           String.iter
             (
               fun c => {
-                let g = charToGlyph font (String.make 1 c);
+                let cString = String.make 1 c;
+                let g = charToGlyph font cString;
                 switch (getUnicode g) {
                 | None => ()
                 | Some unicode =>
-                  let bboxwidth = (g##xMax - g##xMin) * fontSize / scale;
-                  let bboxheight = (g##yMax - g##yMin) * fontSize / scale;
+                  let path = getPath g !prevX (!prevY + ascender) fontSize;
+                  let bbox = getPathBoundingBox path;
+                  let bboxheight = ascender - descender;
+                  /*let bboxheight = bbox##y2 - bbox##y1;*/
+                  /*let bboxwidth = (g##xMax - g##xMin) * fontSize / scale;*/
+                  let advanceWidth = g##advanceWidth * fontSize / scale;
+                  let bboxwidth = bbox##x2 - bbox##x1 + advanceWidth;
+                  /*let bboxwidth = bboxwidth + advanceWidth;*/
+                  /*let bboxheight = (g##yMax - g##yMin) * fontSize / scale;*/
+                  /*Js.log bboxheight;
+                    Js.log (ascender);
+                    Js.log (descender);*/
                   if (bboxwidth !== 0 && bboxheight !== 0) {
                     maxHeight := max !maxHeight bboxheight;
                     maxWidth := max !maxWidth bboxwidth;
-                    let advanceWidth = g##advanceWidth * fontSize / scale;
                     if (!prevX + bboxwidth >= texLength) {
                       prevX := 4;
                       prevY := !nextY
                     };
-                    drawGlyph g context !prevX !prevY fontSize;
+                    /* Draw shifted downwards by `qscender` because that draw function is from the
+                       baseline */
+                    drawPath path context;
+                    /*drawGlyph g context !prevX (!prevY + ascender) fontSize;*/
+                    /*let code = Ftlow.get_char_index face.cont c;*/
+                    String.iter
+                      (
+                        fun c2 => {
+                          let c2String = String.make 1 c2;
+                          /*let code2 = Ftlow.get_char_index face.cont c2;*/
+                          let x = getKerningValue font cString c2String;
+                          let x = float_of_int (x * fontSize / scale);
+                          /*let (x, y) = (float_of_int x /. 64., float_of_int y /. 64.);*/
+                          if (abs_float x > 0.00001) {
+                            kerningMap :=
+                              Draw.IntPairMap.add (Char.code c, Char.code c2) (x, 0.) !kerningMap
+                          }
+                        }
+                      )
+                      allCharacters;
                     chars :=
                       Draw.IntMap.add
                         unicode
@@ -125,12 +157,15 @@ let loadFont ::fontSize ::fontPath id::(_: int) => {
                         !chars;
                     let allData =
                       getData (getImageData context !prevX !prevY bboxwidth bboxheight);
-                    for baIndex in 0 to ((Array.length allData - 1) / 4) {
-                      Draw.Bigarray.unsafe_set bigarrayTextData (4 * baIndex) 255;
-                      Draw.Bigarray.unsafe_set bigarrayTextData (4 * baIndex + 1) 255;
-                      Draw.Bigarray.unsafe_set bigarrayTextData (4 * baIndex + 2) 255;
-                      Draw.Bigarray.unsafe_set
-                        bigarrayTextData (4 * baIndex + 3) allData.(baIndex + 3)
+                    for y in 0 to (bboxheight - 1) {
+                      for x in 0 to (bboxwidth - 1) {
+                        let level = allData.(4 * (y * bboxwidth + x) + 3);
+                        let baIndex = (y + !prevY) * texLength + (x + !prevX);
+                        Draw.Bigarray.unsafe_set bigarrayTextData (4 * baIndex) 255;
+                        Draw.Bigarray.unsafe_set bigarrayTextData (4 * baIndex + 1) 255;
+                        Draw.Bigarray.unsafe_set bigarrayTextData (4 * baIndex + 2) 255;
+                        Draw.Bigarray.unsafe_set bigarrayTextData (4 * baIndex + 3) level
+                      }
                     };
                     prevX := !prevX + bboxwidth + 10;
                     nextY := max !nextY (!prevY + bboxheight) + 10
@@ -180,6 +215,8 @@ let loadFont ::fontSize ::fontPath id::(_: int) => {
               maxHeight: float_of_int !maxHeight,
               maxWidth: float_of_int !maxWidth
             }
+        } else {
+          Js.log err
         }
         /*Array.iter
           (

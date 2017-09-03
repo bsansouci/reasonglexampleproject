@@ -4,7 +4,7 @@
 
  */
 let worldScale = 2;
-
+module FastHelpers = FastHelpersNative;
 module Constants = ReasonglInterface.Constants;
 
 module Gl: ReasonglInterface.Gl.t = Reasongl.Gl;
@@ -666,51 +666,28 @@ let generateRectContext outContext::(outContext: option Node.context)=? (r, g, b
   }
 };
 
-/* "What is going on here" you may ask.
-   Well we kinda sorta profiled the app and noticed that ba_caml_XYZ was called a lot.
-   This is an attempt at reducing the cost of those calls. We implemented our own C blit (which is
-   just memcpy) and a little helper which will update a field from the Bigarray in one shot.
-   It'll just do arr[i] = arr[i] * mul + add; which turns out to be cheaper than doing a get and a
-   set because Bigarray has to acquire the global lock for some reason. Here we don't care because
-   we're not doing any threading (thank god).
-
-
-            Ben - August 28th 2017
-      */
-/*external unsafe_update_float32 :
-  Bigarray.t float Bigarray.float32_elt => int => mul::float => add::float => unit =
-  "unsafe_update_float32" [@@noalloc];*/
-let unsafe_update_float32:
-  Bigarray.t float Bigarray.float32_elt => int => mul::float => add::float => unit = [%bs.raw
-  {|function(arr, i, mul, add){
-      arr[i] = ~~(arr[i] * mul + add);
-    }|}
-];
-
-let once = ref 0;
-
 let drawRectImmediate (x: float) (y: float) (width: float) (height: float) color => {
   let {Node.allGLData: {vertexArray, elementArray, count, textureBuffer}} as data =
     generateRectContext color;
   let o = 0;
   let offset = o;
-  unsafe_update_float32 vertexArray offset mul::width add::0.;
-  unsafe_update_float32 vertexArray (offset + 1) mul::height add::0.;
+  FastHelpers.unsafe_update_float32 vertexArray offset mul::width add::0.;
+  FastHelpers.unsafe_update_float32 vertexArray (offset + 1) mul::height add::0.;
 
   /** */
   let offset = o + vertexSize;
-  unsafe_update_float32 vertexArray offset mul::1. add::0.;
-  unsafe_update_float32 vertexArray (offset + 1) mul::height add::0.;
+  FastHelpers.unsafe_update_float32 vertexArray offset mul::1. add::0.;
+  FastHelpers.unsafe_update_float32 vertexArray (offset + 1) mul::height add::0.;
 
   /** */
   let offset = o + 2 * vertexSize;
-  unsafe_update_float32 vertexArray offset mul::width add::0.;
-  unsafe_update_float32 vertexArray (offset + 1) mul::1. add::0.;
+  FastHelpers.unsafe_update_float32 vertexArray offset mul::width add::0.;
+  FastHelpers.unsafe_update_float32 vertexArray (offset + 1) mul::1. add::0.;
 
   /** */
   let offset = o + 3 * vertexSize;
-  unsafe_update_float32 vertexArray offset mul::1. add::0.;
-  unsafe_update_float32 vertexArray (offset + 1) mul::1. add::0.;
+  FastHelpers.unsafe_update_float32 vertexArray offset mul::1. add::0.;
+  FastHelpers.unsafe_update_float32 vertexArray (offset + 1) mul::1. add::0.;
   drawGeometrySendData
     vertexBuffer::batch.vertexBufferObject
     elementBuffer::batch.elementBufferObject
@@ -835,8 +812,8 @@ let generateTextContext
               color;
             prevChar := Some code;
             offset := !offset +. advance
-          | exception Not_found => ()
-          /*failwith (Printf.sprintf "Couldn't find character %c in atlas :(" c)*/
+          | exception Not_found =>
+            failwith (Printf.sprintf "Couldn't find character '%c' in atlas :(" c)
           }
         }
       )
@@ -894,11 +871,6 @@ let drawCircleImmediate x y ::radius color::(r, g, b, a) => {
     let degInGrad = float_of_int i *. deg2grad *. coef;
     circle_vertex := [cos degInGrad *. radius, sin degInGrad *. radius, ...!circle_vertex]
   };
-  if (!once === 0) {
-    Js.log (Gl.Bigarray.of_array Gl.Bigarray.Float32 (Array.of_list !circle_vertex));
-    once := !once + 1
-  };
-  
   Gl.bindBuffer ::context target::Constants.array_buffer buffer::vertexBufferObject;
   Gl.bufferData
     ::context
@@ -942,7 +914,7 @@ let drawCircleImmediate x y ::radius color::(r, g, b, a) => {
     v4::pixelScale;
   Gl.uniform1i ::context location::uSampler val::0;
   Gl.bindTexture ::context target::RGLConstants.texture_2d texture::nullTex;
-  Gl.drawArrays ::context mode::Constants.triangle_fan first::0 count::numberOfVertices;
+  Gl.drawArrays ::context mode::Constants.triangle_fan first::0 count::numberOfVertices
 };
 
 /* Commented out because not used. */
@@ -1035,8 +1007,7 @@ module Layout = {
 };
 
 /* Helper to get number of CPU cycles. I was told it's profiling 101... */
-external caml_rdtsc : unit => int = "caml_rdtsc";
-
+/*external caml_rdtsc : unit => int = "caml_rdtsc";*/
 let rec traverseAndDraw ::indentation=0 root left top =>
   Layout.(
     if root.context.visible {
@@ -1093,23 +1064,23 @@ let rec traverseAndDraw ::indentation=0 root left top =>
       for i in 0 to (valen / (vertexSize * 4) - 1) {
         let o = prevVertexPtr + i * vertexSize * 4;
         let offset = o;
-        unsafe_update_float32 va offset mul::width add::scaledLeft;
-        unsafe_update_float32 va (offset + 1) mul::height add::scaledTop;
+        FastHelpers.unsafe_update_float32 va offset mul::width add::scaledLeft;
+        FastHelpers.unsafe_update_float32 va (offset + 1) mul::height add::scaledTop;
 
         /** */
         let offset = o + vertexSize;
-        unsafe_update_float32 va offset mul::1. add::scaledLeft;
-        unsafe_update_float32 va (offset + 1) mul::height add::scaledTop;
+        FastHelpers.unsafe_update_float32 va offset mul::1. add::scaledLeft;
+        FastHelpers.unsafe_update_float32 va (offset + 1) mul::height add::scaledTop;
 
         /** */
         let offset = o + 2 * vertexSize;
-        unsafe_update_float32 va offset mul::width add::scaledLeft;
-        unsafe_update_float32 va (offset + 1) mul::1. add::scaledTop;
+        FastHelpers.unsafe_update_float32 va offset mul::width add::scaledLeft;
+        FastHelpers.unsafe_update_float32 va (offset + 1) mul::1. add::scaledTop;
 
         /** */
         let offset = o + 3 * vertexSize;
-        unsafe_update_float32 va offset mul::1. add::scaledLeft;
-        unsafe_update_float32 va (offset + 1) mul::1. add::scaledTop
+        FastHelpers.unsafe_update_float32 va offset mul::1. add::scaledLeft;
+        FastHelpers.unsafe_update_float32 va (offset + 1) mul::1. add::scaledTop
       };
       /*print_endline @@
         String.make indentation ' ' ^

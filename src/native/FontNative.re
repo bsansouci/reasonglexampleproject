@@ -84,6 +84,7 @@ let loadFont ::fontSize ::fontPath ::id => {
         let glyphMetrics = Ftlow.get_glyph_metrics face.cont;
         let bbox = Ftlow.glyph_get_bbox face.cont;
         maxHeight := max !maxHeight ((bbox.ymax - bbox.ymin) / 64);
+        /*print_endline @@ "(bbox.ymax - bbox.ymin) / 64: " ^ (string_of_int @@ (bbox.ymax - bbox.ymin) / 64);*/
         maxWidth := max !maxWidth ((bbox.xmax - bbox.xmin) / 64);
         let bitmapInfo = Ftlow.get_bitmap_info face.cont;
         if (!prevX + bitmapInfo.bitmap_width >= texLength) {
