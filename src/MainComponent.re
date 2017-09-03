@@ -6,54 +6,6 @@ module Load (Font: FontType.t) => {
   let font7 = Font.loadFont fontSize::7. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0;
   let font48 = Font.loadFont fontSize::48. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0;
   let font38 = Font.loadFont fontSize::38. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0;
-  /*type kindT =
-      | Text
-      | Rect;
-
-    type viewType = {
-      style: Layout.cssStyle,
-      children: list viewType,
-      kind: kindT,
-      color: (float, float, float, float),
-      text: string
-    };*/
-  /*let globalRoot = ref None;*/
-  /*let rec createHierarchy root => {
-      let context =
-        switch root.kind {
-        | Text => Draw.generateTextContext root.text Draw.white font7
-        | Rect => Draw.generateRectContext root.color
-        };
-      Layout.createNode
-        withChildren::(Array.of_list (List.map createHierarchy root.children))
-        andStyle::root.style
-        context
-    };
-    */
-  /* For anyone looking at this code, this does NOT handle tree differences after the first
-     frame.
-     Please implement it for me.
-              Ben - August 27th 2017
-     */
-  /*let rec doTheRenderThing (root: viewType) node::(node: option Layout.node)=? () =>
-      switch node {
-      | None => globalRoot := Some (createHierarchy root)
-      | Some node =>
-        if (node.Layout.style != root.style) {
-          node.Layout.style = root.style
-        };
-        List.iteri (fun i c => doTheRenderThing c node::node.Layout.children.(i) ()) root.children
-      /*if (node.context != root.context) {
-          node.context = root.context
-        };*/
-      /*node.children = root.children*/
-      };
-
-    let doTheRenderThing root => {
-      let node = !globalRoot;
-      doTheRenderThing root ::?node ()
-    };
-    */
 
   /** We need to have default style be a function because each node have mutable style. If we just
       used DefaultStyle we'd be mutating the same shared one! */
@@ -83,10 +35,7 @@ module Load (Font: FontType.t) => {
           andMeasure::(
             fun _node _width _measureModeWidth _height _measureModeHeight =>
               switch !font {
-              | None => {
-                  Layout.width: context.textInfo.width /. Draw.pixelScale,
-                  height: _height
-                }
+              | None => {Layout.width: context.textInfo.width /. Draw.pixelScale, height: _height}
               | Some {maxHeight} => {
                   Layout.width: context.textInfo.width /. Draw.pixelScale,
                   height: maxHeight /. Draw.pixelScale
@@ -101,12 +50,7 @@ module Load (Font: FontType.t) => {
 
   /** */
   let defaultColor = (0.6, 0.6, 0.9, 1.);
-  let colors = [|
-    (1., 1., 0.4, 1.),
-    (1., 204. /. 255., 0., 1.),
-    (1., 0.6, 0., 1.),
-    (1., 0., 0., 1.)
-  |];
+  let colors = [|(1., 1., 0.4, 1.), (1., 0.8, 0., 1.), (1., 0.6, 0., 1.), (1., 0., 0., 1.)|];
 
   /** */
   let fonts = [|

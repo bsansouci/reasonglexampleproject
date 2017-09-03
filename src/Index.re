@@ -5,9 +5,9 @@ module Load (Font: FontType.t) => {
   module Font = Font;
   module MainComponent = MainComponent.Load Font;
   Random.init 0;
-  let font12 = Font.loadFont fontSize::12. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0;
+  /*let font12 = Font.loadFont fontSize::12. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0;*/
   let lastCoupleOfFrames = ref [];
-  let fpsTextData =
+  /*let fpsTextData =
     Draw.drawTextImmediate
       12.
       20.
@@ -22,7 +22,7 @@ module Load (Font: FontType.t) => {
         )
       )
       Draw.black
-      font12;
+      font12;*/
   external magicalPoneys : 'a => 'b = "%identity";
   let render time => {
     /* Remember to clear the clear at each tick */
@@ -52,9 +52,9 @@ module Load (Font: FontType.t) => {
       int_of_float (
         List.fold_left (fun acc v => v < acc ? v : acc) 60. !lastCoupleOfFrames +. 0.5
       );
-    ignore @@
+    /*ignore @@
     Draw.drawTextImmediate
-      12. 20. ("fps: " ^ string_of_int fpscount) outContext::fpsTextData Draw.black font12
+      12. 20. ("fps: " ^ string_of_int fpscount) outContext::fpsTextData Draw.black font12*/
     /** @Hack For hotreloading. We get the previous module's state and set it on the new module
         loaded. Also relies on mutation! But shrug. */
     /*switch !Hotreloader.p {

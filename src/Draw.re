@@ -683,9 +683,11 @@ let generateRectContext outContext::(outContext: option Node.context)=? (r, g, b
 let unsafe_update_float32:
   Bigarray.t float Bigarray.float32_elt => int => mul::float => add::float => unit = [%bs.raw
   {|function(arr, i, mul, add){
-      arr[i] = arr[i] * mul + add;
+      arr[i] = ~~(arr[i] * mul + add);
     }|}
 ];
+
+let once = ref 0;
 
 let drawRectImmediate (x: float) (y: float) (width: float) (height: float) color => {
   let {Node.allGLData: {vertexArray, elementArray, count, textureBuffer}} as data =
@@ -887,11 +889,16 @@ let drawCircleImmediate x y ::radius color::(r, g, b, a) => {
   let circle_vertex = ref [];
   let numberOfVertices = 100;
   let coef = 360. /. float_of_int numberOfVertices;
-  for i in 0 to numberOfVertices {
+  for i in 0 to (numberOfVertices - 1) {
     let deg2grad = 3.14159 /. 180.;
     let degInGrad = float_of_int i *. deg2grad *. coef;
     circle_vertex := [cos degInGrad *. radius, sin degInGrad *. radius, ...!circle_vertex]
   };
+  if (!once === 0) {
+    Js.log (Gl.Bigarray.of_array Gl.Bigarray.Float32 (Array.of_list !circle_vertex));
+    once := !once + 1
+  };
+  
   Gl.bindBuffer ::context target::Constants.array_buffer buffer::vertexBufferObject;
   Gl.bufferData
     ::context
@@ -935,7 +942,7 @@ let drawCircleImmediate x y ::radius color::(r, g, b, a) => {
     v4::pixelScale;
   Gl.uniform1i ::context location::uSampler val::0;
   Gl.bindTexture ::context target::RGLConstants.texture_2d texture::nullTex;
-  Gl.drawArrays ::context mode::Constants.triangle_fan first::0 count::numberOfVertices
+  Gl.drawArrays ::context mode::Constants.triangle_fan first::0 count::numberOfVertices;
 };
 
 /* Commented out because not used. */

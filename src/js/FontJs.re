@@ -135,7 +135,6 @@ let loadFont ::fontSize ::fontPath id::(_: int) => {
                     prevX := !prevX + bboxwidth + 10;
                     nextY := max !nextY (!prevY + bboxheight) + 10
                   }
-                | _ => Js.log "Skipping"
                 }
               }
             )
