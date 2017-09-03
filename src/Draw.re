@@ -9,6 +9,8 @@ module Constants = ReasonglInterface.Constants;
 
 module Gl: ReasonglInterface.Gl.t = Reasongl.Gl;
 
+module Bigarray = Gl.Bigarray;
+
 module Events = Gl.Events;
 
 module IntMap =
@@ -40,7 +42,7 @@ type glyphInfoT = {
   advance: float
 };
 
-type fontT = {
+type _fontT = {
   chars: IntMap.t glyphInfoT,
   kerning: IntPairMap.t (float, float),
   textureBuffer: Gl.textureT,
@@ -49,6 +51,8 @@ type fontT = {
   maxHeight: float,
   maxWidth: float
 };
+
+type fontT = ref (option _fontT);
 
 
 /**
@@ -359,8 +363,8 @@ let resizeWindow () => {
 let vertexSize = 8;
 
 type batchT = {
-  vertexArray: Bigarray.Array1.t float Bigarray.float32_elt Bigarray.c_layout,
-  elementArray: Bigarray.Array1.t int Bigarray.int16_unsigned_elt Bigarray.c_layout,
+  vertexArray: Bigarray.t float Bigarray.float32_elt,
+  elementArray: Bigarray.t int Bigarray.int16_unsigned_elt,
   vertexBufferObject: Gl.bufferT,
   elementBufferObject: Gl.bufferT,
   mutable vertexPtr: int,
@@ -371,9 +375,8 @@ type batchT = {
 let circularBufferSize = 10000 * 6;
 
 let batch = {
-  vertexArray:
-    Bigarray.Array1.create Bigarray.Float32 Bigarray.C_layout (circularBufferSize * vertexSize),
-  elementArray: Bigarray.Array1.create Bigarray.Int16_unsigned Bigarray.C_layout circularBufferSize,
+  vertexArray: Bigarray.create Bigarray.Float32 (circularBufferSize * vertexSize),
+  elementArray: Bigarray.create Bigarray.Uint16 circularBufferSize,
   vertexBufferObject: Gl.createBuffer context,
   elementBufferObject: Gl.createBuffer context,
   vertexPtr: 0,
@@ -519,23 +522,17 @@ let drawGeometrySendData
     Gl.drawElements
       ::context mode::Constants.triangles ::count type_::RGLConstants.unsigned_short offset::0
   };*/
-external magicalRainbow1 : Bigarray.Array1.t float Bigarray.float32_elt Bigarray.c_layout =>
-                           Gl.Bigarray.t float Gl.Bigarray.float32_elt = "%identity";
+let unsafe_set = Bigarray.unsafe_set;
 
-external magicalRainbow2 : Bigarray.Array1.t int Bigarray.int16_unsigned_elt Bigarray.c_layout =>
-                           Gl.Bigarray.t int Gl.Bigarray.int16_unsigned_elt = "%identity";
-
-let unsafe_set = Bigarray.Array1.unsafe_set;
-
-let unsafe_get = Bigarray.Array1.unsafe_get;
+let unsafe_get = Bigarray.unsafe_get;
 
 let flushGlobalBatch () =>
   if (batch.elementPtr > 0) {
     drawGeometrySendData
       vertexBuffer::batch.vertexBufferObject
       elementBuffer::batch.elementBufferObject
-      vertexArray::(magicalRainbow1 @@ Bigarray.Array1.sub batch.vertexArray 0 batch.vertexPtr)
-      elementArray::(magicalRainbow2 @@ Bigarray.Array1.sub batch.elementArray 0 batch.elementPtr)
+      vertexArray::(Bigarray.sub batch.vertexArray 0 batch.vertexPtr)
+      elementArray::(Bigarray.sub batch.elementArray 0 batch.elementPtr)
       count::batch.elementPtr
       textureBuffer::batch.currTex
       posVecData::(0., 0.)
@@ -563,8 +560,8 @@ let maybeFlushBatch ::textureBuffer ::el ::vert =>
 
 type vertexDataT = {
   mutable scalable: bool,
-  mutable vertexArray: Bigarray.Array1.t float Bigarray.float32_elt Bigarray.c_layout,
-  mutable elementArray: Bigarray.Array1.t int Bigarray.int16_unsigned_elt Bigarray.c_layout,
+  mutable vertexArray: Bigarray.t float Bigarray.float32_elt,
+  mutable elementArray: Bigarray.t int Bigarray.int16_unsigned_elt,
   mutable count: int,
   mutable textureBuffer: Gl.textureT
 };
@@ -592,8 +589,8 @@ module Node = {
     textInfo: {width: 0.},
     allGLData: {
       scalable: false,
-      vertexArray: Bigarray.Array1.create Bigarray.Float32 Bigarray.C_layout 0,
-      elementArray: Bigarray.Array1.create Bigarray.Int16_unsigned Bigarray.C_layout 0,
+      vertexArray: Bigarray.create Bigarray.Float32 0,
+      elementArray: Bigarray.create Bigarray.Uint16 0,
       count: 0,
       textureBuffer: nullTex
     }
@@ -605,8 +602,8 @@ let generateRectContext outContext::(outContext: option Node.context)=? (r, g, b
   let (vertexArray, elementArray) =
     switch outContext {
     | None => (
-        Bigarray.Array1.create Bigarray.Float32 Bigarray.C_layout (4 * vertexSize),
-        Bigarray.Array1.create Bigarray.Int16_unsigned Bigarray.C_layout 6
+        Bigarray.create Bigarray.Float32 (4 * vertexSize),
+        Bigarray.create Bigarray.Uint16 6
       )
     | Some outContext =>
       assert (outContext.Node.allGLData.count === 6);
@@ -680,22 +677,15 @@ let generateRectContext outContext::(outContext: option Node.context)=? (r, g, b
 
             Ben - August 28th 2017
       */
-external unsafe_blit : Bigarray.Array1.t 'a 'b 'c =>
-                       Bigarray.Array1.t 'a 'b 'c =>
-                       offset::int =>
-                       numOfBytes::int =>
-                       unit = "unsafe_blit" [@@noalloc];
-
-external unsafe_update_float32 : Bigarray.Array1.t float Bigarray.float32_elt 'c =>
-                                 int =>
-                                 mul::float =>
-                                 add::float =>
-                                 unit = "unsafe_update_float32" [@@noalloc];
-
-external unsafe_update_uint16 : Bigarray.Array1.t int Bigarray.int16_unsigned_elt 'c =>
-                                int =>
-                                int =>
-                                unit = "unsafe_update_uint16" [@@noalloc];
+/*external unsafe_update_float32 :
+  Bigarray.t float Bigarray.float32_elt => int => mul::float => add::float => unit =
+  "unsafe_update_float32" [@@noalloc];*/
+let unsafe_update_float32:
+  Bigarray.t float Bigarray.float32_elt => int => mul::float => add::float => unit = [%bs.raw
+  {|function(arr, i, mul, add){
+      arr[i] = arr[i] * mul + add;
+    }|}
+];
 
 let drawRectImmediate (x: float) (y: float) (width: float) (height: float) color => {
   let {Node.allGLData: {vertexArray, elementArray, count, textureBuffer}} as data =
@@ -722,8 +712,8 @@ let drawRectImmediate (x: float) (y: float) (width: float) (height: float) color
   drawGeometrySendData
     vertexBuffer::batch.vertexBufferObject
     elementBuffer::batch.elementBufferObject
-    vertexArray::(magicalRainbow1 vertexArray)
-    elementArray::(magicalRainbow2 elementArray)
+    ::vertexArray
+    ::elementArray
     ::count
     ::textureBuffer
     posVecData::(x, y)
@@ -735,141 +725,140 @@ let generateTextContext
     (s: string)
     color
     outContext::(outContext: option Node.context)=?
-    ({textureBuffer, textureWidth, textureHeight, chars, kerning, maxHeight}: fontT) => {
-  let (vertexArray, elementArray) =
-    switch outContext {
-    | None => (
-        Bigarray.Array1.create
-          Bigarray.Float32 Bigarray.C_layout (4 * String.length s * vertexSize),
-        Bigarray.Array1.create Bigarray.Int16_unsigned Bigarray.C_layout (6 * String.length s)
-      )
-    | Some {allGLData: {vertexArray, elementArray}} =>
-      if (Bigarray.Array1.dim elementArray >= 6 * String.length s) {
-        (vertexArray, elementArray)
-      } else {
-        (
-          Bigarray.Array1.create
-            Bigarray.Float32 Bigarray.C_layout (4 * String.length s * vertexSize),
-          Bigarray.Array1.create Bigarray.Int16_unsigned Bigarray.C_layout (6 * String.length s)
+    (font: fontT) =>
+  switch !font {
+  | None => Node.nullContext
+  | Some {textureBuffer, textureWidth, textureHeight, chars, kerning, maxHeight} =>
+    let (vertexArray, elementArray) =
+      switch outContext {
+      | None => (
+          Bigarray.create Bigarray.Float32 (4 * String.length s * vertexSize),
+          Bigarray.create Bigarray.Uint16 (6 * String.length s)
         )
-      }
-    };
-  let vertexPtr = ref 0;
-  let elementPtr = ref 0;
-  let addRectToBatch
-      (x: float)
-      (y: float)
-      (width: float)
-      (height: float)
-      (texX: float)
-      (texY: float)
-      (texW: float)
-      (texH: float)
-      (r, g, b, a)
-      (textureBuffer: Gl.textureT) => {
-    let i = !vertexPtr;
-    unsafe_set vertexArray (i + 0) (x +. width);
-    unsafe_set vertexArray (i + 1) (y +. height);
-    unsafe_set vertexArray (i + 2) r;
-    unsafe_set vertexArray (i + 3) g;
-    unsafe_set vertexArray (i + 4) b;
-    unsafe_set vertexArray (i + 5) a;
-    unsafe_set vertexArray (i + 6) (texX +. texW);
-    unsafe_set vertexArray (i + 7) (texY +. texH);
-    unsafe_set vertexArray (i + 8) x;
-    unsafe_set vertexArray (i + 9) (y +. height);
-    unsafe_set vertexArray (i + 10) r;
-    unsafe_set vertexArray (i + 11) g;
-    unsafe_set vertexArray (i + 12) b;
-    unsafe_set vertexArray (i + 13) a;
-    unsafe_set vertexArray (i + 14) texX;
-    unsafe_set vertexArray (i + 15) (texY +. texH);
-    unsafe_set vertexArray (i + 16) (x +. width);
-    unsafe_set vertexArray (i + 17) y;
-    unsafe_set vertexArray (i + 18) r;
-    unsafe_set vertexArray (i + 19) g;
-    unsafe_set vertexArray (i + 20) b;
-    unsafe_set vertexArray (i + 21) a;
-    unsafe_set vertexArray (i + 22) (texX +. texW);
-    unsafe_set vertexArray (i + 23) texY;
-    unsafe_set vertexArray (i + 24) x;
-    unsafe_set vertexArray (i + 25) y;
-    unsafe_set vertexArray (i + 26) r;
-    unsafe_set vertexArray (i + 27) g;
-    unsafe_set vertexArray (i + 28) b;
-    unsafe_set vertexArray (i + 29) a;
-    unsafe_set vertexArray (i + 30) texX;
-    unsafe_set vertexArray (i + 31) texY;
-    let ii = i / vertexSize;
-    let j = !elementPtr;
-    let elementArrayToMutate = elementArray;
-    unsafe_set elementArrayToMutate (j + 0) ii;
-    unsafe_set elementArrayToMutate (j + 1) (ii + 1);
-    unsafe_set elementArrayToMutate (j + 2) (ii + 2);
-    unsafe_set elementArrayToMutate (j + 3) (ii + 1);
-    unsafe_set elementArrayToMutate (j + 4) (ii + 2);
-    unsafe_set elementArrayToMutate (j + 5) (ii + 3);
-    vertexPtr := i + 4 * vertexSize;
-    elementPtr := j + 6
-  };
-  let offset = ref 0.;
-  let prevChar = ref None;
-  /* Made up ratio to make text look nicer within things. */
-  let randomTweak = maxHeight /. 10.;
-  String.iter
-    (
-      fun c => {
-        let code = Char.code c;
-        switch (IntMap.find code chars) {
-        | {width, height, atlasX, atlasY, bearingX, bearingY, advance} =>
-          let (kerningOffsetX, kerningOffsetY) =
-            switch !prevChar {
-            | None => (0., 0.)
-            | Some c =>
-              switch (IntPairMap.find (c, code) kerning) {
-              | v => v
-              | exception Not_found => (0., 0.)
-              }
-            };
-          addRectToBatch
-            (!offset +. bearingX +. kerningOffsetX)
-            (-. bearingY -. kerningOffsetY +. maxHeight -. randomTweak)
-            width
-            height
-            (atlasX /. textureWidth)
-            ((atlasY +. 1.) /. textureHeight)
-            (width /. textureWidth)
-            (height /. textureHeight)
-            color
-            textureBuffer;
-          prevChar := Some code;
-          offset := !offset +. advance
-        | exception Not_found =>
-          failwith (Printf.sprintf "Couldn't find character %c in atlas :(" c)
+      | Some {allGLData: {vertexArray, elementArray}} =>
+        if (Bigarray.dim elementArray >= 6 * String.length s) {
+          (vertexArray, elementArray)
+        } else {
+          (
+            Bigarray.create Bigarray.Float32 (4 * String.length s * vertexSize),
+            Bigarray.create Bigarray.Uint16 (6 * String.length s)
+          )
         }
+      };
+    let vertexPtr = ref 0;
+    let elementPtr = ref 0;
+    let addRectToBatch
+        (x: float)
+        (y: float)
+        (width: float)
+        (height: float)
+        (texX: float)
+        (texY: float)
+        (texW: float)
+        (texH: float)
+        (r, g, b, a) => {
+      let i = !vertexPtr;
+      unsafe_set vertexArray (i + 0) (x +. width);
+      unsafe_set vertexArray (i + 1) (y +. height);
+      unsafe_set vertexArray (i + 2) r;
+      unsafe_set vertexArray (i + 3) g;
+      unsafe_set vertexArray (i + 4) b;
+      unsafe_set vertexArray (i + 5) a;
+      unsafe_set vertexArray (i + 6) (texX +. texW);
+      unsafe_set vertexArray (i + 7) (texY +. texH);
+      unsafe_set vertexArray (i + 8) x;
+      unsafe_set vertexArray (i + 9) (y +. height);
+      unsafe_set vertexArray (i + 10) r;
+      unsafe_set vertexArray (i + 11) g;
+      unsafe_set vertexArray (i + 12) b;
+      unsafe_set vertexArray (i + 13) a;
+      unsafe_set vertexArray (i + 14) texX;
+      unsafe_set vertexArray (i + 15) (texY +. texH);
+      unsafe_set vertexArray (i + 16) (x +. width);
+      unsafe_set vertexArray (i + 17) y;
+      unsafe_set vertexArray (i + 18) r;
+      unsafe_set vertexArray (i + 19) g;
+      unsafe_set vertexArray (i + 20) b;
+      unsafe_set vertexArray (i + 21) a;
+      unsafe_set vertexArray (i + 22) (texX +. texW);
+      unsafe_set vertexArray (i + 23) texY;
+      unsafe_set vertexArray (i + 24) x;
+      unsafe_set vertexArray (i + 25) y;
+      unsafe_set vertexArray (i + 26) r;
+      unsafe_set vertexArray (i + 27) g;
+      unsafe_set vertexArray (i + 28) b;
+      unsafe_set vertexArray (i + 29) a;
+      unsafe_set vertexArray (i + 30) texX;
+      unsafe_set vertexArray (i + 31) texY;
+      let ii = i / vertexSize;
+      let j = !elementPtr;
+      let elementArrayToMutate = elementArray;
+      unsafe_set elementArrayToMutate (j + 0) ii;
+      unsafe_set elementArrayToMutate (j + 1) (ii + 1);
+      unsafe_set elementArrayToMutate (j + 2) (ii + 2);
+      unsafe_set elementArrayToMutate (j + 3) (ii + 1);
+      unsafe_set elementArrayToMutate (j + 4) (ii + 2);
+      unsafe_set elementArrayToMutate (j + 5) (ii + 3);
+      vertexPtr := i + 4 * vertexSize;
+      elementPtr := j + 6
+    };
+    let offset = ref 0.;
+    let prevChar = ref None;
+    /* @Hack Made up ratio to make text look nicer within things. Manual centering. */
+    let randomTweak = maxHeight *. 0.05;
+    String.iter
+      (
+        fun c => {
+          let code = Char.code c;
+          switch (IntMap.find code chars) {
+          | {width, height, atlasX, atlasY, bearingX, bearingY, advance} =>
+            let (kerningOffsetX, kerningOffsetY) =
+              switch !prevChar {
+              | None => (0., 0.)
+              | Some c =>
+                switch (IntPairMap.find (c, code) kerning) {
+                | v => v
+                | exception Not_found => (0., 0.)
+                }
+              };
+            addRectToBatch
+              (!offset +. bearingX +. kerningOffsetX)
+              (-. bearingY -. kerningOffsetY +. maxHeight -. randomTweak)
+              width
+              height
+              (atlasX /. textureWidth)
+              ((atlasY +. 1.) /. textureHeight)
+              (width /. textureWidth)
+              (height /. textureHeight)
+              color;
+            prevChar := Some code;
+            offset := !offset +. advance
+          | exception Not_found => ()
+          /*failwith (Printf.sprintf "Couldn't find character %c in atlas :(" c)*/
+          }
+        }
+      )
+      s;
+    switch outContext {
+    | None =>
+      Node.{
+        visible: true,
+        isDataSentToGPU: false,
+        textInfo: {width: !offset},
+        allGLData: {scalable: false, vertexArray, elementArray, count: !elementPtr, textureBuffer}
       }
-    )
-    s;
-  switch outContext {
-  | None =>
-    Node.{
-      visible: true,
-      isDataSentToGPU: false,
-      textInfo: {width: !offset},
-      allGLData: {scalable: false, vertexArray, elementArray, count: !elementPtr, textureBuffer}
+    | Some dataBag =>
+      dataBag.visible = true;
+      dataBag.isDataSentToGPU = false;
+      dataBag.textInfo.width = !offset;
+      dataBag.allGLData.scalable = false;
+      dataBag.allGLData.vertexArray = Bigarray.sub vertexArray 0 !vertexPtr;
+      dataBag.allGLData.elementArray = Bigarray.sub elementArray 0 !elementPtr;
+      dataBag.allGLData.count = !elementPtr;
+      dataBag.allGLData.textureBuffer = textureBuffer;
+      dataBag
     }
-  | Some dataBag =>
-    dataBag.visible = true;
-    dataBag.isDataSentToGPU = false;
-    dataBag.textInfo.width = !offset;
-    dataBag.allGLData.scalable = false;
-    dataBag.allGLData.vertexArray = Bigarray.Array1.sub vertexArray 0 !vertexPtr;
-    dataBag.allGLData.elementArray = Bigarray.Array1.sub elementArray 0 !elementPtr;
-    dataBag.allGLData.count = !elementPtr;
-    dataBag.allGLData.textureBuffer = textureBuffer;
-    dataBag
-  }
-};
+  };
 
 let drawTextImmediate
     (x: float)
@@ -883,8 +872,8 @@ let drawTextImmediate
   drawGeometrySendData
     vertexBuffer::batch.vertexBufferObject
     elementBuffer::batch.elementBufferObject
-    vertexArray::(magicalRainbow1 vertexArray)
-    elementArray::(magicalRainbow2 elementArray)
+    ::vertexArray
+    ::elementArray
     ::count
     ::textureBuffer
     posVecData::(x *. pixelScale, y *. pixelScale)
@@ -1057,8 +1046,10 @@ let rec traverseAndDraw ::indentation=0 root left top =>
         } else {
           (1., 1.)
         };
-      let valen = Bigarray.Array1.dim vertexArray;
-      let ealen = Bigarray.Array1.dim elementArray;
+      let valen = count * vertexSize;
+      let ealen = count;
+      /*let valen = Bigarray.dim vertexArray;
+        let ealen = Bigarray.dim elementArray;*/
       /*print_endline @@
         String.make indentation ' ' ^
         "0 Between prev and now: " ^ string_of_int (caml_rdtsc () - prev);
@@ -1078,12 +1069,12 @@ let rec traverseAndDraw ::indentation=0 root left top =>
       let prevElementPtr = batch.elementPtr;
 
       /** */
-      unsafe_blit vertexArray va prevVertexPtr 4;
+      Bigarray.unsafe_blit vertexArray va prevVertexPtr 4;
       /*Bigarray.Array1.blit vertexArray (Bigarray.Array1.sub va prevVertexPtr valen);*/
       batch.vertexPtr = batch.vertexPtr + valen;
 
       /** */
-      unsafe_blit elementArray ea prevElementPtr 2;
+      Bigarray.unsafe_blit elementArray ea prevElementPtr 2;
       /*Bigarray.Array1.blit elementArray (Bigarray.Array1.sub ea prevElementPtr ealen);*/
       batch.elementPtr = batch.elementPtr + ealen;
       /*print_endline @@
@@ -1122,12 +1113,12 @@ let rec traverseAndDraw ::indentation=0 root left top =>
       let offset = prevVertexPtr / vertexSize;
       for i in 0 to (ealen / 6 - 1) {
         let o = prevElementPtr + i * 6;
-        unsafe_update_uint16 ea (o + 0) offset;
-        unsafe_update_uint16 ea (o + 1) offset;
-        unsafe_update_uint16 ea (o + 2) offset;
-        unsafe_update_uint16 ea (o + 3) offset;
-        unsafe_update_uint16 ea (o + 4) offset;
-        unsafe_update_uint16 ea (o + 5) offset
+        Bigarray.set ea (o + 0) (Bigarray.get ea (o + 0) + offset);
+        Bigarray.set ea (o + 1) (Bigarray.get ea (o + 1) + offset);
+        Bigarray.set ea (o + 2) (Bigarray.get ea (o + 2) + offset);
+        Bigarray.set ea (o + 3) (Bigarray.get ea (o + 3) + offset);
+        Bigarray.set ea (o + 4) (Bigarray.get ea (o + 4) + offset);
+        Bigarray.set ea (o + 5) (Bigarray.get ea (o + 5) + offset)
       };
       /*print_endline @@
         String.make indentation ' ' ^

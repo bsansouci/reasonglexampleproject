@@ -12,7 +12,9 @@
   },
   "dependencies": {
     "ReasonglInterface": "bsansouci/reasongl-interface#bsb-support-new",
-    "ReasonglNative": "bsansouci/reasongl-native#bsb-support-new"
+    "ReasonglNative": "bsansouci/reasongl-native#bsb-support-new",
+    "ReasonglWeb": "bsansouci/reasongl-web#bsb-support-new",
+    "opentype.js": "^0.7.3"
   },
   "repository": {
     "type": "git",

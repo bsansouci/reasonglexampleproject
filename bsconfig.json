@@ -1,33 +1,45 @@
 {
   "name": "ReasonglExampleProject",
   "sources": [{
-    "dir": "src"
+    "dir": "src",
+    "subdirs": [{
+      "dir": "native",
+      "kind": ["native", "bytecode"],
+    }, {
+      "dir": "js",
+      "kind": "js",
+    }]
   }, {
     "dir": "vendor",
     "subdirs": [{
       "dir": "camlimages",
+      "kind": ["native", "bytecode"],
       "subdirs": {
         "dir": "src",
-      }
+        "kind": ["native", "bytecode"],
+      },
     }, {
       "dir": "ReLayout",
       "subdirs": {
         "dir": "src",
-        "files": ["FixedEncoding.re", "FloatEncoding.re", "HardCodedEncoding.re", "Layout.re", "LayoutPrint.re", "LayoutSupport.re", "LayoutTypes.re", "Spec.re"]
-      }
+        "files": ["FixedEncoding.re", "FloatEncoding.re", "HardCodedEncoding.re", "Layout.re", "LayoutPrint.re", "LayoutSupport.re", "LayoutTypes.re", "Spec.re"],
+      },
     }]
   }],
-  "warnings": "-40",
-  "bs-dependencies": ["ReasonglInterface", "ReasonglNative"],
+  "warnings": "-44+5-6-45",
+  "bs-dependencies": ["ReasonglInterface", "ReasonglNative", "ReasonglWeb"],
   "entries": [{
       "kind": "bytecode",
-      "main": "Index"
+      "main": "IndexNative"
     },
-
     {
       "kind": "native",
-      "main": "Index"
-    }
+      "main": "IndexNative"
+    },
+    {
+      "kind": "js",
+      "main": "IndexJs"
+    },
   ],
   "static_libraries": [
     "lib/bs/fun.o",

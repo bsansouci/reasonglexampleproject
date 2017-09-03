@@ -42,7 +42,7 @@ let unicode_of_latin s => Array.init (String.length s) @@ (fun i => Char.code s.
 
 let allCharactersEncoded = unicode_of_latin allCharacters;
 
-let loadFont ::fontSize=24. ::fontPath ::id => {
+let loadFont ::fontSize ::fontPath ::id => {
   if debug {
     prerr_endline (Printf.sprintf "Processing %s" fontPath);
     prerr_endline "opening font..."
@@ -165,13 +165,15 @@ let loadFont ::fontSize=24. ::fontPath ::id => {
     target::Draw.Constants.texture_2d
     pname::Draw.Constants.texture_wrap_t
     param::Draw.Constants.clamp_to_edge;
-  {
-    Draw.chars: !chars,
-    textureBuffer,
-    textureWidth: float_of_int texLength,
-    textureHeight: float_of_int texLength,
-    kerning: !kerningMap,
-    maxHeight: float_of_int !maxHeight,
-    maxWidth: float_of_int !maxWidth
-  }
+  ref (
+    Some {
+      Draw.chars: !chars,
+      textureBuffer,
+      textureWidth: float_of_int texLength,
+      textureHeight: float_of_int texLength,
+      kerning: !kerningMap,
+      maxHeight: float_of_int !maxHeight,
+      maxWidth: float_of_int !maxWidth
+    }
+  )
 };
