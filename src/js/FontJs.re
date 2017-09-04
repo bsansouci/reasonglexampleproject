@@ -62,9 +62,6 @@ external getPathBoundingBox : pathT => boundingBoxT = "getBoundingBox" [@@bs.sen
 
 let allCharacters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!@#$%^&*()_+1234567890-={}|:\"<>?[]\\;',./ ";
 
-/*let allCharacters = "AB";*/
-/*let unicode_of_latin s => Array.init (String.length s) @@ (fun i => Char.code s.[i]);*/
-/*let allCharactersEncoded = unicode_of_latin allCharacters;*/
 let loadFont ::fontSize ::fontPath id::(_: int) => {
   let prevX = ref 4;
   let prevY = ref 0;
@@ -106,27 +103,15 @@ let loadFont ::fontSize ::fontPath id::(_: int) => {
                   let path = getPath g !prevX (!prevY + ascender) fontSize;
                   let bbox = getPathBoundingBox path;
                   let bboxheight = ascender - descender;
-                  /*Js.log "---------------------";*/
-                  /*Js.log bboxheight;*/
-                  /*let bboxheight = bbox##y2 - bbox##y1;*/
-                  /*Js.log bboxheight;*/
-                  /*let bboxwidth = (g##xMax - g##xMin) * fontSize / scale;*/
                   let advanceWidth = g##advanceWidth * fontSize / scale;
                   let bboxwidth = bbox##x2 - bbox##x1;
                   let bboxwidth = bboxwidth + advanceWidth;
-                  /*let bboxheight = (g##yMax - g##yMin) * fontSize / scale;*/
-                  /*Js.log bboxheight;
-                    Js.log (ascender);
-                    Js.log (descender);*/
-                  /*let bboxwidth = bboxwidth === 0 ? 1 : bboxwidth;*/
                   if (bboxwidth !== 0 && bboxheight !== 0) {
                     maxHeight := max !maxHeight (bbox##y2 - bbox##y1);
                     maxWidth := max !maxWidth bboxwidth;
                     /* Draw shifted downwards by `qscender` because that draw function is from the
                        baseline */
                     drawPath path context;
-                    /*drawGlyph g context !prevX (!prevY + ascender) fontSize;*/
-                    /*let code = Ftlow.get_char_index face.cont c;*/
                     String.iter
                       (
                         fun c2 => {

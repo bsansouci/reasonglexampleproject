@@ -55,9 +55,9 @@ module Load (Font: FontType.t) => {
 
   /** */
   let fonts = [|
-    font7
-    /*Font.loadFont fontSize::24. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0*/
-    /*Font.loadFont fontSize::9. fontPath::"assets/fonts/Anonymous_Pro.ttf" id::0*/
+    font7,
+    /*Font.loadFont fontSize::24. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0,*/
+    /*Font.loadFont fontSize::9. fontPath::"assets/fonts/Anonymous_Pro.ttf" id::0,*/
     /*Font.loadFont fontSize::9. fontPath::"assets/fonts/DroidSansMono.ttf" id::0,*/
     /*Font.loadFont fontSize::24. fontPath::"assets/fonts/Anonymous_Pro.ttf" id::0,*/
     /*Font.loadFont fontSize::28. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0,*/
@@ -235,7 +235,10 @@ module Load (Font: FontType.t) => {
     };
     let render time =>
       if (not !loaded) {
-        if (!font7 !== None && !font48 !== None && !font38 !== None) {
+        if (
+          !font7 !== None &&
+          !font48 !== None && !font38 !== None && Array.fold_left (fun acc b => acc && !b !== None) true fonts
+        ) {
           let paddle =
             <View
               color=Draw.red

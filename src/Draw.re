@@ -5,8 +5,21 @@
  */
 let worldScale = 2;
 
-module FastHelpers = FastHelpersJs;
+module FastHelpers = FastHelpersNative;
 
+/*#if ocaml_version < (4, 02, 0)
+  module FastHelpers = FastHelpersJs;
+  #else*/
+/*[%const
+    if true {
+      module FastHelpers = FastHelpersNative;
+      ()
+    } else {
+      module FastHelpers = FastHelpersJs;
+      ()
+    }
+  ];*/
+/*#endif*/
 module Constants = ReasonglInterface.Constants;
 
 module Gl: ReasonglInterface.Gl.t = Reasongl.Gl;
@@ -1037,8 +1050,6 @@ module Layout = {
   let doLayoutNow root => Layout.layoutNode root Encoding.cssUndefined Encoding.cssUndefined Ltr;
 };
 
-let once = ref false;
-
 /* Helper to get number of CPU cycles. I was told it's profiling 101... */
 /*external caml_rdtsc : unit => int = "caml_rdtsc";*/
 let rec traverseAndDraw ::indentation=0 root left top =>
@@ -1061,10 +1072,6 @@ let rec traverseAndDraw ::indentation=0 root left top =>
         let ealen = count;*/
       let valen = Bigarray.dim vertexArray;
       let ealen = Bigarray.dim elementArray;
-      if (not !once) {
-        print_endline @@
-        Printf.sprintf "(%d, %d) vs (%d, %d)" valen ealen (count * vertexSize) count
-      };
       /*print_endline @@
         String.make indentation ' ' ^
         "0 Between prev and now: " ^ string_of_int (caml_rdtsc () - prev);
@@ -1095,12 +1102,10 @@ let rec traverseAndDraw ::indentation=0 root left top =>
 
       /** */
       Bigarray.unsafe_blit vertexArray va prevVertexPtr 4;
-      /*Bigarray.blit vertexArray (Bigarray.sub va prevVertexPtr valen);*/
       batch.vertexPtr = batch.vertexPtr + valen;
 
       /** */
       Bigarray.unsafe_blit elementArray ea prevElementPtr 2;
-      /*Bigarray.blit elementArray (Bigarray.sub ea prevElementPtr ealen);*/
       batch.elementPtr = batch.elementPtr + ealen;
       /*print_endline @@
         String.make indentation ' ' ^
@@ -1173,6 +1178,5 @@ let rec traverseAndDraw ::indentation=0 root left top =>
 /*Array.iter (fun child => traverseAndDraw child absoluteLeft absoluteTop) root.children*/
 let traverseAndDraw root left top => {
   traverseAndDraw root left top;
-  flushGlobalBatch ();
-  once := true
+  flushGlobalBatch ()
 };
