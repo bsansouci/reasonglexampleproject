@@ -27,6 +27,7 @@ module Load (Font: FontType.t) => {
       switch context {
       | None =>
         let context = Draw.generateTextContext text color font;
+        /*Js.log context;*/
         /*print_endline @@
           Printf.sprintf "width: %f, height: %f" context.textInfo.width font.maxHeight;*/
         Layout.createNode
@@ -54,7 +55,8 @@ module Load (Font: FontType.t) => {
 
   /** */
   let fonts = [|
-    Font.loadFont fontSize::7. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0
+    font7
+    /*Font.loadFont fontSize::24. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0*/
     /*Font.loadFont fontSize::9. fontPath::"assets/fonts/Anonymous_Pro.ttf" id::0*/
     /*Font.loadFont fontSize::9. fontPath::"assets/fonts/DroidSansMono.ttf" id::0,*/
     /*Font.loadFont fontSize::24. fontPath::"assets/fonts/Anonymous_Pro.ttf" id::0,*/
@@ -70,7 +72,11 @@ module Load (Font: FontType.t) => {
     Array.init
       totalTiles
       (
-        fun i => ("H", fonts.(i / 5 mod Array.length fonts), colors.(i / 5 mod Array.length colors))
+        fun i => (
+          "Hello",
+          fonts.(i / 5 mod Array.length fonts),
+          colors.(i / 5 mod Array.length colors)
+        )
       );
 
   /** */
@@ -126,81 +132,13 @@ module Load (Font: FontType.t) => {
           </View>
       )
       tiles;
-  let elementsNode =
+  /*let elementsNode =
     View.createElement
-      style::rootstyle color::defaultColor children::(Array.to_list (makeChildren ())) ();
+      style::rootstyle color::defaultColor children::(Array.to_list (makeChildren ())) ();*/
   let paddleWidth = 60.;
   let paddleSpeed = 9.;
-  let paddle =
-    <View
-      color=Draw.red
-      style=Layout.{
-              ...defaultStyle,
-              positionType: Absolute,
-              width: paddleWidth,
-              height: 9.,
-              top: windowHeight -. 15.,
-              left: windowWidth /. 2. -. paddleWidth /. 2.
-            }
-    />;
-  let timerNode =
-    <View
-      color=defaultColor
-      style=Layout.{
-              ...defaultStyle,
-              positionType: Absolute,
-              width: 65.,
-              height: 90.,
-              justifyContent: JustifyCenter,
-              alignItems: AlignCenter
-            }>
-      <Text text="3" color=(0.3, 0.9, 0.2, 1.) font=font48 />
-    </View>;
-  let loseNode =
-    <View
-      color=defaultColor
-      style=Layout.{
-              ...defaultStyle,
-              positionType: Absolute,
-              justifyContent: JustifySpaceBetween,
-              alignItems: AlignCenter,
-              paddingTop: 24.,
-              paddingLeft: 24.,
-              paddingRight: 24.,
-              paddingBottom: 12.
-            }>
-      <Text text="YOU LOSE </3" color=Draw.red font=font48 />
-      <View
-        style=Layout.{
-                ...defaultStyle,
-                justifyContent: JustifyCenter,
-                alignItems: AlignCenter,
-                paddingLeft: 12.,
-                paddingRight: 12.,
-                paddingBottom: 12.,
-                marginTop: 24.
-              }>
-        <Text text="restart" color=Draw.green font=font38 />
-      </View>
-    </View>;
-  loseNode.context.visible = false;
-  let winNode =
-    <View
-      color=defaultColor
-      style=Layout.{
-              ...defaultStyle,
-              positionType: Absolute,
-              justifyContent: JustifySpaceBetween,
-              alignItems: AlignCenter,
-              paddingTop: 24.,
-              paddingLeft: 24.,
-              paddingRight: 24.,
-              paddingBottom: 12.
-            }>
-      <Text text="YOU WIN <3" color=(0.8, 0.2, 0.8, 1.) font=font48 />
-    </View>;
-  winNode.context.visible = false;
-  let root = <View> elementsNode paddle timerNode loseNode winNode </View>;
+  let root = <View />;
+  let loaded = ref false;
   /*let lastFrameTime = ref 0.;*/
   /*let alarm =
     Gc.create_alarm (
@@ -216,6 +154,17 @@ module Load (Font: FontType.t) => {
   Draw.onWindowResize :=
     Some (
       fun () => {
+        let (elementsNode, paddle, timerNode, loseNode, winNode) =
+          switch root.children {
+          | [|elementsNode, paddle, timerNode, loseNode, winNode|] => (
+              elementsNode,
+              paddle,
+              timerNode,
+              loseNode,
+              winNode
+            )
+          | _ => assert false
+          };
         let width = float_of_int @@ Draw.getWindowWidth ();
         let height = float_of_int @@ Draw.getWindowHeight ();
         rootstyle.Layout.width = width -. 200.;
@@ -247,6 +196,7 @@ module Load (Font: FontType.t) => {
     mutable leftIsDown: bool,
     mutable rightIsDown: bool
   };
+  let fpsTextData = Draw.drawTextImmediate 12. 20. "" Draw.black font7;
   /*module M: Hotreloader.DYNAMIC_MODULE = {*/
   module M = {
     type stateT = {
@@ -283,267 +233,367 @@ module Load (Font: FontType.t) => {
       appState.mouseState.leftButton = newAppState.mouseState.leftButton;
       appState.mouseState.rightButton = newAppState.mouseState.rightButton
     };
-    let render time => {
-      /*lastFrameTime := time;*/
-
-      /** Remember to clear the screen at each tick */
-      Draw.clearScreen ();
-
-      /** */
-      let totalHidden = ref 0;
-      let i = ref 0;
-      Array.iter
-        (
-          fun c => {
-            if (not c.Layout.context.visible) {
-              totalHidden := !totalHidden + 1;
-              if (c.style.width > 0.) {
-                c.style.width = c.style.width -. 0.6;
-                c.style.marginLeft = c.style.marginLeft -. 1. > 0. ? c.style.marginLeft -. 1. : 0.;
-                c.style.marginRight =
-                  c.style.marginRight -. 1. > 0. ? c.style.marginRight -. 1. : 0.
-              };
-              switch c.children {
-              | [|textNode|] => textNode.style.width = 0.
-              | _ => assert false
-              }
-            } else if (
-              appState.gameover &&
-              !i <
-              int_of_float @@
-              (rootstyle.width -. rootstyle.paddingLeft -. rootstyle.paddingRight) /. (
-                c.layout.width +. c.style.marginRight +. c.style.marginLeft
-              )
-            ) {
-              c.style.height = c.style.height +. Random.float 4.0;
-              i := !i + 1
-            } else {
-              i := !i + 1
-            };
-            /* @Speed comment this out to get performance back... */
-            elementsNode.isDirty = true
-          }
-        )
-        elementsNode.children;
-
-      /** Timer */
-      if (appState.timer > 0.) {
-        /** timer countdown */
-        timerNode.style.left = windowWidth /. 2. -. 75. /. 2.;
-        timerNode.style.top = windowHeight /. 2. -. 155. /. 2.;
-        let text = Printf.sprintf "%d" (int_of_float (ceil @@ appState.timer /. 1000.));
-        switch timerNode.children {
-        | [|textNode|] =>
-          textNode.context = Draw.generateTextContext text (0.3, 0.9, 0.2, 1.) font48
-        | _ => assert false
-        };
-        root.isDirty = true
-      } else if
-        timerNode.context.visible {
-        timerNode.context.visible = false
-      };
-
-      /** Losing state */
-      if appState.gameover {
-        loseNode.style.left = windowWidth /. 2. -. loseNode.layout.width /. 2.;
-        loseNode.style.top = windowHeight /. 2. -. loseNode.layout.height /. 2.;
-        loseNode.context.visible = true;
-        loseNode.isDirty = true;
-
-        /** Static UI tree has benefits, like allowing pattern matching on it! */
-        switch loseNode.children {
-        | [|message, restartButton|] =>
-          let randX = Random.float 7. -. 3.;
-          let randY = Random.float 7. -. 3.;
-          message.style.left = randX;
-          message.style.top = randY;
-          message.isDirty = true;
-          let {x: mx, y: my} = appState.mouseState.pos;
-          let left = loseNode.style.left +. restartButton.layout.left;
-          let top = loseNode.style.top +. restartButton.layout.top;
-          let color =
-            if (
-              mx > left &&
-              mx < left +. restartButton.layout.width &&
-              my > top && my < top +. restartButton.layout.height
-            ) {
-              /* If the user clicks on the Restart button we reset the state of the game */
-              if appState.mouseState.leftButton.isClicked {
-                appState.gameover = false;
-                appState.timer = 3000.;
-                appState.ballPos.x = windowWidth /. 2. -. 10.;
-                appState.ballPos.y = windowHeight -. 50.;
-                appState.ballV.x = 2.;
-                appState.ballV.y = 2.;
-                loseNode.context.visible = false;
-                timerNode.context.visible = true;
-                elementsNode.children = makeChildren ();
-                winNode.context.visible = false;
-                (0.3, 0.5, 1., 1.)
-              } else {
-                (0.1, 0.4, 1., 1.)
-              }
-            } else {
-              (0.1, 0.3, 0.7, 1.)
-            };
-          restartButton.context = Draw.generateRectContext outContext::restartButton.context color;
-          restartButton.isDirty = true
-        | _ => assert false
-        };
-        root.isDirty = true
-      };
-
-      /** This will perform all of the Flexbox calculations and mutate the layouts to have left, top, width, height set. The positions are relative to the parent. */
-      Layout.doLayoutNow root;
-
-      /** This will traverse the layout tree and blit each item to the screen one by one. */
-      Draw.traverseAndDraw root 0. 0.;
-
-      /** Move ball */
-      let {x: ballX, y: ballY} = appState.ballPos;
-      let r = tileMargin *. 3.;
-
-      /** Immediate draw. */
-      Draw.drawCircleImmediate ballX ballY radius::r color::Draw.white;
-
-      /** Event handling and manipulation */
-      let {x: ballVX, y: ballVY} = appState.ballV;
-      let (nextX, nextY) =
-        if (appState.timer > 0.) {
-          appState.timer = appState.timer -. time;
-          (ballX, ballY)
-        } else {
-          (ballVX +. ballX, ballVY +. ballY)
-        };
-      if (appState.keyboard.leftIsDown && not appState.keyboard.rightIsDown) {
-        paddle.style.left = paddle.layout.left -. paddleSpeed;
-        root.isDirty = true
-      } else if (
-        appState.keyboard.rightIsDown && not appState.keyboard.leftIsDown
-      ) {
-        paddle.style.left = paddle.layout.left +. paddleSpeed;
-        root.isDirty = true
-      };
-      let (nextX, nextY) =
-        if (!totalHidden === totalTiles) {
-          winNode.context.visible = true;
-          winNode.style.left = windowWidth /. 2. -. winNode.layout.width /. 2.;
-          winNode.style.top = windowHeight /. 2. -. winNode.layout.height /. 2.;
-          (ballX, ballY)
-        } else {
-          (nextX, nextY)
-        };
-      if
-        Layout.(
-          nextX -. r < elementsNode.layout.left ||
-          nextX +. r > elementsNode.layout.left +. elementsNode.layout.width
-        ) {
-        appState.ballV.x = -. ballVX;
-        appState.ballV.y = ballVY
-      } else if (
-        nextY -. r < elementsNode.layout.top
-      ) {
-        appState.ballV.x = ballVX;
-        appState.ballV.y = -. ballVY
-      } else if (
-        nextY +. r > elementsNode.layout.top +. elementsNode.layout.height
-      ) {
-        appState.gameover = true
+    let render time =>
+      if (not !loaded) {
+        if (!font7 !== None && !font48 !== None && !font38 !== None) {
+          let paddle =
+            <View
+              color=Draw.red
+              style=Layout.{
+                      ...defaultStyle,
+                      positionType: Absolute,
+                      width: paddleWidth,
+                      height: 9.,
+                      top: windowHeight -. 15.,
+                      left: windowWidth /. 2. -. paddleWidth /. 2.
+                    }
+            />;
+          let timerNode =
+            <View
+              color=defaultColor
+              style=Layout.{
+                      ...defaultStyle,
+                      positionType: Absolute,
+                      width: 65.,
+                      height: 90.,
+                      justifyContent: JustifyCenter,
+                      alignItems: AlignCenter
+                    }>
+              <Text text="3" color=(0.3, 0.9, 0.2, 1.) font=font48 />
+            </View>;
+          let loseNode =
+            <View
+              color=defaultColor
+              style=Layout.{
+                      ...defaultStyle,
+                      positionType: Absolute,
+                      justifyContent: JustifySpaceBetween,
+                      alignItems: AlignCenter,
+                      paddingTop: 24.,
+                      paddingLeft: 24.,
+                      paddingRight: 24.,
+                      paddingBottom: 12.
+                    }>
+              <Text text="YOU LOSE </3" color=Draw.red font=font48 />
+              <View
+                style=Layout.{
+                        ...defaultStyle,
+                        justifyContent: JustifyCenter,
+                        alignItems: AlignCenter,
+                        paddingLeft: 12.,
+                        paddingRight: 12.,
+                        paddingBottom: 12.,
+                        marginTop: 24.
+                      }>
+                <Text text="restart" color=Draw.green font=font38 />
+              </View>
+            </View>;
+          loseNode.context.visible = false;
+          let winNode =
+            <View
+              color=defaultColor
+              style=Layout.{
+                      ...defaultStyle,
+                      positionType: Absolute,
+                      justifyContent: JustifySpaceBetween,
+                      alignItems: AlignCenter,
+                      paddingTop: 24.,
+                      paddingLeft: 24.,
+                      paddingRight: 24.,
+                      paddingBottom: 12.
+                    }>
+              <Text text="YOU WIN <3" color=(0.8, 0.2, 0.8, 1.) font=font48 />
+            </View>;
+          winNode.context.visible = false;
+          let elementsNode =
+            View.createElement
+              style::rootstyle color::defaultColor children::(Array.to_list (makeChildren ())) ();
+          root.children = [|elementsNode, paddle, timerNode, loseNode, winNode|];
+          root.childrenCount = 5;
+          root.isDirty = true;
+          loaded := true;
+          Layout.doLayoutNow root;
+          Draw.traverseAndDraw root 0. 0.
+        }
       } else {
-        let collided = ref false;
-        {
-
-          /** */
-          let {Layout.context: context, layout: {top, left, width, height}} = paddle;
-          if context.visible {
-            let topLeft = (left, top);
-            let topRight = (left +. width, top);
-            let bottomRight = (left +. width, top +. height);
-            let bottomLeft = (left, top +. height);
-            if (segmentIntersection (ballX -. r, ballY) (nextX, nextY) topRight bottomRight) {
-              collided := true;
-              appState.ballV.x = -. ballVX;
-              appState.ballV.y = ballVY
-            } else if (
-              segmentIntersection (ballX +. r, ballY) (nextX, nextY) topLeft bottomLeft
-            ) {
-              collided := true;
-              appState.ballV.x = -. ballVX;
-              appState.ballV.y = ballVY
-            } else if (
-              segmentIntersection (ballX, ballY -. r) (nextX, nextY) topLeft topRight
-            ) {
-              collided := true;
-              appState.ballV.x = ballVX;
-              appState.ballV.y = -. ballVY -. Random.float 0.5
-            } else if (
-              segmentIntersection (ballX, ballY +. r) (nextX, nextY) bottomLeft bottomRight
-            ) {
-              collided := true;
-              appState.ballV.x = ballVX;
-              appState.ballV.y = -. ballVY
-            }
-          }
-        };
+        /*lastFrameTime := time;*/
+        /** Remember to clear the screen at each tick */
+        Draw.clearScreen ();
+        let (elementsNode, paddle, timerNode, loseNode, winNode) =
+          switch root.children {
+          | [|elementsNode, paddle, timerNode, loseNode, winNode|] => (
+              elementsNode,
+              paddle,
+              timerNode,
+              loseNode,
+              winNode
+            )
+          | _ => assert false
+          };
 
         /** */
-        let parentLeft = elementsNode.layout.left;
-        let parentTop = elementsNode.layout.top;
+        let totalHidden = ref 0;
+        let i = ref 0;
         Array.iter
           (
-            fun curr => {
-              let {Layout.context: context, layout: {top, left, width, height}} = curr;
-              if context.visible {
-                let topLeft = (parentLeft +. left, parentTop +. top);
-                let topRight = (parentLeft +. left +. width, parentTop +. top);
-                let bottomRight = (parentLeft +. left +. width, parentTop +. top +. height);
-                let bottomLeft = (parentLeft +. left, parentTop +. top +. height);
-                if (segmentIntersection (ballX -. r, ballY) (nextX, nextY) topRight bottomRight) {
-                  collided := true;
-                  appState.ballV.x = -. ballVX;
-                  appState.ballV.y = ballVY;
-                  elementsNode.isDirty = true;
-                  context.visible = false
-                } else if (
-                  segmentIntersection (ballX +. r, ballY) (nextX, nextY) topLeft bottomLeft
-                ) {
-                  collided := true;
-                  appState.ballV.x = -. ballVX;
-                  appState.ballV.y = ballVY;
-                  elementsNode.isDirty = true;
-                  context.visible = false
-                } else if (
-                  segmentIntersection (ballX, ballY -. r) (nextX, nextY) topLeft topRight
-                ) {
-                  collided := true;
-                  appState.ballV.x = ballVX;
-                  appState.ballV.y = -. ballVY;
-                  elementsNode.isDirty = true;
-                  context.visible = false
-                } else if (
-                  segmentIntersection (ballX, ballY +. r) (nextX, nextY) bottomLeft bottomRight
-                ) {
-                  collided := true;
-                  appState.ballV.x = ballVX;
-                  appState.ballV.y = -. ballVY;
-                  elementsNode.isDirty = true;
-                  context.visible = false
+            fun c => {
+              if (not c.Layout.context.visible) {
+                totalHidden := !totalHidden + 1;
+                if (c.style.width > 0.) {
+                  c.style.width = c.style.width -. 0.6;
+                  c.style.marginLeft =
+                    c.style.marginLeft -. 1. > 0. ? c.style.marginLeft -. 1. : 0.;
+                  c.style.marginRight =
+                    c.style.marginRight -. 1. > 0. ? c.style.marginRight -. 1. : 0.
+                };
+                switch c.children {
+                | [|textNode|] => textNode.style.width = 0.
+                | _ => assert false
                 }
-              }
+              } else if (
+                appState.gameover &&
+                !i <
+                int_of_float @@
+                (rootstyle.width -. rootstyle.paddingLeft -. rootstyle.paddingRight) /. (
+                  c.layout.width +. c.style.marginRight +. c.style.marginLeft
+                )
+              ) {
+                c.style.height = c.style.height +. Random.float 4.0;
+                i := !i + 1
+              } else {
+                i := !i + 1
+              };
+              /* @Speed comment this out to get performance back... */
+              elementsNode.isDirty = true
             }
           )
           elementsNode.children;
-        if (not !collided) {
-          appState.ballPos.x = nextX;
-          appState.ballPos.y = nextY
+        /*if (!font7 !== None && ttt.Layout.context === Node.nullContext) {
+            ttt.Layout.context = Draw.generateTextContext "YOU WIN <3" Draw.black font7;
+          };*/
+
+        /** Timer */
+        if (appState.timer > 0.) {
+          /** timer countdown */
+          timerNode.style.left = windowWidth /. 2. -. 75. /. 2.;
+          timerNode.style.top = windowHeight /. 2. -. 155. /. 2.;
+          let text = Printf.sprintf "%d" (int_of_float (ceil @@ appState.timer /. 1000.));
+          switch timerNode.children {
+          | [|textNode|] =>
+            textNode.context = Draw.generateTextContext text (0.3, 0.9, 0.2, 1.) font48
+          | _ => assert false
+          };
+          root.isDirty = true
+        } else if
+          timerNode.context.visible {
+          timerNode.context.visible = false
+        };
+
+        /** Losing state */
+        if appState.gameover {
+          loseNode.style.left = windowWidth /. 2. -. loseNode.layout.width /. 2.;
+          loseNode.style.top = windowHeight /. 2. -. loseNode.layout.height /. 2.;
+          loseNode.context.visible = true;
+          loseNode.isDirty = true;
+
+          /** Static UI tree has benefits, like allowing pattern matching on it! */
+          switch loseNode.children {
+          | [|message, restartButton|] =>
+            let randX = Random.float 7. -. 3.;
+            let randY = Random.float 7. -. 3.;
+            message.style.left = randX;
+            message.style.top = randY;
+            message.isDirty = true;
+            let {x: mx, y: my} = appState.mouseState.pos;
+            let left = loseNode.style.left +. restartButton.layout.left;
+            let top = loseNode.style.top +. restartButton.layout.top;
+            let color =
+              if (
+                mx > left &&
+                mx < left +. restartButton.layout.width &&
+                my > top && my < top +. restartButton.layout.height
+              ) {
+                /* If the user clicks on the Restart button we reset the state of the game */
+                if appState.mouseState.leftButton.isClicked {
+                  appState.gameover = false;
+                  appState.timer = 3000.;
+                  appState.ballPos.x = windowWidth /. 2. -. 10.;
+                  appState.ballPos.y = windowHeight -. 50.;
+                  appState.ballV.x = 2.;
+                  appState.ballV.y = 2.;
+                  loseNode.context.visible = false;
+                  timerNode.context.visible = true;
+                  elementsNode.children = makeChildren ();
+                  winNode.context.visible = false;
+                  (0.3, 0.5, 1., 1.)
+                } else {
+                  (0.1, 0.4, 1., 1.)
+                }
+              } else {
+                (0.1, 0.3, 0.7, 1.)
+              };
+            restartButton.context =
+              Draw.generateRectContext outContext::restartButton.context color;
+            restartButton.isDirty = true
+          | _ => assert false
+          };
+          root.isDirty = true
+        };
+
+        /** This will perform all of the Flexbox calculations and mutate the layouts to have left, top, width, height set. The positions are relative to the parent. */
+        Layout.doLayoutNow root;
+
+        /** This will traverse the layout tree and blit each item to the screen one by one. */
+        Draw.traverseAndDraw root 0. 0.;
+        /* Because font's loaded async, all of the text starts with nullContext and never get a new context, even when the font changes... We  need to call generateTextContext whenever the font's ready.
+           tbd*/
+        /*Draw.drawTextImmediate 12. 20. "Hello Sailor!" outContext::fpsTextData Draw.black font7;*/
+
+        /** Move ball */
+        let {x: ballX, y: ballY} = appState.ballPos;
+        let r = tileMargin *. 3.;
+
+        /** Immediate draw. */
+        Draw.drawCircleImmediate ballX ballY radius::r color::Draw.white;
+
+        /** Event handling and manipulation */
+        let {x: ballVX, y: ballVY} = appState.ballV;
+        let (nextX, nextY) =
+          if (appState.timer > 0.) {
+            appState.timer = appState.timer -. time;
+            (ballX, ballY)
+          } else {
+            (ballVX +. ballX, ballVY +. ballY)
+          };
+        if (appState.keyboard.leftIsDown && not appState.keyboard.rightIsDown) {
+          paddle.style.left = paddle.layout.left -. paddleSpeed;
+          root.isDirty = true
+        } else if (
+          appState.keyboard.rightIsDown && not appState.keyboard.leftIsDown
+        ) {
+          paddle.style.left = paddle.layout.left +. paddleSpeed;
+          root.isDirty = true
+        };
+        let (nextX, nextY) =
+          if (!totalHidden === totalTiles) {
+            winNode.context.visible = true;
+            winNode.style.left = windowWidth /. 2. -. winNode.layout.width /. 2.;
+            winNode.style.top = windowHeight /. 2. -. winNode.layout.height /. 2.;
+            (ballX, ballY)
+          } else {
+            (nextX, nextY)
+          };
+        if
+          Layout.(
+            nextX -. r < elementsNode.layout.left ||
+            nextX +. r > elementsNode.layout.left +. elementsNode.layout.width
+          ) {
+          appState.ballV.x = -. ballVX;
+          appState.ballV.y = ballVY
+        } else if (
+          nextY -. r < elementsNode.layout.top
+        ) {
+          appState.ballV.x = ballVX;
+          appState.ballV.y = -. ballVY
+        } else if (
+          nextY +. r > elementsNode.layout.top +. elementsNode.layout.height
+        ) {
+          appState.gameover = true
+        } else {
+          let collided = ref false;
+          {
+
+            /** */
+            let {Layout.context: context, layout: {top, left, width, height}} = paddle;
+            if context.visible {
+              let topLeft = (left, top);
+              let topRight = (left +. width, top);
+              let bottomRight = (left +. width, top +. height);
+              let bottomLeft = (left, top +. height);
+              if (segmentIntersection (ballX -. r, ballY) (nextX, nextY) topRight bottomRight) {
+                collided := true;
+                appState.ballV.x = -. ballVX;
+                appState.ballV.y = ballVY
+              } else if (
+                segmentIntersection (ballX +. r, ballY) (nextX, nextY) topLeft bottomLeft
+              ) {
+                collided := true;
+                appState.ballV.x = -. ballVX;
+                appState.ballV.y = ballVY
+              } else if (
+                segmentIntersection (ballX, ballY -. r) (nextX, nextY) topLeft topRight
+              ) {
+                collided := true;
+                appState.ballV.x = ballVX;
+                appState.ballV.y = -. ballVY -. Random.float 0.5
+              } else if (
+                segmentIntersection (ballX, ballY +. r) (nextX, nextY) bottomLeft bottomRight
+              ) {
+                collided := true;
+                appState.ballV.x = ballVX;
+                appState.ballV.y = -. ballVY
+              }
+            }
+          };
+
+          /** */
+          let parentLeft = elementsNode.layout.left;
+          let parentTop = elementsNode.layout.top;
+          Array.iter
+            (
+              fun curr => {
+                let {Layout.context: context, layout: {top, left, width, height}} = curr;
+                if context.visible {
+                  let topLeft = (parentLeft +. left, parentTop +. top);
+                  let topRight = (parentLeft +. left +. width, parentTop +. top);
+                  let bottomRight = (parentLeft +. left +. width, parentTop +. top +. height);
+                  let bottomLeft = (parentLeft +. left, parentTop +. top +. height);
+                  if (segmentIntersection (ballX -. r, ballY) (nextX, nextY) topRight bottomRight) {
+                    collided := true;
+                    appState.ballV.x = -. ballVX;
+                    appState.ballV.y = ballVY;
+                    elementsNode.isDirty = true;
+                    context.visible = false
+                  } else if (
+                    segmentIntersection (ballX +. r, ballY) (nextX, nextY) topLeft bottomLeft
+                  ) {
+                    collided := true;
+                    appState.ballV.x = -. ballVX;
+                    appState.ballV.y = ballVY;
+                    elementsNode.isDirty = true;
+                    context.visible = false
+                  } else if (
+                    segmentIntersection (ballX, ballY -. r) (nextX, nextY) topLeft topRight
+                  ) {
+                    collided := true;
+                    appState.ballV.x = ballVX;
+                    appState.ballV.y = -. ballVY;
+                    elementsNode.isDirty = true;
+                    context.visible = false
+                  } else if (
+                    segmentIntersection (ballX, ballY +. r) (nextX, nextY) bottomLeft bottomRight
+                  ) {
+                    collided := true;
+                    appState.ballV.x = ballVX;
+                    appState.ballV.y = -. ballVY;
+                    elementsNode.isDirty = true;
+                    context.visible = false
+                  }
+                }
+              }
+            )
+            elementsNode.children;
+          if (not !collided) {
+            appState.ballPos.x = nextX;
+            appState.ballPos.y = nextY
+          }
         }
-      }
-      /*if (time -. 0.001 > 1000. /. 60.) {
-          print_endline @@ "slooooow"
-        }*/
-      /*print_endline @@ "------------------------------------------------------------";*/
-      /*Gc.print_stat stdout*/
-    };
+      };
+    /*if (time -. 0.001 > 1000. /. 60.) {
+        print_endline @@ "slooooow"
+      }*/
+    /*print_endline @@ "------------------------------------------------------------";*/
+    /*Gc.print_stat stdout*/
     let keyDown ::keycode repeat::_ =>
       Draw.Events.(
         switch keycode {

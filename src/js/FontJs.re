@@ -14,8 +14,8 @@ let getContext: unit => contextT = [%bs.raw
   {| function() {
     let canvas = document.createElement('canvas');
     // document.body.appendChild(canvas);
-    canvas.width = 2048;
-    canvas.height = 2048;
+    canvas.width = 1024;
+    canvas.height = 1024;
 
   let context = canvas.getContext('2d');
   context.clearRect(0, 0, canvas.width, canvas.height);
@@ -50,7 +50,7 @@ external drawGlyph : glyphT => contextT => int => int => int => unit = "draw" [@
 
 external charToGlyph : fontT => string => glyphT = "" [@@bs.send];
 
-external getKerningValue : fontT => string => string => int = "" [@@bs.send];
+external getKerningValue : fontT => glyphT => glyphT => int = "" [@@bs.send];
 
 type pathT;
 
@@ -69,7 +69,7 @@ let loadFont ::fontSize ::fontPath id::(_: int) => {
   let prevX = ref 4;
   let prevY = ref 0;
   let nextY = ref 0;
-  let texLength = 2048;
+  let texLength = 1024;
   let chars = ref Draw.IntMap.empty;
   let kerningMap = ref Draw.IntPairMap.empty;
   let maxHeight = ref 0;
@@ -106,22 +106,22 @@ let loadFont ::fontSize ::fontPath id::(_: int) => {
                   let path = getPath g !prevX (!prevY + ascender) fontSize;
                   let bbox = getPathBoundingBox path;
                   let bboxheight = ascender - descender;
+                  /*Js.log "---------------------";*/
+                  /*Js.log bboxheight;*/
                   /*let bboxheight = bbox##y2 - bbox##y1;*/
+                  /*Js.log bboxheight;*/
                   /*let bboxwidth = (g##xMax - g##xMin) * fontSize / scale;*/
                   let advanceWidth = g##advanceWidth * fontSize / scale;
-                  let bboxwidth = bbox##x2 - bbox##x1 + advanceWidth;
-                  /*let bboxwidth = bboxwidth + advanceWidth;*/
+                  let bboxwidth = bbox##x2 - bbox##x1;
+                  let bboxwidth = bboxwidth + advanceWidth;
                   /*let bboxheight = (g##yMax - g##yMin) * fontSize / scale;*/
                   /*Js.log bboxheight;
                     Js.log (ascender);
                     Js.log (descender);*/
+                  /*let bboxwidth = bboxwidth === 0 ? 1 : bboxwidth;*/
                   if (bboxwidth !== 0 && bboxheight !== 0) {
-                    maxHeight := max !maxHeight bboxheight;
+                    maxHeight := max !maxHeight (bbox##y2 - bbox##y1);
                     maxWidth := max !maxWidth bboxwidth;
-                    if (!prevX + bboxwidth >= texLength) {
-                      prevX := 4;
-                      prevY := !nextY
-                    };
                     /* Draw shifted downwards by `qscender` because that draw function is from the
                        baseline */
                     drawPath path context;
@@ -131,10 +131,9 @@ let loadFont ::fontSize ::fontPath id::(_: int) => {
                       (
                         fun c2 => {
                           let c2String = String.make 1 c2;
-                          /*let code2 = Ftlow.get_char_index face.cont c2;*/
-                          let x = getKerningValue font cString c2String;
-                          let x = float_of_int (x * fontSize / scale);
-                          /*let (x, y) = (float_of_int x /. 64., float_of_int y /. 64.);*/
+                          let g2 = charToGlyph font c2String;
+                          let x = getKerningValue font g g2;
+                          let x = float_of_int @@ x * fontSize / scale;
                           if (abs_float x > 0.00001) {
                             kerningMap :=
                               Draw.IntPairMap.add (Char.code c, Char.code c2) (x, 0.) !kerningMap
@@ -151,7 +150,7 @@ let loadFont ::fontSize ::fontPath id::(_: int) => {
                           height: float_of_int bboxheight,
                           width: float_of_int bboxwidth,
                           bearingX: float_of_int 0,
-                          bearingY: float_of_int 0,
+                          bearingY: float_of_int ascender,
                           advance: float_of_int advanceWidth
                         }
                         !chars;
@@ -168,7 +167,13 @@ let loadFont ::fontSize ::fontPath id::(_: int) => {
                       }
                     };
                     prevX := !prevX + bboxwidth + 10;
-                    nextY := max !nextY (!prevY + bboxheight) + 10
+                    nextY := max !nextY (!prevY + bboxheight);
+                    if (!prevX + bboxwidth >= texLength) {
+                      prevX := 4;
+                      prevY := !nextY + 10
+                    }
+                  } else {
+                    Js.log ("Skipping", cString, bboxwidth, bboxheight)
                   }
                 }
               }

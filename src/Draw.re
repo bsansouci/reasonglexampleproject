@@ -4,7 +4,9 @@
 
  */
 let worldScale = 2;
-module FastHelpers = FastHelpersNative;
+
+module FastHelpers = FastHelpersJs;
+
 module Constants = ReasonglInterface.Constants;
 
 module Gl: ReasonglInterface.Gl.t = Reasongl.Gl;
@@ -211,7 +213,8 @@ let elementBufferObject = Gl.createBuffer context;
 
 let colorBufferObject = Gl.createBuffer context;
 
-/*let textureBufferObject = Gl.createBuffer context;*/
+let textureBufferObject = Gl.createBuffer context;
+
 
 /** Compiles the shaders and gets the program with the shaders loaded into **/
 let program =
@@ -303,10 +306,9 @@ Gl.texParameteri
 /** Enable blend and tell OpenGL how to blend. */
 Gl.enable ::context RGLConstants.blend;
 
-let alpha_test = 3008;
+/*let alpha_test = 3008;
 
-Gl.disable ::context alpha_test;
-
+  Gl.disable ::context alpha_test;*/
 let dither = 3024;
 
 Gl.disable ::context dither;
@@ -315,10 +317,9 @@ let stencil_test = 2960;
 
 Gl.disable ::context stencil_test;
 
-let fog = 2912;
+/*let fog = 2912;
 
-Gl.disable ::context fog;
-
+  Gl.disable ::context fog;*/
 Gl.disable ::context RGLConstants.depth_test;
 
 Gl.blendFunc ::context RGLConstants.src_alpha RGLConstants.one_minus_src_alpha;
@@ -554,8 +555,7 @@ let maybeFlushBatch ::textureBuffer ::el ::vert =>
   } else if (
     batch.elementPtr === 0 && batch.currTex !== textureBuffer
   ) {
-    /*batch.currTex = texture*/
-    ()
+    batch.currTex = textureBuffer
   };
 
 type vertexDataT = {
@@ -611,7 +611,7 @@ let generateRectContext outContext::(outContext: option Node.context)=? (r, g, b
     };
   let texX = 0.;
   let texY = 0.;
-  let texW = 1.0 /. 2048.;
+  let texW = 1.0 /. 1024.;
   let texH = 0.;
   unsafe_set vertexArray 0 1.;
   unsafe_set vertexArray 1 1.;
@@ -706,7 +706,7 @@ let generateTextContext
     outContext::(outContext: option Node.context)=?
     (font: fontT) =>
   switch !font {
-  | None => Node.nullContext
+  | None => {...Node.nullContext, visible: true}
   | Some {textureBuffer, textureWidth, textureHeight, chars, kerning, maxHeight} =>
     let (vertexArray, elementArray) =
       switch outContext {
@@ -772,7 +772,7 @@ let generateTextContext
       let ii = i / vertexSize;
       let j = !elementPtr;
       let elementArrayToMutate = elementArray;
-      unsafe_set elementArrayToMutate (j + 0) ii;
+      unsafe_set elementArrayToMutate (j + 0) (ii + 0);
       unsafe_set elementArrayToMutate (j + 1) (ii + 1);
       unsafe_set elementArrayToMutate (j + 2) (ii + 2);
       unsafe_set elementArrayToMutate (j + 3) (ii + 1);
@@ -784,7 +784,8 @@ let generateTextContext
     let offset = ref 0.;
     let prevChar = ref None;
     /* @Hack Made up ratio to make text look nicer within things. Manual centering. */
-    let randomTweak = maxHeight *. 0.05;
+    /*let randomTweak = maxHeight *. 0.05;*/
+    let randomTweak = 0.;
     String.iter
       (
         fun c => {
@@ -800,6 +801,14 @@ let generateTextContext
                 | exception Not_found => (0., 0.)
                 }
               };
+            /*print_endline @@
+              Printf.sprintf
+                "%s, texX: %f, texY: %f, width: %f, height: %f"
+                s
+                (atlasX /. textureWidth)
+                ((atlasY +. 1.) /. textureHeight)
+                width
+                height;*/
             addRectToBatch
               (!offset +. bearingX +. kerningOffsetX)
               (-. bearingY -. kerningOffsetY +. maxHeight -. randomTweak)
@@ -905,6 +914,28 @@ let drawCircleImmediate x y ::radius color::(r, g, b, a) => {
     normalize::false
     stride::0
     offset::0;
+
+  /** */
+  let textureCoord = ref [];
+  for _ in 0 to numberOfVertices {
+    textureCoord := [0., 0., ...!textureCoord]
+  };
+  Gl.bindBuffer ::context target::Constants.array_buffer buffer::textureBufferObject;
+  Gl.bufferData
+    ::context
+    target::Constants.array_buffer
+    data::(Gl.Bigarray.of_array Gl.Bigarray.Float32 (Array.of_list !textureCoord))
+    usage::Constants.dynamic_draw;
+  Gl.vertexAttribPointer
+    ::context
+    attribute::aTextureCoord
+    size::2
+    type_::Constants.float_
+    normalize::false
+    stride::0
+    offset::0;
+
+  /** */
   Gl.uniform4f
     ::context
     location::posAndScaleVec
@@ -1006,6 +1037,8 @@ module Layout = {
   let doLayoutNow root => Layout.layoutNode root Encoding.cssUndefined Encoding.cssUndefined Ltr;
 };
 
+let once = ref false;
+
 /* Helper to get number of CPU cycles. I was told it's profiling 101... */
 /*external caml_rdtsc : unit => int = "caml_rdtsc";*/
 let rec traverseAndDraw ::indentation=0 root left top =>
@@ -1024,19 +1057,33 @@ let rec traverseAndDraw ::indentation=0 root left top =>
         } else {
           (1., 1.)
         };
-      let valen = count * vertexSize;
-      let ealen = count;
-      /*let valen = Bigarray.dim vertexArray;
-        let ealen = Bigarray.dim elementArray;*/
+      /*let valen = count * vertexSize;
+        let ealen = count;*/
+      let valen = Bigarray.dim vertexArray;
+      let ealen = Bigarray.dim elementArray;
+      if (not !once) {
+        print_endline @@
+        Printf.sprintf "(%d, %d) vs (%d, %d)" valen ealen (count * vertexSize) count
+      };
       /*print_endline @@
         String.make indentation ' ' ^
         "0 Between prev and now: " ^ string_of_int (caml_rdtsc () - prev);
         let prev = caml_rdtsc ();*/
-      if (textureBuffer == nullTex) {
+      /*This is causing a problem.*/
+      if (textureBuffer === nullTex) {
         maybeFlushBatch textureBuffer::batch.currTex el::ealen vert::valen
       } else {
         maybeFlushBatch ::textureBuffer el::ealen vert::valen
       };
+      /*drawGeometrySendData
+        vertexBuffer::batch.vertexBufferObject
+        elementBuffer::batch.elementBufferObject
+        vertexArray::(vertexArray)
+        elementArray::(elementArray)
+        count::ealen
+        textureBuffer::textureBuffer
+        posVecData::(0., 0.)
+        scaleVecData::(1., 1.);*/
       /*print_endline @@
         String.make indentation ' ' ^
         " --- 1 Between prev and now: " ^ string_of_int (caml_rdtsc () - prev);
@@ -1048,36 +1095,37 @@ let rec traverseAndDraw ::indentation=0 root left top =>
 
       /** */
       Bigarray.unsafe_blit vertexArray va prevVertexPtr 4;
-      /*Bigarray.Array1.blit vertexArray (Bigarray.Array1.sub va prevVertexPtr valen);*/
+      /*Bigarray.blit vertexArray (Bigarray.sub va prevVertexPtr valen);*/
       batch.vertexPtr = batch.vertexPtr + valen;
 
       /** */
       Bigarray.unsafe_blit elementArray ea prevElementPtr 2;
-      /*Bigarray.Array1.blit elementArray (Bigarray.Array1.sub ea prevElementPtr ealen);*/
+      /*Bigarray.blit elementArray (Bigarray.sub ea prevElementPtr ealen);*/
       batch.elementPtr = batch.elementPtr + ealen;
       /*print_endline @@
         String.make indentation ' ' ^
         "2 Between prev and now: " ^ string_of_int (caml_rdtsc () - prev);
         let prev = caml_rdtsc ();*/
 
-      /** */
+      /** iter over quads (pairs of 4 points in the order that generateRectContext created them) */
       for i in 0 to (valen / (vertexSize * 4) - 1) {
         let o = prevVertexPtr + i * vertexSize * 4;
         let offset = o;
+        /* bottom right */
         FastHelpers.unsafe_update_float32 va offset mul::width add::scaledLeft;
         FastHelpers.unsafe_update_float32 va (offset + 1) mul::height add::scaledTop;
 
-        /** */
+        /** bottom left */
         let offset = o + vertexSize;
         FastHelpers.unsafe_update_float32 va offset mul::1. add::scaledLeft;
         FastHelpers.unsafe_update_float32 va (offset + 1) mul::height add::scaledTop;
 
-        /** */
+        /** top right */
         let offset = o + 2 * vertexSize;
         FastHelpers.unsafe_update_float32 va offset mul::width add::scaledLeft;
         FastHelpers.unsafe_update_float32 va (offset + 1) mul::1. add::scaledTop;
 
-        /** */
+        /** top left */
         let offset = o + 3 * vertexSize;
         FastHelpers.unsafe_update_float32 va offset mul::1. add::scaledLeft;
         FastHelpers.unsafe_update_float32 va (offset + 1) mul::1. add::scaledTop
@@ -1089,14 +1137,16 @@ let rec traverseAndDraw ::indentation=0 root left top =>
 
       /** */
       let offset = prevVertexPtr / vertexSize;
-      for i in 0 to (ealen / 6 - 1) {
-        let o = prevElementPtr + i * 6;
-        Bigarray.set ea (o + 0) (Bigarray.get ea (o + 0) + offset);
-        Bigarray.set ea (o + 1) (Bigarray.get ea (o + 1) + offset);
-        Bigarray.set ea (o + 2) (Bigarray.get ea (o + 2) + offset);
-        Bigarray.set ea (o + 3) (Bigarray.get ea (o + 3) + offset);
-        Bigarray.set ea (o + 4) (Bigarray.get ea (o + 4) + offset);
-        Bigarray.set ea (o + 5) (Bigarray.get ea (o + 5) + offset)
+      if (offset !== 0) {
+        for i in 0 to (ealen / 6 - 1) {
+          let o = prevElementPtr + i * 6;
+          Bigarray.unsafe_set ea (o + 0) (Bigarray.unsafe_get ea (o + 0) + offset);
+          Bigarray.unsafe_set ea (o + 1) (Bigarray.unsafe_get ea (o + 1) + offset);
+          Bigarray.unsafe_set ea (o + 2) (Bigarray.unsafe_get ea (o + 2) + offset);
+          Bigarray.unsafe_set ea (o + 3) (Bigarray.unsafe_get ea (o + 3) + offset);
+          Bigarray.unsafe_set ea (o + 4) (Bigarray.unsafe_get ea (o + 4) + offset);
+          Bigarray.unsafe_set ea (o + 5) (Bigarray.unsafe_get ea (o + 5) + offset)
+        }
       };
       /*print_endline @@
         String.make indentation ' ' ^
@@ -1123,5 +1173,6 @@ let rec traverseAndDraw ::indentation=0 root left top =>
 /*Array.iter (fun child => traverseAndDraw child absoluteLeft absoluteTop) root.children*/
 let traverseAndDraw root left top => {
   traverseAndDraw root left top;
-  flushGlobalBatch ()
+  flushGlobalBatch ();
+  once := true
 };
