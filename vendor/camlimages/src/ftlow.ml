@@ -94,6 +94,12 @@ type outline_contents = {
     contours : int array;
   }
 
+type font_metrics = {
+  height: int;
+  ascender: int;
+  descender: int;
+}
+
 module C = struct
   external init : unit -> library = "init_FreeType"
   external close : library -> unit = "done_FreeType"
@@ -124,6 +130,8 @@ module C = struct
 
   external get_kerning : face -> int -> int -> int * int = "get_Kerning"
   external glyph_get_bbox : face -> bbox = "glyph_Get_CBox"
+  
+  external get_font_metrics : face -> font_metrics = "get_Font_Metrics"
 end
 
 include C

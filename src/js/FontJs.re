@@ -91,6 +91,7 @@ let loadFont ::fontSize ::fontPath id::(_: int) => {
           let scale = font##unitsPerEm;
           let ascender = font##ascender * fontSize / scale;
           let descender = font##descender * fontSize / scale;
+          let bboxheight = ascender - descender;
           let context = getContext ();
           String.iter
             (
@@ -102,10 +103,8 @@ let loadFont ::fontSize ::fontPath id::(_: int) => {
                 | Some unicode =>
                   let path = getPath g !prevX (!prevY + ascender) fontSize;
                   let bbox = getPathBoundingBox path;
-                  let bboxheight = ascender - descender;
                   let advanceWidth = g##advanceWidth * fontSize / scale;
-                  let bboxwidth = bbox##x2 - bbox##x1;
-                  let bboxwidth = bboxwidth + advanceWidth;
+                  let bboxwidth = bbox##x2 - bbox##x1 + advanceWidth;
                   if (bboxwidth !== 0 && bboxheight !== 0) {
                     maxHeight := max !maxHeight (bbox##y2 - bbox##y1);
                     maxWidth := max !maxWidth bboxwidth;

@@ -432,6 +432,22 @@ value get_Size_Metrics( face )
   CAMLreturn(res);
 }
 
+value get_Font_Metrics( face )
+     value face;
+{
+  CAMLparam1(face);
+  CAMLlocal1(res);
+
+  FT_Size_Metrics *imetrics = &((*(FT_Face*)face)->size->metrics);
+  
+  res = alloc_tuple(3);
+  Store_field(res,0, Val_int(imetrics->height));
+  Store_field(res,1, Val_int(imetrics->ascender));
+  Store_field(res,2, Val_int(imetrics->descender));
+  
+  CAMLreturn(res);
+}
+
 CAMLprim value glyph_Get_CBox(value face) {
   CAMLparam1(face);
   CAMLlocal1(ret);

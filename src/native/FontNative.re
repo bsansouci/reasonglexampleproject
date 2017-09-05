@@ -74,18 +74,17 @@ let loadFont ::fontSize ::fontPath ::id => {
   let nextY = ref 0;
   let chars = ref Draw.IntMap.empty;
   let kerningMap = ref Draw.IntPairMap.empty;
-  let maxHeight = ref 0;
   let maxWidth = ref 0;
   let {Ftlow.has_kerning: has_kerning} = Ftlow.face_info face.cont;
+  let {Ftlow.height: maxHeight} = Ftlow.get_font_metrics face.cont;
+  let maxHeight = float_of_int maxHeight /. 64. -. 1.;
+  let hackIncrementJustBecause = 2.;
   Array.iter
     (
       fun c => {
         ignore @@ Ftlow.render_char_raw face.cont c 0 Ftlow.Render_Normal;
         let glyphMetrics = Ftlow.get_glyph_metrics face.cont;
-        let bbox = Ftlow.glyph_get_bbox face.cont;
-        maxHeight := max !maxHeight ((bbox.ymax - bbox.ymin) / 64);
-        /*print_endline @@ "(bbox.ymax - bbox.ymin) / 64: " ^ (string_of_int @@ (bbox.ymax - bbox.ymin) / 64);*/
-        maxWidth := max !maxWidth ((bbox.xmax - bbox.xmin) / 64);
+        maxWidth := max !maxWidth (glyphMetrics.gm_width / 64);
         let bitmapInfo = Ftlow.get_bitmap_info face.cont;
         if (!prevX + bitmapInfo.bitmap_width >= texLength) {
           prevX := 4;
@@ -115,7 +114,8 @@ let loadFont ::fontSize ::fontPath ::id => {
               height: float_of_int bitmapInfo.bitmap_height,
               width: float_of_int bitmapInfo.bitmap_width,
               bearingX: float_of_int glyphMetrics.gm_hori.bearingx /. 64.,
-              bearingY: float_of_int glyphMetrics.gm_hori.bearingy /. 64.,
+              bearingY:
+                float_of_int glyphMetrics.gm_hori.bearingy /. 64. +. hackIncrementJustBecause,
               advance: float_of_int glyphMetrics.gm_hori.advance /. 64.
             }
             !chars;
@@ -173,7 +173,7 @@ let loadFont ::fontSize ::fontPath ::id => {
       textureWidth: float_of_int texLength,
       textureHeight: float_of_int texLength,
       kerning: !kerningMap,
-      maxHeight: float_of_int !maxHeight,
+      maxHeight,
       maxWidth: float_of_int !maxWidth
     }
   )
