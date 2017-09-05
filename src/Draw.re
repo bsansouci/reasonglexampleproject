@@ -5,8 +5,6 @@
  */
 let worldScale = 2;
 
-module FastHelpers = FastHelpersNative;
-
 /*#if ocaml_version < (4, 02, 0)
   module FastHelpers = FastHelpersJs;
   #else*/

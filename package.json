@@ -3,14 +3,18 @@
   "version": "0.1.0",
   "description": "Simple example project for Reasongl",
   "scripts": {
-    "build": "bsb -make-world -backend bytecode",
+    "build": "bsb -make-world -backend js",
+    "build:bytecode": "bsb -make-world -backend bytecode",
     "build:native": "bsb -make-world -backend native",
     "clean": "bsb -clean-world",
-    "start": "./lib/bs/bytecode/index.byte",
+    "start": "python -m SimpleHTTPServer 8000",
+    "start:bytecode": "./lib/bs/bytecode/index.byte",
     "start:native": "./lib/bs/native/index.native",
     "postinstall": "./makefreetype.sh"
   },
   "dependencies": {
+    "FastHelpersJs": "bsansouci/FastHelpers#js",
+    "FastHelpersNative": "bsansouci/FastHelpers#native",
     "ReasonglInterface": "bsansouci/reasongl-interface#bsb-support-new",
     "ReasonglNative": "bsansouci/reasongl-native#bsb-support-new",
     "ReasonglWeb": "bsansouci/reasongl-web#bsb-support-new",

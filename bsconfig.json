@@ -27,7 +27,7 @@
     }]
   }],
   "warnings": "-44+5-6-45",
-  "bs-dependencies": ["ReasonglInterface", "ReasonglNative", "ReasonglWeb"],
+  "bs-dependencies": ["ReasonglInterface", "ReasonglNative", "ReasonglWeb", "FastHelpersJs", "FastHelpersNative"],
   "entries": [{
       "kind": "bytecode",
       "main": "IndexNative"
@@ -42,7 +42,6 @@
     },
   ],
   "static_libraries": [
-    "lib/bs/fun.o",
     "vendor/freetype-2.8/release/lib/libfreetype.a",
     "lib/bs/libTruetypebindings.o",
   ],
