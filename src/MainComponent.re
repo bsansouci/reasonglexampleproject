@@ -55,7 +55,7 @@ module Load (Font: FontType.t) => {
 
   /** */
   let fonts = [|
-    font7,
+    font7
     /*Font.loadFont fontSize::24. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0,*/
     /*Font.loadFont fontSize::9. fontPath::"assets/fonts/Anonymous_Pro.ttf" id::0,*/
     /*Font.loadFont fontSize::9. fontPath::"assets/fonts/DroidSansMono.ttf" id::0,*/
@@ -234,10 +234,24 @@ module Load (Font: FontType.t) => {
       appState.mouseState.rightButton = newAppState.mouseState.rightButton
     };
     let render time =>
+      /* Currently fonts are loaded synchronously on native, but asynchronously on web.
+         As a simple way to handle both, we have a "loading" stage during which we simply skip all
+         game logic and rendering and check that all fonts have been loaded.
+         Once all fonts are loaded (once they aren't None), we create the view hierarchy and generate
+         all of the vertex data that we'll be sending to the GPU.
+
+         The library could be doing this, but we left this here to show the power that this allows.
+         You can easily imagine waiting on only a specific set of fonts before starting, or
+         displaying a loading screen, or simply rendering rectangles until the font's loaded and then
+         swapping in the font texture / vertex data.
+
+               Ben - September 5th 2017
+          */
       if (not !loaded) {
         if (
           !font7 !== None &&
-          !font48 !== None && !font38 !== None && Array.fold_left (fun acc b => acc && !b !== None) true fonts
+          !font48 !== None &&
+          !font38 !== None && Array.fold_left (fun acc b => acc && !b !== None) true fonts
         ) {
           let paddle =
             <View
@@ -312,6 +326,8 @@ module Load (Font: FontType.t) => {
             View.createElement
               style::rootstyle color::defaultColor children::(Array.to_list (makeChildren ())) ();
           root.children = [|elementsNode, paddle, timerNode, loseNode, winNode|];
+          /* This is a bit annoying but we have to manually set the childrenCount. Maybe an
+             optimization for ReLayout? */
           root.childrenCount = 5;
           root.isDirty = true;
           loaded := true;

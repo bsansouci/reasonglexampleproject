@@ -1,3 +1,21 @@
+/*
+
+  What is this?
+
+  This is a more interesting and solid demo project to showcase the following technologies working together:
+  - ReLayout (flexbox subset implemented in Reason)
+  - ReasonGL (thin cross platform bindings to GL)
+  - text rendering (small readable implementation)
+  - hot reloading (currently all commented out because we haven't written the JS version. It still
+    works in native if you comment things back in)
+
+  So this is a demo, but a very realistic one. We're render 1000 UI elements on screen (1000 rectangles and 1000 pieces of text each containing a lot more rectangles), we're computing the whole layout each time a brick is destroyed and doing a bunch of vector math.
+
+  There are many many more optimizations that could be made and we'd love help with that.
+
+
+          Ben - September 5th 2017
+ */
 /* By the simple act of linking in the Draw module, window's created and GL gets initialized. */
 module Load (Font: FontType.t) => {
   module Layout = Draw.Layout;
