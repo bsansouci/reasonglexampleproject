@@ -8,8 +8,8 @@
     "build:native": "bsb -make-world -backend native",
     "clean": "bsb -clean-world",
     "start": "python -m SimpleHTTPServer 8000",
-    "start:bytecode": "./lib/bs/bytecode/index.byte",
-    "start:native": "./lib/bs/native/index.native",
+    "start:bytecode": "./lib/bs/bytecode/indexnative.byte",
+    "start:native": "./lib/bs/native/indexnative.native",
     "postinstall": "./makefreetype.sh"
   },
   "dependencies": {
