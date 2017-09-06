@@ -37,7 +37,6 @@ let debug = false;
 
 let allCharacters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!@#$%^&*()_+1234567890-={}|:\"<>?[]\\;',./ ";
 
-/*let allCharacters = "AB";*/
 let unicode_of_latin s => Array.init (String.length s) @@ (fun i => Char.code s.[i]);
 
 let allCharactersEncoded = unicode_of_latin allCharacters;

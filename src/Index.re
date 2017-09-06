@@ -22,31 +22,26 @@ module Load (Font: FontType.t) => {
   module Node = Draw.Node;
   module Font = Font;
   module MainComponent = MainComponent.Load Font;
+
+  /** */
   Random.init 0;
+
+  /** */
   let font12 = Font.loadFont fontSize::24. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0;
+
+  /** List of fps of previous frames used to */
   let lastCoupleOfFrames = ref [];
-  let fpsTextData =
-    Draw.drawTextImmediate
-      12.
-      20.
-      (
-        "fps:" ^
-        string_of_int (
-          int_of_float (
-            List.fold_left (+.) 0. !lastCoupleOfFrames /. (
-              float_of_int @@ List.length !lastCoupleOfFrames
-            ) +. 0.5
-          )
-        )
-      )
-      Draw.black
-      font12;
-  external magicalPoneys : 'a => 'b = "%identity";
+  let fpsTextData = Draw.drawTextImmediate 12. 20. "fps:60" Draw.black font12;
+
+  /** Commented out type magic used for hot-reloading in native dev. */
+  /*external magicalPoneys : 'a => 'b = "%identity";*/
+
+  /** Main function called 60 times a second. */
   let render time => {
     /* Remember to clear the clear at each tick */
     Draw.clearScreen ();
 
-    /** Magical src/MainComponent.re has hot-reloading hooked up */
+    /** Magical hotreloading sauce. Currently commented out as explained at the top of the file */
     /*switch !Hotreloader.p {
       | Some s =>
         module M = (val (s: (module Hotreloader.DYNAMIC_MODULE)));
@@ -54,6 +49,8 @@ module Load (Font: FontType.t) => {
         ()
       | None => ()
       };*/
+
+    /** Main render call */
     MainComponent.M.render time;
 
     /** Happy FPS counter that smoothes things out. */
@@ -92,6 +89,9 @@ module Load (Font: FontType.t) => {
       | None => ignore @@ Hotreloader.checkRebuild ()
       }*/
   };
+
+  /** event handlers calling MainComponent directly instead of using the Hotreloader because that
+      doesn't work in JS right now. */
   let mouseMove ::x ::y => MainComponent.M.mouseMove ::x ::y;
   /*switch !Hotreloader.p {
     | Some s =>

@@ -1,13 +1,20 @@
 /*
+  This is all of the internals of this demo. Be weary, it's definitely not nice.
 
-  @Todo look into vertex array objects (-> webgl doesn't support those for some reason)
+  This contains code that'll generate vertex data which is sent to the GPU. That data is a linear array of x, y coordinates, r, g, b, a colors and s and t texture coordinates.
+  We try to generate that data ahead of time as it's a bunch of allocations and calculations which lead the fps count to be around 12 if we did it every frame.
+
+  We implement a simple batching strategy for sending the data to the GPU. We can't make 2000 calls to the GPU (1000 text things and 1000 rects) at every frame and expect 60fps, the Front Side Bus becomes an issue. To circumvent that we try to batch data until we _have_ to swap texture, and then we flush. The reason we have to flush whenever the user wants to draw a different texture than the previous one is that the shader's written in a way to only use data from 1 texture. So if we have a long list of data points for texture A, and now we get an order to draw a rect using texture B, we have to flush, we have no other mechanism to track which thing used which texture and then send everything at once.
+  I'm not sure if there's a better way to do that.
+
+  For text we generate a font atlas (one big texture with all ascii characters pre-rendered), and send that data once to the GPU and then reference it for each character.
+  Since we're in control of that atlas, we add white on the left edge, which allows us to use that same texture for colored rectangle, by setting s and t to be 0.00001 and 0.00001. We're basically telling the GPU to use the font atlas multiplied by the color of the rectangle, but the location given on the font atlas is basically 0, 0 which is white. That becomes 1.0 * color which is just the color of the rect. This is so that we don't have to flush the batch as often (currently each text node is wrapped in a rectangle node to have a background color).
+
+
 
  */
 let worldScale = 2;
 
-/*#if ocaml_version < (4, 02, 0)
-  module FastHelpers = FastHelpersJs;
-  #else*/
 /*[%const
     if true {
       module FastHelpers = FastHelpersNative;
@@ -26,6 +33,7 @@ module Bigarray = Gl.Bigarray;
 
 module Events = Gl.Events;
 
+/* Helpers for font stuff */
 module IntMap =
   Map.Make {
     type t = int;
@@ -55,6 +63,7 @@ type glyphInfoT = {
   advance: float
 };
 
+/* Defined here to avoid circular dependency */
 type _fontT = {
   chars: IntMap.t glyphInfoT,
   kerning: IntPairMap.t (float, float),
@@ -115,7 +124,7 @@ let getProgram
 };
 
 
-/** */
+/** Main vertex shader. */
 let vertexShaderSource = {|
   attribute vec2 aVertexPosition;
   attribute vec4 aVertexColor;
@@ -134,6 +143,7 @@ let vertexShaderSource = {|
   }
 |};
 
+/* main fragment shader */
 let fragmentShaderSource = {|
   varying vec4 vColor;
   varying vec2 vTextureCoord;
@@ -188,12 +198,14 @@ let windowHeight = 600;
 
 Gl.Window.setWindowSize ::window width::windowWidth height::windowHeight;
 
+/* this is to support high dpi screens. Those will have a pixelScale > 1.0 */
 let pixelScale = float_of_int (Gl.Window.getPixelWidth window) /. float_of_int windowWidth;
 
 
 /** Initialize the Gl context **/
 let context = Gl.Window.getContext window;
 
+/* Set the viewport to be the right pixel size */
 Gl.viewport
   ::context
   x::0
@@ -215,8 +227,8 @@ let camera = {projectionMatrix: Gl.Mat4.create ()};
 
 
 /**
- * Those buffers are basically pointers to chunks of memory on the graphics card. They're used to store the
- * vertex and color data.
+ * Those buffers are basically pointers to chunks of memory on the graphics card. They're used to
+ * store the vertex and color data.
  */
 let vertexBufferObject = Gl.createBuffer context;
 
@@ -254,17 +266,14 @@ Gl.uniformMatrix4fv ::context location::pMatrixUniform value::camera.projectionM
 
 let posAndScaleVec = Gl.getUniformLocation context program "posAndScaleVec";
 
-/*Gl.uniformMatrix4fv ::context location::posAndScaleVec value::(Gl.Bigarray.of_array Gl.Bigarray.Float32 [|255, 255|]);*/
-/*let scaleVec = Gl.getUniformLocation context program "scaleVec";*/
-/*Gl.uniformMatrix4fv ::context location::scaleVec value::(Gl.Mat4.create ());*/
 let aTextureCoord = Gl.getAttribLocation ::context ::program name::"aTextureCoord";
 
 Gl.enableVertexAttribArray ::context attribute::aTextureCoord;
 
 
-/** This tells OpenGL that we're going to be using texture0. OpenGL imposes a limit on the number of
-    texture we can manipulate at the same time. That limit depends on the device. We don't care as we'll just
-    always use texture0. **/
+/** This tells OpenGL that we're going to be using texture0. OpenGL imposes a limit on the number
+    of texture we can manipulate at the same time. That limit depends on the device. We don't care
+    as we'll just always use texture0. **/
 Gl.activeTexture ::context RGLConstants.texture0;
 
 let uSampler = Gl.getUniformLocation ::context ::program name::"uSampler";
@@ -317,9 +326,6 @@ Gl.texParameteri
 /** Enable blend and tell OpenGL how to blend. */
 Gl.enable ::context RGLConstants.blend;
 
-/*let alpha_test = 3008;
-
-  Gl.disable ::context alpha_test;*/
 let dither = 3024;
 
 Gl.disable ::context dither;
@@ -328,9 +334,6 @@ let stencil_test = 2960;
 
 Gl.disable ::context stencil_test;
 
-/*let fog = 2912;
-
-  Gl.disable ::context fog;*/
 Gl.disable ::context RGLConstants.depth_test;
 
 Gl.blendFunc ::context RGLConstants.src_alpha RGLConstants.one_minus_src_alpha;
@@ -357,6 +360,7 @@ let doOrtho () => {
   Gl.uniformMatrix4fv ::context location::pMatrixUniform value::camera.projectionMatrix
 };
 
+/* immediately do ortho */
 doOrtho ();
 
 let onWindowResize: ref (option (unit => unit)) = ref None;
@@ -374,6 +378,7 @@ let resizeWindow () => {
 
 let vertexSize = 8;
 
+/* Type definition of the vertex data batch. */
 type batchT = {
   vertexArray: Bigarray.t float Bigarray.float32_elt,
   elementArray: Bigarray.t int Bigarray.int16_unsigned_elt,
@@ -384,6 +389,7 @@ type batchT = {
   mutable currTex: Gl.textureT
 };
 
+/* Allow for at most 10000 * 6 * 8 * 4 bytes = 1.92 Mb to be sent to the GPU at once. */
 let circularBufferSize = 10000 * 6;
 
 let batch = {
@@ -413,6 +419,9 @@ let batch = {
  *                         |
  *                         +- offset: (2 + 4) * 4 bytes, stride: 8 * 4 bytes
  *
+ *
+ * This function simply uploads everything to the GPU to be drawn on the back buffer which we'll
+ * swap at the end of the frame.
  */
 let drawGeometrySendData
     ::vertexBuffer
@@ -480,64 +489,11 @@ let drawGeometrySendData
     ::context mode::Constants.triangles ::count type_::RGLConstants.unsigned_short offset::0
 };
 
-/*let drawGeometry2
-      count::(count: int)
-      ::vertexBuffer
-      ::elementBuffer
-      textureBuffer::(textureBuffer: Gl.textureT)
-      posVecData::((x, y): (float, float))
-      scaleVecData::((width, height): (float, float)) => {
-    Gl.bindBuffer ::context target::Constants.array_buffer buffer::vertexBuffer;
-    Gl.vertexAttribPointer
-      ::context
-      attribute::aVertexPosition
-      size::2
-      type_::Constants.float_
-      normalize::false
-      stride::(vertexSize * 4)
-      offset::0;
-
-    /** Color */
-    Gl.vertexAttribPointer
-      ::context
-      attribute::aVertexColor
-      size::4
-      type_::Constants.float_
-      normalize::false
-      stride::(vertexSize * 4)
-      offset::(2 * 4);
-
-    /** Texture */
-    Gl.vertexAttribPointer
-      ::context
-      attribute::aTextureCoord
-      size::2
-      type_::Constants.float_
-      normalize::false
-      stride::(vertexSize * 4)
-      offset::(6 * 4);
-
-    /** */
-    /*Gl.uniform4f ::context location::posAndScaleVec v1::x v2::y v3::width v4::height;*/
-
-    /** Tell OpenGL about what the uniform called `uSampler` is pointing at, here it's given 0 which
-        is what texture0 represent.  **/
-    Gl.uniform1i ::context location::uSampler val::0;
-
-    /** */
-    Gl.bindBuffer ::context target::RGLConstants.element_array_buffer buffer::elementBuffer;
-
-    /** */
-    Gl.bindTexture ::context target::RGLConstants.texture_2d texture::textureBuffer;
-
-    /** Final call which actually does the "draw" **/
-    Gl.drawElements
-      ::context mode::Constants.triangles ::count type_::RGLConstants.unsigned_short offset::0
-  };*/
 let unsafe_set = Bigarray.unsafe_set;
 
 let unsafe_get = Bigarray.unsafe_get;
 
+/* Helper to flush the global batch and reset it correctly */
 let flushGlobalBatch () =>
   if (batch.elementPtr > 0) {
     drawGeometrySendData
@@ -554,13 +510,14 @@ let flushGlobalBatch () =>
     batch.currTex = nullTex
   };
 
+/* Important helper to track what texture we're using and if we should be flushing. Should always
+   be called before adding anything to the global batch with the amount of stuff that will be added. */
 let maybeFlushBatch ::textureBuffer ::el ::vert =>
   if (
     batch.elementPtr + el >= circularBufferSize ||
     batch.vertexPtr + vert >= circularBufferSize * vertexSize ||
     batch.elementPtr > 0 && batch.currTex !== textureBuffer
   ) {
-    /*print_endline @@ "Flush!";*/
     flushGlobalBatch ();
     batch.currTex = textureBuffer
   } else if (
@@ -579,8 +536,7 @@ type vertexDataT = {
 
 type textInfoT = {mutable width: float};
 
-/* Each node contains all possible values, it's probably faster than
-   conditional on type. */
+/* Each node contains all possible values, it's probably faster than conditional on type. */
 module Node = {
   type context = {
     /* Each field is mutable for performance reason. We want to encourage creating a pretty
@@ -591,9 +547,10 @@ module Node = {
     mutable textInfo: textInfoT
   };
   /* @Hack we're using nullTex which is a value that we're assuming has
-       been loaded already. This is very bad but it'll work for now.
-             Ben - August 19th 2017
-     */
+     been loaded already. This is very bad but it'll work for now.
+
+          Ben - August 19th 2017
+        */
   let nullContext = {
     visible: true,
     isDataSentToGPU: false,
@@ -794,9 +751,6 @@ let generateTextContext
     };
     let offset = ref 0.;
     let prevChar = ref None;
-    /* @Hack Made up ratio to make text look nicer within things. Manual centering. */
-    /*let randomTweak = maxHeight *. 0.05;*/
-    let randomTweak = 0.;
     String.iter
       (
         fun c => {
@@ -812,17 +766,9 @@ let generateTextContext
                 | exception Not_found => (0., 0.)
                 }
               };
-            /*print_endline @@
-              Printf.sprintf
-                "%s, texX: %f, texY: %f, width: %f, height: %f"
-                s
-                (atlasX /. textureWidth)
-                ((atlasY +. 1.) /. textureHeight)
-                width
-                height;*/
             addRectToBatch
               (!offset +. bearingX +. kerningOffsetX)
-              (-. bearingY -. kerningOffsetY +. maxHeight -. randomTweak)
+              (-. bearingY -. kerningOffsetY +. maxHeight)
               width
               height
               (atlasX /. textureWidth)
@@ -959,58 +905,6 @@ let drawCircleImmediate x y ::radius color::(r, g, b, a) => {
   Gl.drawArrays ::context mode::Constants.triangle_fan first::0 count::numberOfVertices
 };
 
-/* Commented out because not used. */
-/*type _imageT = {
-    textureBuffer: Gl.textureT,
-    img: Gl.imageT,
-    height: int,
-    width: int
-  };
-
-  type imageT = ref (option _imageT);
-
-  let loadImage filename :imageT => {
-    let imageRef = ref None;
-    Gl.loadImage
-      ::filename
-      callback::(
-        fun imageData =>
-          switch imageData {
-          | None => print_endline ("Could not load image '" ^ filename ^ "'.") /* TODO: handle this better? */
-          | Some img =>
-            let textureBuffer = Gl.createTexture ::context;
-            let height = Gl.getImageHeight img;
-            let width = Gl.getImageWidth img;
-            imageRef := Some {img, textureBuffer, height, width};
-            Gl.bindTexture
-              ::context target::Constants.texture_2d texture::textureBuffer;
-            Gl.texImage2DWithImage
-              ::context target::Constants.texture_2d level::0 image::img;
-            Gl.texParameteri
-              ::context
-              target::Constants.texture_2d
-              pname::Constants.texture_mag_filter
-              param::Constants.linear;
-            Gl.texParameteri
-              ::context
-              target::Constants.texture_2d
-              pname::Constants.texture_min_filter
-              param::Constants.linear;
-            Gl.texParameteri
-              ::context
-              target::Constants.texture_2d
-              pname::Constants.texture_wrap_s
-              param::Constants.clamp_to_edge;
-            Gl.texParameteri
-              ::context
-              target::Constants.texture_2d
-              pname::Constants.texture_wrap_t
-              param::Constants.clamp_to_edge
-          }
-      )
-      ();
-    imageRef
-  };*/
 let render ::keyUp ::keyDown ::windowResize ::mouseMove ::mouseDown ::mouseUp r =>
   Gl.render
     ::keyUp ::keyDown ::windowResize ::mouseDown ::mouseUp ::mouseMove ::window displayFunc::r ();
@@ -1054,6 +948,7 @@ let rec traverseAndDraw ::indentation=0 root left top =>
   Layout.(
     if root.context.visible {
       /*let prev = caml_rdtsc ();*/
+      /** Calculation the absolute position of the element */
       let absoluteLeft = floor @@ left +. root.layout.left;
       let scaledLeft = floor (pixelScale *. (left +. root.layout.left));
       let absoluteTop = floor @@ top +. root.layout.top;
@@ -1066,29 +961,27 @@ let rec traverseAndDraw ::indentation=0 root left top =>
         } else {
           (1., 1.)
         };
-      /*let valen = count * vertexSize;
-        let ealen = count;*/
       let valen = Bigarray.dim vertexArray;
       let ealen = Bigarray.dim elementArray;
+
+      /** Profiling helpers */
       /*print_endline @@
         String.make indentation ' ' ^
         "0 Between prev and now: " ^ string_of_int (caml_rdtsc () - prev);
         let prev = caml_rdtsc ();*/
-      /*This is causing a problem.*/
+      /* Important optimization. This will use the batch.currTex if the current thing to be
+         drawn has no dependency on a specific texture (like a rect of a color).
+
+            Ben - September 5th 2017
+
+         */
       if (textureBuffer === nullTex) {
         maybeFlushBatch textureBuffer::batch.currTex el::ealen vert::valen
       } else {
         maybeFlushBatch ::textureBuffer el::ealen vert::valen
       };
-      /*drawGeometrySendData
-        vertexBuffer::batch.vertexBufferObject
-        elementBuffer::batch.elementBufferObject
-        vertexArray::(vertexArray)
-        elementArray::(elementArray)
-        count::ealen
-        textureBuffer::textureBuffer
-        posVecData::(0., 0.)
-        scaleVecData::(1., 1.);*/
+
+      /** Profiling helpers */
       /*print_endline @@
         String.make indentation ' ' ^
         " --- 1 Between prev and now: " ^ string_of_int (caml_rdtsc () - prev);
@@ -1105,6 +998,8 @@ let rec traverseAndDraw ::indentation=0 root left top =>
       /** */
       Bigarray.unsafe_blit elementArray ea prevElementPtr 2;
       batch.elementPtr = batch.elementPtr + ealen;
+
+      /** Profiling helpers */
       /*print_endline @@
         String.make indentation ' ' ^
         "2 Between prev and now: " ^ string_of_int (caml_rdtsc () - prev);
@@ -1133,6 +1028,8 @@ let rec traverseAndDraw ::indentation=0 root left top =>
         FastHelpers.unsafe_update_float32 va offset mul::1. add::scaledLeft;
         FastHelpers.unsafe_update_float32 va (offset + 1) mul::1. add::scaledTop
       };
+
+      /** Profiling helpers */
       /*print_endline @@
         String.make indentation ' ' ^
         "3 Between prev and now: " ^ string_of_int (caml_rdtsc () - prev);
@@ -1151,6 +1048,8 @@ let rec traverseAndDraw ::indentation=0 root left top =>
           Bigarray.unsafe_set ea (o + 5) (Bigarray.unsafe_get ea (o + 5) + offset)
         }
       };
+
+      /** Profiling helpers */
       /*print_endline @@
         String.make indentation ' ' ^
         "4 Between prev and now: " ^ string_of_int (caml_rdtsc () - prev);*/
@@ -1165,15 +1064,16 @@ let rec traverseAndDraw ::indentation=0 root left top =>
           absoluteLeft
           absoluteTop
       };
+
+      /** Profiling helpers */
       /*print_endline @@
         String.make indentation ' ' ^
         "5 Between prev and now: " ^ string_of_int (caml_rdtsc () - prev);*/
-      /*let prev = caml_rdtsc ();*/
       ()
     }
   );
 
-/*Array.iter (fun child => traverseAndDraw child absoluteLeft absoluteTop) root.children*/
+/* Main draw traversal */
 let traverseAndDraw root left top => {
   traverseAndDraw root left top;
   flushGlobalBatch ()

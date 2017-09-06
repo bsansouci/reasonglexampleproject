@@ -1,3 +1,17 @@
+/* Main component rendering everything seen on screen.
+
+   The way this works is by loading a bunch of fonts ahead of time and defining helper functions.
+   Then at render there's a loading mode and a loaded mode reflected through the bool `loaded`
+   which basically waits on the fonts to be loaded (they're loaded async in JS).
+
+   Once all the fonts are ready, we can create the view hierarchy and start the game logic.
+
+   The view hierarchy is totally static, which allows us to pattern match on it and pick each node
+   that we'd like to mutate. That's instead of using an ID on nodes and a query function like the
+   DOM does.
+
+   There is commented out Hotreloader code in there. This works on native but not on web, which is why it's commented out.
+      */
 module Load (Font: FontType.t) => {
   module Layout = Draw.Layout;
   module Node = Draw.Node;
@@ -10,6 +24,9 @@ module Load (Font: FontType.t) => {
   /** We need to have default style be a function because each node have mutable style. If we just
       used DefaultStyle we'd be mutating the same shared one! */
   let makeDefaultStyle () => Layout.{...defaultStyle, positionType: Relative};
+
+  /** This module and the one below are simply wrappers around the Layout nodes which are just
+      ReLayout primitives. Those modules that we're defining allow us to use JSX which is nice. */
   module View = {
     let createElement ::style=(makeDefaultStyle ()) ::color=Draw.white ::children () =>
       Layout.createNode
@@ -27,14 +44,13 @@ module Load (Font: FontType.t) => {
       switch context {
       | None =>
         let context = Draw.generateTextContext text color font;
-        /*Js.log context;*/
-        /*print_endline @@
-          Printf.sprintf "width: %f, height: %f" context.textInfo.width font.maxHeight;*/
         Layout.createNode
           withChildren::(Array.of_list children)
           andStyle::style
           andMeasure::(
             fun _node _width _measureModeWidth _height _measureModeHeight =>
+              /* Right now the text get full priority on the width and height of the parent. It
+                 will not wrap either. */
               switch !font {
               | None => {Layout.width: context.textInfo.width /. Draw.pixelScale, height: _height}
               | Some {maxHeight} => {
@@ -49,37 +65,7 @@ module Load (Font: FontType.t) => {
       };
   };
 
-  /** */
-  let defaultColor = (0.6, 0.6, 0.9, 1.);
-  let colors = [|(1., 1., 0.4, 1.), (1., 0.8, 0., 1.), (1., 0.6, 0., 1.), (1., 0., 0., 1.)|];
-
-  /** */
-  let fonts = [|
-    font7
-    /*Font.loadFont fontSize::24. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0,*/
-    /*Font.loadFont fontSize::9. fontPath::"assets/fonts/Anonymous_Pro.ttf" id::0,*/
-    /*Font.loadFont fontSize::9. fontPath::"assets/fonts/DroidSansMono.ttf" id::0,*/
-    /*Font.loadFont fontSize::24. fontPath::"assets/fonts/Anonymous_Pro.ttf" id::0,*/
-    /*Font.loadFont fontSize::28. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0,*/
-    /*Font.loadFont fontSize::32. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0*/
-  |];
-
-  /** */
-  let windowWidth = float_of_int @@ Draw.getWindowWidth ();
-  let windowHeight = float_of_int @@ Draw.getWindowHeight ();
-  let totalTiles = 1000;
-  let tiles =
-    Array.init
-      totalTiles
-      (
-        fun i => (
-          "Hello",
-          fonts.(i / 5 mod Array.length fonts),
-          colors.(i / 5 mod Array.length colors)
-        )
-      );
-
-  /** */
+  /** Helper for game collision logic. Does segment intersection. */
   let segmentIntersection (x1, y1) (x2, y2) (bx1, by1) (bx2, by2) => {
     let s1_x = x2 -. x1;
     let s1_y = y2 -. y1;
@@ -95,9 +81,25 @@ module Load (Font: FontType.t) => {
   };
 
   /** */
+  let defaultColor = (0.6, 0.6, 0.9, 1.);
+  let colors = [|(1., 1., 0.4, 1.), (1., 0.8, 0., 1.), (1., 0.6, 0., 1.), (1., 0., 0., 1.)|];
+  let fonts = [|
+    font7
+    /*Font.loadFont fontSize::24. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0,*/
+    /*Font.loadFont fontSize::9. fontPath::"assets/fonts/Anonymous_Pro.ttf" id::0,*/
+    /*Font.loadFont fontSize::9. fontPath::"assets/fonts/DroidSansMono.ttf" id::0,*/
+    /*Font.loadFont fontSize::24. fontPath::"assets/fonts/Anonymous_Pro.ttf" id::0,*/
+    /*Font.loadFont fontSize::28. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0,*/
+    /*Font.loadFont fontSize::32. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0*/
+  |];
+  let windowWidth = float_of_int @@ Draw.getWindowWidth ();
+  let windowHeight = float_of_int @@ Draw.getWindowHeight ();
+  let totalTiles = 1000;
   let tileWidth = windowWidth /. 40.;
   let tileHeight = windowHeight /. 80.;
   let tileMargin = windowHeight /. 400.;
+
+  /** */
   let rootstyle =
     Layout.{
       ...defaultStyle,
@@ -111,7 +113,15 @@ module Load (Font: FontType.t) => {
       width: windowWidth -. 200.,
       height: windowHeight
     };
-  let makeChildren () =>
+  let paddleWidth = 60.;
+  let paddleSpeed = 9.;
+  let loaded = ref false;
+
+  /** Root layout node which we will mutate */
+  let root = <View />;
+
+  /** Helper to generate the bricks */
+  let makeBricks tiles =>
     Array.map
       (
         fun (text, font, color) =>
@@ -132,25 +142,8 @@ module Load (Font: FontType.t) => {
           </View>
       )
       tiles;
-  /*let elementsNode =
-    View.createElement
-      style::rootstyle color::defaultColor children::(Array.to_list (makeChildren ())) ();*/
-  let paddleWidth = 60.;
-  let paddleSpeed = 9.;
-  let root = <View />;
-  let loaded = ref false;
-  /*let lastFrameTime = ref 0.;*/
-  /*let alarm =
-    Gc.create_alarm (
-      fun () =>
-        if (!lastFrameTime -. 0.001 > totalTiles. /. 60.) {
-          print_endline @@ "------------------------------\nGC: " ^ string_of_float !lastFrameTime
-        }
-    );*/
-  /*let c = Gc.get ();*/
-  /*c.verbose = 0x001 + 0x002 + 0x004 + 0x010 + 0x200;*/
-  /*c.space_overhead = 800;*/
-  /*Gc.set c;*/
+
+  /** A not-totally-correct resize handler. */
   Draw.onWindowResize :=
     Some (
       fun () => {
@@ -177,28 +170,27 @@ module Load (Font: FontType.t) => {
         winNode.style.top = height /. 2. -. winNode.layout.height /. 2.
       }
     );
-  type buttonStateT = {
-    state: Draw.Events.stateT,
-    x: float,
-    y: float,
-    isClicked: bool
-  };
-  type vec2 = {
-    mutable x: float,
-    mutable y: float
-  };
-  type mouseStateT = {
-    mutable pos: vec2,
-    mutable leftButton: buttonStateT,
-    mutable rightButton: buttonStateT
-  };
-  type keyboardStateT = {
-    mutable leftIsDown: bool,
-    mutable rightIsDown: bool
-  };
-  let fpsTextData = Draw.drawTextImmediate 12. 20. "" Draw.black font7;
   /*module M: Hotreloader.DYNAMIC_MODULE = {*/
   module M = {
+    type buttonStateT = {
+      state: Draw.Events.stateT,
+      x: float,
+      y: float,
+      isClicked: bool
+    };
+    type vec2 = {
+      mutable x: float,
+      mutable y: float
+    };
+    type mouseStateT = {
+      mutable pos: vec2,
+      mutable leftButton: buttonStateT,
+      mutable rightButton: buttonStateT
+    };
+    type keyboardStateT = {
+      mutable leftIsDown: bool,
+      mutable rightIsDown: bool
+    };
     type stateT = {
       mutable gameover: bool,
       mutable timer: float,
@@ -211,7 +203,16 @@ module Load (Font: FontType.t) => {
     let appState = {
       gameover: false,
       timer: 3000.,
-      tiles,
+      tiles:
+        Array.init
+          totalTiles
+          (
+            fun i => (
+              "Hello",
+              fonts.(i / 5 mod Array.length fonts),
+              colors.(i / 5 mod Array.length colors)
+            )
+          ),
       ballV: {x: 2., y: 2.},
       ballPos: {x: windowWidth /. 2. -. 10., y: windowHeight -. 50.},
       keyboard: {leftIsDown: false, rightIsDown: false},
@@ -242,8 +243,8 @@ module Load (Font: FontType.t) => {
 
          The library could be doing this, but we left this here to show the power that this allows.
          You can easily imagine waiting on only a specific set of fonts before starting, or
-         displaying a loading screen, or simply rendering rectangles until the font's loaded and then
-         swapping in the font texture / vertex data.
+         displaying a loading screen, or simply rendering rectangles until the font's loaded and
+         then swapping in the font texture / vertex data.
 
                Ben - September 5th 2017
           */
@@ -324,7 +325,10 @@ module Load (Font: FontType.t) => {
           winNode.context.visible = false;
           let elementsNode =
             View.createElement
-              style::rootstyle color::defaultColor children::(Array.to_list (makeChildren ())) ();
+              style::rootstyle
+              color::defaultColor
+              children::(Array.to_list (makeBricks appState.tiles))
+              ();
           root.children = [|elementsNode, paddle, timerNode, loseNode, winNode|];
           /* This is a bit annoying but we have to manually set the childrenCount. Maybe an
              optimization for ReLayout? */
@@ -335,9 +339,10 @@ module Load (Font: FontType.t) => {
           Draw.traverseAndDraw root 0. 0.
         }
       } else {
-        /*lastFrameTime := time;*/
         /** Remember to clear the screen at each tick */
         Draw.clearScreen ();
+
+        /** Static UI tree for the win! */
         let (elementsNode, paddle, timerNode, loseNode, winNode) =
           switch root.children {
           | [|elementsNode, paddle, timerNode, loseNode, winNode|] => (
@@ -350,7 +355,8 @@ module Load (Font: FontType.t) => {
           | _ => assert false
           };
 
-        /** */
+        /** Animation loop here. Update the widths of the bricks that are hit until they reach 0
+            width. */
         let totalHidden = ref 0;
         let i = ref 0;
         Array.iter
@@ -387,15 +393,13 @@ module Load (Font: FontType.t) => {
             }
           )
           elementsNode.children;
-        /*if (!font7 !== None && ttt.Layout.context === Node.nullContext) {
-            ttt.Layout.context = Draw.generateTextContext "YOU WIN <3" Draw.black font7;
-          };*/
 
-        /** Timer */
+        /** Initial Timer */
         if (appState.timer > 0.) {
           /** timer countdown */
           timerNode.style.left = windowWidth /. 2. -. 75. /. 2.;
           timerNode.style.top = windowHeight /. 2. -. 155. /. 2.;
+          /* Update time text */
           let text = Printf.sprintf "%d" (int_of_float (ceil @@ appState.timer /. 1000.));
           switch timerNode.children {
           | [|textNode|] =>
@@ -442,7 +446,7 @@ module Load (Font: FontType.t) => {
                   appState.ballV.y = 2.;
                   loseNode.context.visible = false;
                   timerNode.context.visible = true;
-                  elementsNode.children = makeChildren ();
+                  elementsNode.children = makeBricks appState.tiles;
                   winNode.context.visible = false;
                   (0.3, 0.5, 1., 1.)
                 } else {
@@ -459,14 +463,12 @@ module Load (Font: FontType.t) => {
           root.isDirty = true
         };
 
-        /** This will perform all of the Flexbox calculations and mutate the layouts to have left, top, width, height set. The positions are relative to the parent. */
+        /** This will perform all of the Flexbox calculations and mutate the layouts to have left,
+            top, width, height set. The positions are relative to the parent. */
         Layout.doLayoutNow root;
 
         /** This will traverse the layout tree and blit each item to the screen one by one. */
         Draw.traverseAndDraw root 0. 0.;
-        /* Because font's loaded async, all of the text starts with nullContext and never get a new context, even when the font changes... We  need to call generateTextContext whenever the font's ready.
-           tbd*/
-        /*Draw.drawTextImmediate 12. 20. "Hello Sailor!" outContext::fpsTextData Draw.black font7;*/
 
         /** Move ball */
         let {x: ballX, y: ballY} = appState.ballPos;
@@ -484,6 +486,8 @@ module Load (Font: FontType.t) => {
           } else {
             (ballVX +. ballX, ballVY +. ballY)
           };
+
+        /** Keyboard events handling */
         if (appState.keyboard.leftIsDown && not appState.keyboard.rightIsDown) {
           paddle.style.left = paddle.layout.left -. paddleSpeed;
           root.isDirty = true
@@ -493,6 +497,8 @@ module Load (Font: FontType.t) => {
           paddle.style.left = paddle.layout.left +. paddleSpeed;
           root.isDirty = true
         };
+
+        /** Win state! */
         let (nextX, nextY) =
           if (!totalHidden === totalTiles) {
             winNode.context.visible = true;
@@ -502,6 +508,8 @@ module Load (Font: FontType.t) => {
           } else {
             (nextX, nextY)
           };
+
+        /** Ball physics for the edges of the screen */
         if
           Layout.(
             nextX -. r < elementsNode.layout.left ||
@@ -522,7 +530,7 @@ module Load (Font: FontType.t) => {
           let collided = ref false;
           {
 
-            /** */
+            /** Ball physics for hitting the player's paddle */
             let {Layout.context: context, layout: {top, left, width, height}} = paddle;
             if context.visible {
               let topLeft = (left, top);
@@ -555,7 +563,7 @@ module Load (Font: FontType.t) => {
             }
           };
 
-          /** */
+          /** Physics for hitting the bricks and hiding them. */
           let parentLeft = elementsNode.layout.left;
           let parentTop = elementsNode.layout.top;
           Array.iter
@@ -602,17 +610,14 @@ module Load (Font: FontType.t) => {
               }
             )
             elementsNode.children;
+
+          /** actually move the ball */
           if (not !collided) {
             appState.ballPos.x = nextX;
             appState.ballPos.y = nextY
           }
         }
       };
-    /*if (time -. 0.001 > 1000. /. 60.) {
-        print_endline @@ "slooooow"
-      }*/
-    /*print_endline @@ "------------------------------------------------------------";*/
-    /*Gc.print_stat stdout*/
     let keyDown ::keycode repeat::_ =>
       Draw.Events.(
         switch keycode {
