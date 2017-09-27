@@ -579,7 +579,7 @@ let generateRectContext outContext::(outContext: option Node.context)=? (r, g, b
     };
   let texX = 0.;
   let texY = 0.;
-  let texW = 1.0 /. 1024.;
+  let texW = 1.0 /. 2048.;
   let texH = 0.;
   unsafe_set vertexArray 0 1.;
   unsafe_set vertexArray 1 1.;

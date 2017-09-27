@@ -49,7 +49,7 @@ let loadFont ::fontSize ::fontPath ::id => {
   let (face, _info) = new_face fontPath id;
   set_char_size face fontSize fontSize csize csize;
   set_charmap face Ftlow.{platform_id: 3, encoding_id: 1};
-  let texLength = 1024;
+  let texLength = 2048;
   let bigarrayTextData =
     Draw.Gl.Bigarray.create Draw.Gl.Bigarray.Uint8 (texLength * texLength * 4);
   /* @Incomplete @Hack fill bigarray with 0s. We need to add Bigarray.fill to reasongl-interface

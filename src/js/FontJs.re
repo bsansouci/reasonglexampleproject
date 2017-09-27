@@ -14,8 +14,8 @@ let getContext: unit => contextT = [%bs.raw
   {| function() {
     let canvas = document.createElement('canvas');
     // document.body.appendChild(canvas);
-    canvas.width = 1024;
-    canvas.height = 1024;
+    canvas.width = 2048;
+    canvas.height = 2048;
 
   let context = canvas.getContext('2d');
   context.clearRect(0, 0, canvas.width, canvas.height);
@@ -66,7 +66,7 @@ let loadFont ::fontSize ::fontPath id::(_: int) => {
   let prevX = ref 4;
   let prevY = ref 0;
   let nextY = ref 0;
-  let texLength = 1024;
+  let texLength = 2048;
   let chars = ref Draw.IntMap.empty;
   let kerningMap = ref Draw.IntPairMap.empty;
   let maxHeight = ref 0;
