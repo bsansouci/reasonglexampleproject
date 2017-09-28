@@ -1,5 +1,8 @@
 # ReasonGL Full Example
-More complex Example project using `ReasonGL`.
+Complex Example project using `ReasonGL`.
+
+To see a simple example look at [this branch](https://github.com/bsansouci/reasonglexampleproject/tree/bsb-support-new).
+
 
 This project is showing how to:
 - render text, textures and arbitrary geometry in GL
