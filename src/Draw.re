@@ -1,5 +1,5 @@
 /*
-  This is all of the internals of this demo. Be weary, it's definitely not nice.
+  This is all of the internals of this demo. Be eary, it's definitely not nice.
 
   This contains code that'll generate vertex data which is sent to the GPU. That data is a linear array of x, y coordinates, r, g, b, a colors and s and t texture coordinates.
   We try to generate that data ahead of time as it's a bunch of allocations and calculations which lead the fps count to be around 12 if we did it every frame.
