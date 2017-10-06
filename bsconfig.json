@@ -41,9 +41,10 @@
       "main": "IndexJs"
     },
   ],
-  "static_libraries": [
+  "static-libraries": [
     "vendor/freetype-2.8/release/lib/libfreetype.a",
     "lib/bs/libTruetypebindings.o",
+    "lib/bs/Fun.o",
   ],
-  "build_script": "make"
+  "build-script": "make"
 }
