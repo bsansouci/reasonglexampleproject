@@ -1,3 +1,11 @@
+include [%matchenv
+  switch BSB_BACKEND {
+  | "native" => TestNative
+  | "bytecode" => TestNative
+  | "js" => TestJs
+  }
+];
+
 /*
 
   What is this?
@@ -17,31 +25,31 @@
           Ben - September 5th 2017
  */
 /* By the simple act of linking in the Draw module, window's created and GL gets initialized. */
-module Load (Font: FontType.t) => {
+module Load = (Font: FontType.t) => {
   module Layout = Draw.Layout;
   module Node = Draw.Node;
   module Font = Font;
-  module MainComponent = MainComponent.Load Font;
+  module MainComponent = MainComponent.Load(Font);
 
-  /** */
-  Random.init 0;
+  /*** */
+  Random.init(0);
 
-  /** */
-  let font12 = Font.loadFont fontSize::24. fontPath::"assets/fonts/OpenSans-Regular.ttf" id::0;
+  /*** */
+  let font12 = Font.loadFont(~fontSize=24., ~fontPath="assets/fonts/OpenSans-Regular.ttf", ~id=0);
 
-  /** List of fps of previous frames used to */
-  let lastCoupleOfFrames = ref [];
-  let fpsTextData = Draw.drawTextImmediate 12. 20. "fps:60" Draw.black font12;
+  /*** List of fps of previous frames used to */
+  let lastCoupleOfFrames = ref([]);
+  let fpsTextData = Draw.drawTextImmediate(12., 20., "fps:60", Draw.black, font12);
 
-  /** Commented out type magic used for hot-reloading in native dev. */
+  /*** Commented out type magic used for hot-reloading in native dev. */
   /*external magicalPoneys : 'a => 'b = "%identity";*/
 
-  /** Main function called 60 times a second. */
-  let render time => {
+  /*** Main function called 60 times a second. */
+  let render = (time) => {
     /* Remember to clear the clear at each tick */
-    Draw.clearScreen ();
+    Draw.clearScreen();
 
-    /** Magical hotreloading sauce. Currently commented out as explained at the top of the file */
+    /*** Magical hotreloading sauce. Currently commented out as explained at the top of the file */
     /*switch !Hotreloader.p {
       | Some s =>
         module M = (val (s: (module Hotreloader.DYNAMIC_MODULE)));
@@ -50,28 +58,32 @@ module Load (Font: FontType.t) => {
       | None => ()
       };*/
 
-    /** Main render call */
-    MainComponent.M.render time;
+    /*** Main render call */
+    MainComponent.M.render(time);
 
-    /** Happy FPS counter that smoothes things out. */
+    /*** Happy FPS counter that smoothes things out. */
     let fps = 1000. /. time;
-    if (List.length !lastCoupleOfFrames > 10) {
-      switch !lastCoupleOfFrames {
+    if (List.length(lastCoupleOfFrames^) > 10) {
+      switch lastCoupleOfFrames^ {
       | [_, ...rest] => lastCoupleOfFrames := rest @ [fps]
       | _ => assert false
       }
     } else {
-      lastCoupleOfFrames := !lastCoupleOfFrames @ [fps]
+      lastCoupleOfFrames := lastCoupleOfFrames^ @ [fps]
     };
     let fpscount =
-      int_of_float (
-        List.fold_left (fun acc v => v < acc ? v : acc) 60. !lastCoupleOfFrames +. 0.5
-      );
+      int_of_float(List.fold_left((acc, v) => v < acc ? v : acc, 60., lastCoupleOfFrames^) +. 0.5);
     ignore @@
-    Draw.drawTextImmediate
-      12. 20. ("fps:" ^ string_of_int fpscount) outContext::fpsTextData Draw.black font12
-    /** @Hack For hotreloading. We get the previous module's state and set it on the new module
-        loaded. Also relies on mutation! But shrug. */
+    Draw.drawTextImmediate(
+      12.,
+      20.,
+      "fps:" ++ string_of_int(fpscount),
+      ~outContext=fpsTextData,
+      Draw.black,
+      font12
+    )
+    /*** @Hack For hotreloading. We get the previous module's state and set it on the new module
+         loaded. Also relies on mutation! But shrug. */
     /*switch !Hotreloader.p {
       | Some s =>
         module M = (val (s: (module Hotreloader.DYNAMIC_MODULE)));
@@ -90,38 +102,38 @@ module Load (Font: FontType.t) => {
       }*/
   };
 
-  /** event handlers calling MainComponent directly instead of using the Hotreloader because that
-      doesn't work in JS right now. */
-  let mouseMove ::x ::y => MainComponent.M.mouseMove ::x ::y;
+  /*** event handlers calling MainComponent directly instead of using the Hotreloader because that
+       doesn't work in JS right now. */
+  let mouseMove = (~x, ~y) => MainComponent.M.mouseMove(~x, ~y);
   /*switch !Hotreloader.p {
     | Some s =>
       module M = (val (s: (module Hotreloader.DYNAMIC_MODULE)));
       M.mouseMove ::x ::y
     | None => ()
     };*/
-  let mouseDown ::button ::state ::x ::y => MainComponent.M.mouseDown ::button ::state ::x ::y;
+  let mouseDown = (~button, ~state, ~x, ~y) => MainComponent.M.mouseDown(~button, ~state, ~x, ~y);
   /*switch !Hotreloader.p {
     | Some s =>
       module M = (val (s: (module Hotreloader.DYNAMIC_MODULE)));
       M.mouseDown ::button ::state ::x ::y
     | None => ()
     };*/
-  let mouseUp ::button ::state ::x ::y => MainComponent.M.mouseUp ::button ::state ::x ::y;
+  let mouseUp = (~button, ~state, ~x, ~y) => MainComponent.M.mouseUp(~button, ~state, ~x, ~y);
   /*switch !Hotreloader.p {
     | Some s =>
       module M = (val (s: (module Hotreloader.DYNAMIC_MODULE)));
       M.mouseUp ::button ::state ::x ::y
     | None => ()
     };*/
-  let windowResize () => Draw.resizeWindow ();
-  let keyDown ::keycode ::repeat => MainComponent.M.keyDown ::keycode ::repeat;
+  let windowResize = () => Draw.resizeWindow();
+  let keyDown = (~keycode, ~repeat) => MainComponent.M.keyDown(~keycode, ~repeat);
   /*switch !Hotreloader.p {
     | Some s =>
       module M = (val (s: (module Hotreloader.DYNAMIC_MODULE)));
       M.keyDown ::keycode ::repeat
     | None => ()
     };*/
-  let keyUp ::keycode => MainComponent.M.keyUp ::keycode;
+  let keyUp = (~keycode) => MainComponent.M.keyUp(~keycode);
   /*switch !Hotreloader.p {
     | Some s =>
       module M = (val (s: (module Hotreloader.DYNAMIC_MODULE)));
@@ -129,6 +141,6 @@ module Load (Font: FontType.t) => {
     | None => ()
     };*/
 
-  /** Start the render loop. **/
-  Draw.render ::keyUp ::keyDown ::windowResize ::mouseMove ::mouseDown ::mouseUp render;
+  /*** Start the render loop. **/
+  Draw.render(~keyUp, ~keyDown, ~windowResize, ~mouseMove, ~mouseDown, ~mouseUp, render);
 };

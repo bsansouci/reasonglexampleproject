@@ -95,7 +95,7 @@
 /* }; */
 /* let scalarToString = string_of_int; */
 
-/**
+/***
  * Portion of the typical `Spec` that is ignored and instead hard coded to the
  * structure items below, so that we can ensure that inlining occurs. Once we
  * upgrade to `4.03+`, this hard coded module that the implementation relies
@@ -122,7 +122,7 @@
 
   */
 
-/**
+/***
  * TODO: Test if it's the ternary that's causing the performance.
  */
 /*let (-.) a b =>
@@ -152,13 +152,13 @@ type scalar = float;
 
 let cssUndefined = nan;
 
-let isUndefined (num: float) => num != num;
+let isUndefined = (num: float) => num != num;
 
 let zero = 0.0;
 
 let negativeOne = (-1.);
 
-let divideScalarByInt (f: float) (i: int) => f /. float_of_int i;
+let divideScalarByInt = (f: float, i: int) => f /. float_of_int(i);
 
 let (-.) = (-.);
 
@@ -172,4 +172,4 @@ let (~-.) = (~-.);
 
 let scalarToString = string_of_float;
 
-let scalarToFloat (f: float) => f;
+let scalarToFloat = (f: float) => f;

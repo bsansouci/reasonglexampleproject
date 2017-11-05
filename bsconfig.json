@@ -4,19 +4,18 @@
     "dir": "src",
     "subdirs": [{
       "dir": "native",
-      "kind": ["native", "bytecode"],
+      "backend": ["native", "bytecode"],
     }, {
       "dir": "js",
-      "kind": "js",
+      "backend": "js",
     }]
   }, {
     "dir": "vendor",
     "subdirs": [{
       "dir": "camlimages",
-      "kind": ["native", "bytecode"],
+      "backend": ["native", "bytecode"],
       "subdirs": {
         "dir": "src",
-        "kind": ["native", "bytecode"],
       },
     }, {
       "dir": "ReLayout",
@@ -26,19 +25,20 @@
       },
     }]
   }],
+  "ppx-flags": ["matchenv/matchenv"],
   "warnings": {"number": "+5-6+7+27+32..39-40-44+45-45"},
   "bs-dependencies": ["ReasonglInterface", "ReasonglNative", "ReasonglWeb", "FastHelpersJs", "FastHelpersNative"],
   "entries": [{
-      "kind": "bytecode",
-      "main": "IndexNative"
+      "backend": "bytecode",
+      "main-module": "IndexNative"
     },
     {
-      "kind": "native",
-      "main": "IndexNative"
+      "backend": "native",
+      "main-module": "IndexNative"
     },
     {
-      "kind": "js",
-      "main": "IndexJs"
+      "backend": "js",
+      "main-module": "IndexJs"
     },
   ],
   "static-libraries": [
@@ -46,5 +46,7 @@
     "lib/bs/libTruetypebindings.o",
     "lib/bs/Fun.o",
   ],
-  "build-script": "make"
+  "build-script": "make",
+  "bs-super-errors": true,
+  "refmt": 3
 }

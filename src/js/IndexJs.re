@@ -1,1 +1,1 @@
-module Main = Index.Load FontJs;
+module Main = Index.Load(FontJs);

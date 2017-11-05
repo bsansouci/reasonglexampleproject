@@ -1,1 +1,1 @@
-module Main = Index.Load FontNative;
+module Main = Index.Load(FontNative);
