@@ -1,11 +1,3 @@
-include [%matchenv
-  switch BSB_BACKEND {
-  | "native" => TestNative
-  | "bytecode" => TestNative
-  | "js" => TestJs
-  }
-];
-
 /*
 
   What is this?
