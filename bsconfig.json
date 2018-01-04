@@ -20,18 +20,18 @@
   }],
   "bs-dependencies": ["ReasonglInterface", "ReasonglWeb", "ReasonglNative"],
   "entries": [{
-      "kind": "bytecode",
-      "main": "Index"
+      "backend": "bytecode",
+      "main-module": "Index"
     },
 
     {
-      "kind": "native",
-      "main": "Index"
+      "backend": "native",
+      "main-module": "Index"
     }
   ],
-  "static_libraries": [
+  "static-libraries": [
     "vendor/freetype-2.8/release/lib/libfreetype.a",
     "lib/bs/libTruetypebindings.o",
   ],
-  "build_script": "make"
+  "build-script": "make"
 }

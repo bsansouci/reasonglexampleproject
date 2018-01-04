@@ -373,7 +373,7 @@ let drawRect x y width height (r, g, b, a) texture => {
 
   /** Tell OpenGL about what the uniform called `uSampler` is pointing at, here it's given 0 which
       is what texture0 represent.  **/
-  Gl.uniform1i ::context location::uSampler val::0;
+  Gl.uniform1i ::context location::uSampler value::0;
   Gl.bindTexture ::context target::RGLConstants.texture_2d ::texture;
 
   /** Final call which actually does the "draw" **/
