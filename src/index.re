@@ -1,5 +1,4 @@
 /*
- * vim: set ft=rust:
  * vim: set ft=reason:
  */
 module Constants = ReasonglInterface.Constants;
@@ -110,7 +109,7 @@ Gl.Window.setWindowSize ::window width::windowSize height::windowSize;
 /** Initialize the Gl context **/
 let context = Gl.Window.getContext window;
 
-Gl.viewport ::context x::0 y::0 width::windowSize height::windowSize;
+Gl.viewport ::context x::0 y::0 width::(Gl.Window.getPixelWidth window) height::(Gl.Window.getPixelHeight window);
 
 /* Gl.clearColor context 1.0 1.0 1.0 1.0; */
 Gl.clear
