@@ -1,7 +1,7 @@
 # ReasonGL Full Example
 Complex Example project using `ReasonGL`.
 
-To see a simple example look at [this branch](https://github.com/bsansouci/reasonglexampleproject/tree/bsb-support-new).
+To see a simple example look at [this branch](https://github.com/bsansouci/reasonglexampleproject/tree/simple).
 
 
 This project is showing how to:
