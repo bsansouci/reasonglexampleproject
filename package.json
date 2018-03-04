@@ -15,9 +15,7 @@
   "dependencies": {
     "FastHelpersJs": "bsansouci/FastHelpers#js",
     "FastHelpersNative": "bsansouci/FastHelpers#native",
-    "ReasonglInterface": "bsansouci/reasongl-interface",
-    "ReasonglNative": "bsansouci/reasongl-native",
-    "ReasonglWeb": "bsansouci/reasongl-web",
+    "Reasongl": "bsansouci/reasongl",
     "opentype.js": "^0.7.3"
   },
   "repository": {
