@@ -23,6 +23,6 @@
   },
   "author": "bsansouci & schmavery",
   "devDependencies": {
-    "bsb-native": "bsansouci/bsb-native#2.1.1"
+    "bs-platform": "bsansouci/bsb-native#2.1.1"
   }
 }
