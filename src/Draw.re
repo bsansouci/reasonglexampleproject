@@ -13,16 +13,7 @@
 
 
  */
-/*[%const
-    if true {
-      module FastHelpers = FastHelpersNative;
-      ()
-    } else {
-      module FastHelpers = FastHelpersJs;
-      ()
-    }
-  ];*/
-/*#endif*/
+
 module Constants = ReasonglInterface.Constants;
 
 module Gl: ReasonglInterface.Gl.t = Reasongl.Gl;
@@ -194,7 +185,7 @@ type glCamera = {projectionMatrix: Gl.Mat4.t};
   */
 
 /*** This initializes the window **/
-let window = Gl.Window.init(~argv=Sys.argv);
+let window = Gl.Window.init(~screen="asd", ~argv=Sys.argv);
 
 let windowWidth = 900;
 
