@@ -4,8 +4,8 @@
   "description": "Simple example project for Reasongl",
   "scripts": {
     "build": "bsb -make-world -backend bytecode",
-    "build:native": "bsb -make-world -backend native",
     "build:js": "bsb -make-world -backend js",
+    "build:native": "bsb -make-world -backend native",
     "clean": "bsb -clean-world",
     "start": "./lib/bs/bytecode/index.byte",
     "start:native": "./lib/bs/native/index.native",
@@ -13,9 +13,7 @@
     "watch:js": "bsb -make-world -backend js -w"
   },
   "dependencies": {
-    "ReasonglInterface": "bsansouci/reasongl-interface",
-    "ReasonglNative": "bsansouci/reasongl-native",
-    "ReasonglWeb": "bsansouci/reasongl-web"
+    "Reasongl": "bsansouci/reasongl"
   },
   "repository": {
     "type": "git",

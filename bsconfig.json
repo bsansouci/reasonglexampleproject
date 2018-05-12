@@ -1,7 +1,7 @@
 {
   "name": "ReasonglExampleProject",
   "sources": "src",
-  "bs-dependencies": ["ReasonglInterface", "ReasonglWeb", "ReasonglNative"],
+  "bs-dependencies": ["Reasongl"],
   "entries":[{
     "backend": "js",
     "main-module": "Index"
