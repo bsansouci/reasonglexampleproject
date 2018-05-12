@@ -4,11 +4,11 @@
 
 FastHelpersJs@bsansouci/FastHelpers#js:
   version "0.1.0"
-  resolved "https://codeload.github.com/bsansouci/FastHelpers/tar.gz/e149a192f964b66fc06b99584fb996e6aa4c9bf1"
+  resolved "https://codeload.github.com/bsansouci/FastHelpers/tar.gz/f76f91604f2d4543e4bdd4d13250f86b17fdd409"
 
 FastHelpersNative@bsansouci/FastHelpers#native:
   version "0.1.0"
-  resolved "https://codeload.github.com/bsansouci/FastHelpers/tar.gz/b35dd8bcf9adfb9e3b709c866ca06d9d67d4975d"
+  resolved "https://codeload.github.com/bsansouci/FastHelpers/tar.gz/6e74bf2d6a99853dc603a33dcff3313809109432"
 
 JSONStream@^1.3.2:
   version "1.3.2"
