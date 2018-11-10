@@ -1105,8 +1105,16 @@ let rec traverseAndDraw = (~indentation=0, root, left, top) =>
     }
   );
 
+let frame = ref(0);
 /* Main draw traversal */
 let traverseAndDraw = (root, left, top) => {
+  if (frame^ === 0) {
+    frame := frame^ + 1;
+  } else if (frame^ === 1) {
+    /* Same @Hack as https://github.com/Schmavery/reprocessing/commit/36e684a65c9edbefce38184f0c0c664f2d5fc19e. */
+    Gl.Window.setWindowSize(~window, ~width=windowWidth, ~height=windowHeight);
+    frame := frame^ + 1;
+  };
   traverseAndDraw(root, left, top);
-  flushGlobalBatch()
+  flushGlobalBatch();
 };
