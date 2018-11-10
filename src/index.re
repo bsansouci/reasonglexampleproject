@@ -178,11 +178,19 @@ Gl.Mat4.ortho
   near::0.
   far::100.;
 
+let frame = ref(0);
 
 /**
  * Render simply draws a rectangle.
  */
 let render time => {
+  if (!frame === 0) {
+    frame := !frame + 1;
+  } else if (!frame === 1) {
+    /* Same @Hack as https://github.com/Schmavery/reprocessing/commit/36e684a65c9edbefce38184f0c0c664f2d5fc19e. */
+    Gl.Window.setWindowSize ::window width::windowSize height::windowSize;
+    frame := !frame + 1;
+  };
   /* 0,0 is the bottom left corner */
   let x = 150;
   let y = 150;
