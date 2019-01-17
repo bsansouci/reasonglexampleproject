@@ -11,7 +11,7 @@ type dataT;
 [@bs.get] external getData : dataT => array(int) = "data";
 
 let getContext: unit => contextT = [%bs.raw
-  {| function() {
+  {| function(_) {
     let canvas = document.createElement('canvas');
     // document.body.appendChild(canvas);
     canvas.width = 2048;
@@ -84,7 +84,7 @@ let loadFont = (~fontSize, ~fontPath, ~id as _: int) => {
   load(
     fontPath,
     (err, font) =>
-      if (Js.Null.test(err)) {
+      if (Js.null == err) {
         let fontSize = int_of_float(fontSize);
         let scale = font##unitsPerEm;
         let ascender = font##ascender * fontSize / scale;
